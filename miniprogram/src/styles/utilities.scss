@@ -1,0 +1,78 @@
+/**
+ * 轻量工具类：只保留项目里真正用到的一小批，
+ * 避免在小程序端引入原子化 CSS 框架带来的产物兼容问题。
+ */
+
+.flex {
+  display: flex;
+}
+
+.items-baseline {
+  align-items: baseline;
+}
+
+.flex-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.flex-between {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.ellipsis {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.ellipsis-2 {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  word-break: break-all;
+}
+
+.text-24rpx {
+  font-size: 24rpx;
+}
+
+.text-26rpx {
+  font-size: 26rpx;
+}
+
+.text-30rpx {
+  font-size: 30rpx;
+}
+
+.text-32rpx {
+  font-size: 32rpx;
+}
+
+.text-34rpx {
+  font-size: 34rpx;
+}
+
+.text-36rpx {
+  font-size: 36rpx;
+}
+
+.text-48rpx {
+  font-size: 48rpx;
+}
+
+.text-light {
+  color: #bfbfbf;
+}
+
+.text-muted {
+  color: #8c8c8c;
+}
+
+.placeholder-muted {
+  color: #bfbfbf;
+}

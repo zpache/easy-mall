@@ -1,0 +1,14 @@
+spring:
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://${MYSQL_HOST:127.0.0.1}:${MYSQL_PORT:3306}/${MYSQL_DATABASE:easy_mall}?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+    username: ${MYSQL_USERNAME:root}
+    # 密码不落仓库：由环境变量 MYSQL_PASSWORD 注入，
+    # 或写在 gitignore 的 application-local.yml 里（profile: local，本地默认激活）
+    password: ${MYSQL_PASSWORD:}
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+      connection-timeout: 30000
+
+# SQL 日志由 logback 的 com.easymall DEBUG 输出（日志实现走 SLF4J → Logback，不再用 StdOutImpl）

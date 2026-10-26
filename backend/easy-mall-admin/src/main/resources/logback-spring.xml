@@ -1,0 +1,150 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  统一日志配置（Logback）
+
+  约定：
+  1. 业务代码只依赖 SLF4J API（Lombok @Slf4j），具体实现由 Spring Boot 默认的 Logback 绑定，
+     不引入 log4j2 / logback 之外的门面实现。
+  2. 日志格式、滚动策略、级别全部在本文件维护，application*.yml 里不再写 logging.* 配置，避免两处打架。
+  3. 输出三份：控制台（便于容器收集）、全量文件、错误文件（只收 ERROR，便于告警）。
+  4. 同一请求的日志用 MDC 中的 traceId 串联，格式见下方 pattern。
+  5. 本文件与 easy-mall-api 的同名文件保持一致，差异只由 spring.application.name 决定；
+     改动时两边同步（无公共模块，暂不抽 common）。
+-->
+<configuration scan="false" scanPeriod="60 seconds">
+
+    <!-- 应用名决定日志文件名：easy-mall-admin / easy-mall-api -->
+    <springProperty scope="context" name="APP_NAME" source="spring.application.name" defaultValue="easy-mall"/>
+    <!-- 日志目录：可用 logging.file.path 或环境变量 LOGGING_FILE_PATH 覆盖，默认工作目录下 logs -->
+    <springProperty scope="context" name="LOG_PATH" source="logging.file.path" defaultValue="logs"/>
+
+    <!-- 文件格式：无颜色，带 traceId、线程、logger 简称 -->
+    <property name="FILE_PATTERN"
+              value="%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%thread] [%X{traceId:-}] %logger{50} - %msg%n%ex"/>
+    <!-- 控制台格式：多一层颜色，便于本地排障 -->
+    <property name="CONSOLE_PATTERN"
+              value="%d{yyyy-MM-dd HH:mm:ss.SSS} %highlight(%-5level) %magenta([%thread]) %cyan([%X{traceId:-}]) %logger{50} - %msg%n%ex"/>
+
+    <!-- ==================== Appender ==================== -->
+
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>${CONSOLE_PATTERN}</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+    </appender>
+
+    <!-- 文件类 Appender 只在非 test 环境注册：test 既不落盘，也不会凭空生成 0 字节空文件 -->
+    <springProfile name="!test">
+
+        <!-- 全量日志：按天 + 按大小滚动，单文件 100MB，保留 30 天，总量上限 3GB -->
+        <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+            <file>${LOG_PATH}/${APP_NAME}.log</file>
+            <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+                <fileNamePattern>${LOG_PATH}/${APP_NAME}.%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
+                <maxFileSize>100MB</maxFileSize>
+                <maxHistory>30</maxHistory>
+                <totalSizeCap>3GB</totalSizeCap>
+                <cleanHistoryOnStart>true</cleanHistoryOnStart>
+            </rollingPolicy>
+            <encoder>
+                <pattern>${FILE_PATTERN}</pattern>
+                <charset>UTF-8</charset>
+            </encoder>
+            <immediateFlush>true</immediateFlush>
+        </appender>
+
+        <!-- 错误日志：只收 ERROR，交给告警/巡检，不与全量日志混在一起 -->
+        <appender name="ERROR_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+            <file>${LOG_PATH}/${APP_NAME}-error.log</file>
+            <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+                <level>ERROR</level>
+            </filter>
+            <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+                <fileNamePattern>${LOG_PATH}/${APP_NAME}-error.%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
+                <maxFileSize>50MB</maxFileSize>
+                <maxHistory>60</maxHistory>
+                <totalSizeCap>1GB</totalSizeCap>
+                <cleanHistoryOnStart>true</cleanHistoryOnStart>
+            </rollingPolicy>
+            <encoder>
+                <pattern>${FILE_PATTERN}</pattern>
+                <charset>UTF-8</charset>
+            </encoder>
+            <immediateFlush>true</immediateFlush>
+        </appender>
+
+        <!-- 异步包装：磁盘 IO 不阻塞业务线程；队列满时阻塞而不是丢日志 -->
+        <appender name="ASYNC_FILE" class="ch.qos.logback.classic.AsyncAppender">
+            <queueSize>1024</queueSize>
+            <discardingThreshold>0</discardingThreshold>
+            <neverBlock>false</neverBlock>
+            <includeCallerData>false</includeCallerData>
+            <appender-ref ref="FILE"/>
+        </appender>
+
+        <appender name="ASYNC_ERROR_FILE" class="ch.qos.logback.classic.AsyncAppender">
+            <queueSize>512</queueSize>
+            <discardingThreshold>0</discardingThreshold>
+            <neverBlock>false</neverBlock>
+            <includeCallerData>false</includeCallerData>
+            <appender-ref ref="ERROR_FILE"/>
+        </appender>
+
+    </springProfile>
+
+    <!-- ==================== 公共降噪 ==================== -->
+
+    <!-- 启动阶段 Tomcat/Spring 的重复信息降到 WARN，业务日志更干净 -->
+    <logger name="org.apache.catalina" level="WARN"/>
+    <logger name="org.apache.tomcat" level="WARN"/>
+    <logger name="org.apache.coyote" level="WARN"/>
+    <logger name="org.springframework.boot.web.embedded" level="INFO"/>
+
+    <!-- ==================== 分环境 ==================== -->
+
+    <!-- 开发：控制台 + 文件，业务包 DEBUG（含 MyBatis 的 SQL 日志），不打印框架 DEBUG -->
+    <springProfile name="dev">
+        <logger name="com.easymall" level="DEBUG"/>
+        <logger name="org.springframework" level="INFO"/>
+        <logger name="org.springframework.security" level="WARN"/>
+        <logger name="org.mybatis" level="INFO"/>
+        <root level="INFO">
+            <appender-ref ref="CONSOLE"/>
+            <appender-ref ref="ASYNC_FILE"/>
+            <appender-ref ref="ASYNC_ERROR_FILE"/>
+        </root>
+    </springProfile>
+
+    <!-- 测试：只打控制台，不落文件，避免 mvn test 污染工作目录 -->
+    <springProfile name="test">
+        <logger name="com.easymall" level="INFO"/>
+        <root level="WARN">
+            <appender-ref ref="CONSOLE"/>
+        </root>
+    </springProfile>
+
+    <!-- 生产：控制台给容器收，文件留档；业务包 INFO，框架包只留 WARN 以上 -->
+    <springProfile name="prod">
+        <logger name="com.easymall" level="INFO"/>
+        <logger name="org.springframework" level="WARN"/>
+        <logger name="org.springframework.security" level="WARN"/>
+        <logger name="org.mybatis" level="WARN"/>
+        <root level="INFO">
+            <appender-ref ref="CONSOLE"/>
+            <appender-ref ref="ASYNC_FILE"/>
+            <appender-ref ref="ASYNC_ERROR_FILE"/>
+        </root>
+    </springProfile>
+
+    <!-- 未指定 profile 时的兜底，等价于 prod -->
+    <springProfile name="!dev &amp; !test &amp; !prod">
+        <logger name="com.easymall" level="INFO"/>
+        <root level="INFO">
+            <appender-ref ref="CONSOLE"/>
+            <appender-ref ref="ASYNC_FILE"/>
+            <appender-ref ref="ASYNC_ERROR_FILE"/>
+        </root>
+    </springProfile>
+
+</configuration>

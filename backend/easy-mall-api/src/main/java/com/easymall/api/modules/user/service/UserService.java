@@ -1,0 +1,49 @@
+package com.easymall.api.modules.user.service;
+
+import com.easymall.api.common.api.ResultCode;
+import com.easymall.api.common.context.UserContext;
+import com.easymall.api.common.exception.BusinessException;
+import com.easymall.api.modules.user.dto.ProfileForm;
+import com.easymall.api.modules.user.entity.AppUser;
+import com.easymall.api.modules.user.mapper.AppUserMapper;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
+
+/**
+ * 小程序用户服务。
+ */
+@Service
+@RequiredArgsConstructor
+public class UserService {
+
+    private final AppUserMapper appUserMapper;
+
+    public AppUser currentUser() {
+        AppUser user = appUserMapper.selectById(UserContext.userId());
+        if (user == null) {
+            throw new BusinessException(ResultCode.UNAUTHORIZED);
+        }
+        if (!Integer.valueOf(1).equals(user.getStatus())) {
+            throw new BusinessException(ResultCode.USER_DISABLED);
+        }
+        return user;
+    }
+
+    public AppUser updateProfile(ProfileForm form) {
+        AppUser user = currentUser();
+        if (StringUtils.hasText(form.nickname())) {
+            user.setNickname(form.nickname());
+        }
+        if (StringUtils.hasText(form.avatar())) {
+            user.setAvatar(form.avatar());
+        }
+        if (form.gender() != null) {
+            user.setGender(form.gender());
+        }
+        if (appUserMapper.updateById(user) == 0) {
+            throw new BusinessException(ResultCode.DATA_CONFLICT);
+        }
+        return user;
+    }
+}
