@@ -1,0 +1,61 @@
+
+@import './utilities.scss';
+
+page {
+  background-color: $page-bg;
+}
+
+view,
+text,
+image,
+scroll-view {
+  box-sizing: border-box;
+}
+
+/* 通用列表项 */
+.cell {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 28rpx 24rpx;
+  background-color: #ffffff;
+  border-bottom: 1rpx solid $border-color;
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.cell-arrow::after {
+  content: '';
+  width: 16rpx;
+  height: 16rpx;
+  border-top: 2rpx solid $text-placeholder;
+  border-right: 2rpx solid $text-placeholder;
+  transform: rotate(45deg);
+  margin-left: 8rpx;
+}
+
+/* 价格 */
+.price {
+  color: $danger;
+  font-weight: 600;
+}
+
+.price-symbol {
+  font-size: 24rpx;
+  margin-right: 2rpx;
+}
+
+.price-origin {
+  color: $text-placeholder;
+  font-size: 24rpx;
+  text-decoration: line-through;
+  margin-left: 12rpx;
+}
+
+/* 安全区 */
+.safe-bottom {
+  padding-bottom: constant(safe-area-inset-bottom);
+  padding-bottom: env(safe-area-inset-bottom);
+}

@@ -1,0 +1,50 @@
+import { computed, ref } from 'vue'
+import { defineStore } from 'pinia'
+import { authApi, userApi } from '@/api/user'
+import type { UserProfile } from '@/types/api'
+import { clearToken, getToken, setToken } from '@/utils/storage'
+
+/**
+ * 用户状态：token + 资料。
+ */
+export const useUserStore = defineStore('user', () => {
+  const token = ref<string>(getToken())
+  const profile = ref<UserProfile | null>(null)
+  const isLogin = computed(() => !!token.value)
+
+  /** 微信静默登录：wx.login 拿 code -> 后端换 token */
+  async function login() {
+    const code = await getWxCode()
+    const result = await authApi.login(code)
+    token.value = result.accessToken
+    setToken(result.accessToken)
+    await fetchProfile()
+  }
+
+  async function fetchProfile() {
+    profile.value = await userApi.profile()
+    return profile.value
+  }
+
+  function logout() {
+    token.value = ''
+    profile.value = null
+    clearToken()
+  }
+
+  return { token, profile, isLogin, login, fetchProfile, logout }
+})
+
+/**
+ * 获取微信登录 code。H5 调试时 uni.login 不可用，用时间戳兜底
+ * （后端 easy-mall.wx.mock=true 时会直接接受任意 code）。
+ */
+function getWxCode(): Promise<string> {
+  return new Promise((resolve) => {
+    uni.login({
+      provider: 'weixin',
+      success: (res) => resolve(res.code || `h5_${Date.now()}`),
+      fail: () => resolve(`h5_${Date.now()}`)
+    })
+  })
+}
