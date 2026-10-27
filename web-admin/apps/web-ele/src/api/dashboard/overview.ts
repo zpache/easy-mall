@@ -4,12 +4,12 @@ import { requestClient } from '#/api/request';
 export interface DashboardOverview {
   /** 今日订单数 */
   todayOrders: number;
-  /** 累计订单数 */
-  totalOrders: number;
+  /** 订单较昨日环比（%） */
+  ordersChainRate: number;
   /** 今日销售额（元） */
   todaySales: number;
-  /** 累计销售额（元） */
-  totalSales: number;
+  /** 销售额较昨日环比（%） */
+  salesChainRate: number;
   /** 待发货订单数 */
   pendingDelivery: number;
   /** 已完成订单数 */

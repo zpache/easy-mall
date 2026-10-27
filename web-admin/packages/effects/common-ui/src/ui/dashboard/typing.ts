@@ -6,7 +6,10 @@ interface AnalysisOverviewItem {
   icon: Component | string;
   title: string;
   totalTitle: string;
-  totalValue: number;
+  /** 底部数值：传入 totalText 时显示文字（如环比 +12.5%），否则用数字动画显示 totalValue */
+  totalValue?: number;
+  totalText?: string;
+  totalTextClass?: string;
   value: number;
 }
 

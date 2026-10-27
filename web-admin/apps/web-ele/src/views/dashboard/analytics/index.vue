@@ -43,16 +43,18 @@ async function loadOverview() {
     {
       icon: SvgCardIcon,
       title: '今日订单',
-      totalTitle: '累计订单',
-      totalValue: data.totalOrders,
+      totalTitle: '较昨日',
+      totalText: chainText(data.ordersChainRate),
+      totalTextClass: chainClass(data.ordersChainRate),
       value: data.todayOrders,
     },
     {
       decimals: 2,
       icon: SvgCakeIcon,
       title: '今日销售额',
-      totalTitle: '累计销售额',
-      totalValue: data.totalSales,
+      totalTitle: '较昨日',
+      totalText: chainText(data.salesChainRate),
+      totalTextClass: chainClass(data.salesChainRate),
       value: data.todaySales,
     },
     {
@@ -70,6 +72,20 @@ async function loadOverview() {
       value: data.stockWarning,
     },
   ];
+}
+
+/** 环比文案：正数带 +，0 显示「持平」 */
+function chainText(rate?: number) {
+  if (rate === undefined || rate === null) return '--';
+  if (rate > 0) return `+${rate}%`;
+  if (rate < 0) return `${rate}%`;
+  return '持平';
+}
+
+/** 环比颜色：涨红跌绿（国内习惯） */
+function chainClass(rate?: number) {
+  if (rate === undefined || rate === null || rate === 0) return '';
+  return rate > 0 ? 'text-red-500' : 'text-green-500';
 }
 
 onMounted(() => {

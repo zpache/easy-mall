@@ -213,14 +213,16 @@ class EasyMallAdminApplicationTests {
     void dashboardOverviewAggregates() {
         DashboardOverviewVO overview = dashboardService.overview();
 
-        // H2 种子有 2 笔已付款订单（1002 待发货、1007 待收货），created_at 默认当天，均计入今日订单
-        assertEquals(2, overview.totalOrders(), "累计订单应为 2 笔");
-        assertEquals(1, overview.pendingDelivery(), "待发货应为 1 笔（1002）");
+        // H2 种子有 2 笔已付款订单（1002 待发货、1007 待收货），created_at 默认当天：
+        // 今日订单 2、昨日 0 → 环比 +100%；pay_time 在过去 → 今昨销售额均为 0 → 环比 0
         assertEquals(2, overview.todayOrders(), "种子订单创建于当天，今日订单应为 2");
+        assertEquals(0, new java.math.BigDecimal("100.0").compareTo(overview.ordersChainRate()),
+                "昨日订单为 0 且今日有单，订单环比应为 +100%");
         assertEquals(0, java.math.BigDecimal.ZERO.compareTo(overview.todaySales()),
                 "种子订单支付时间在过去，今日销售额应为 0");
-        assertEquals(0, new java.math.BigDecimal("89.80").compareTo(overview.totalSales()),
-                "累计销售额应为 29.90 + 59.90 = 89.80");
+        assertEquals(0, java.math.BigDecimal.ZERO.compareTo(overview.salesChainRate()),
+                "今昨销售额均为 0，环比应为 0");
+        assertEquals(1, overview.pendingDelivery(), "待发货应为 1 笔（1002）");
 
         assertNotNull(overview.finishedOrders());
         assertNotNull(overview.stockWarning());
