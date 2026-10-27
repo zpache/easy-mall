@@ -13,7 +13,7 @@ import java.time.LocalDateTime;
  */
 @Data
 @EqualsAndHashCode(callSuper = true)
-@TableName("mall_order_comment")
+@TableName("o_order_comment")
 public class OrderComment extends BaseEntity {
 
     @TableId(type = IdType.AUTO)

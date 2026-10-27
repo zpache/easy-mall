@@ -11,7 +11,7 @@ import java.io.Serializable;
  * 会员-标签关联。
  */
 @Data
-@TableName("mall_member_user_tag")
+@TableName("m_member_user_tag")
 public class MemberUserTag implements Serializable {
 
     @TableId(type = IdType.AUTO)

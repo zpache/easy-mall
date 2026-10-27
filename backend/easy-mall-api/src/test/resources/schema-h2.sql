@@ -1,6 +1,6 @@
 -- 仅用于单元测试的 H2 建表脚本（MODE=MySQL）
-DROP TABLE IF EXISTS app_user;
-CREATE TABLE app_user
+DROP TABLE IF EXISTS m_member;
+CREATE TABLE m_member
 (
     id         bigint AUTO_INCREMENT PRIMARY KEY,
     openid     varchar(64) NOT NULL,

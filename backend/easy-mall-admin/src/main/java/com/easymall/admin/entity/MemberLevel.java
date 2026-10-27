@@ -13,7 +13,7 @@ import java.math.BigDecimal;
  */
 @Data
 @EqualsAndHashCode(callSuper = true)
-@TableName("mall_member_level")
+@TableName("m_member_level")
 public class MemberLevel extends BaseEntity {
 
     @TableId(type = IdType.AUTO)
