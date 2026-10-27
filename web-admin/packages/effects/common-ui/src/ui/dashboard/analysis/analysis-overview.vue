@@ -34,6 +34,7 @@ withDefaults(defineProps<Props>(), {
 
         <CardContent class="flex items-center justify-between">
           <VbenCountToAnimator
+            :decimals="item.decimals ?? 0"
             :end-val="item.value"
             :start-val="1"
             class="text-xl"
@@ -44,6 +45,7 @@ withDefaults(defineProps<Props>(), {
         <CardFooter class="justify-between">
           <span>{{ item.totalTitle }}</span>
           <VbenCountToAnimator
+            :decimals="item.decimals ?? 0"
             :end-val="item.totalValue"
             :start-val="1"
             prefix=""

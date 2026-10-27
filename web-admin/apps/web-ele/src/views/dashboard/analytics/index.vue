@@ -2,6 +2,8 @@
 import type { AnalysisOverviewItem } from '@vben/common-ui';
 import type { TabOption } from '@vben/types';
 
+import { onMounted, ref } from 'vue';
+
 import {
   AnalysisChartCard,
   AnalysisChartsTabs,
@@ -14,42 +16,15 @@ import {
   SvgDownloadIcon,
 } from '@vben/icons';
 
+import { getDashboardOverviewApi } from '#/api/dashboard';
+
 import AnalyticsTrends from './analytics-trends.vue';
 import AnalyticsVisitsData from './analytics-visits-data.vue';
 import AnalyticsVisitsSales from './analytics-visits-sales.vue';
 import AnalyticsVisitsSource from './analytics-visits-source.vue';
 import AnalyticsVisits from './analytics-visits.vue';
 
-const overviewItems: AnalysisOverviewItem[] = [
-  {
-    icon: SvgCardIcon,
-    title: '用户量',
-    totalTitle: '总用户量',
-    totalValue: 120_000,
-    value: 2000,
-  },
-  {
-    icon: SvgCakeIcon,
-    title: '访问量',
-    totalTitle: '总访问量',
-    totalValue: 500_000,
-    value: 20_000,
-  },
-  {
-    icon: SvgDownloadIcon,
-    title: '下载量',
-    totalTitle: '总下载量',
-    totalValue: 120_000,
-    value: 8000,
-  },
-  {
-    icon: SvgBellIcon,
-    title: '使用量',
-    totalTitle: '总使用量',
-    totalValue: 50_000,
-    value: 5000,
-  },
-];
+const overviewItems = ref<AnalysisOverviewItem[]>([]);
 
 const chartTabs: TabOption[] = [
   {
@@ -61,6 +36,45 @@ const chartTabs: TabOption[] = [
     value: 'visits',
   },
 ];
+
+async function loadOverview() {
+  const data = await getDashboardOverviewApi();
+  overviewItems.value = [
+    {
+      icon: SvgCardIcon,
+      title: '今日订单',
+      totalTitle: '累计订单',
+      totalValue: data.totalOrders,
+      value: data.todayOrders,
+    },
+    {
+      decimals: 2,
+      icon: SvgCakeIcon,
+      title: '今日销售额',
+      totalTitle: '累计销售额',
+      totalValue: data.totalSales,
+      value: data.todaySales,
+    },
+    {
+      icon: SvgDownloadIcon,
+      title: '待发货订单',
+      totalTitle: '已完成订单',
+      totalValue: data.finishedOrders,
+      value: data.pendingDelivery,
+    },
+    {
+      icon: SvgBellIcon,
+      title: '库存预警',
+      totalTitle: '在售商品',
+      totalValue: data.onSaleGoods,
+      value: data.stockWarning,
+    },
+  ];
+}
+
+onMounted(() => {
+  loadOverview();
+});
 </script>
 
 <template>
@@ -82,7 +96,7 @@ const chartTabs: TabOption[] = [
       <AnalysisChartCard class="mt-5 md:mt-0 md:mr-4 md:w-1/3" title="访问来源">
         <AnalyticsVisitsSource />
       </AnalysisChartCard>
-      <AnalysisChartCard class="mt-5 md:mt-0 md:w-1/3" title="访问来源">
+      <AnalysisChartCard class="mt-5 md:mt-0 md:w-1/3" title="销售概览">
         <AnalyticsVisitsSales />
       </AnalysisChartCard>
     </div>
