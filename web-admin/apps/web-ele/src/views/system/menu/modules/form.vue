@@ -6,6 +6,8 @@ import { computed, ref } from 'vue';
 
 import { useVbenDrawer } from '@vben/common-ui';
 
+import { ElMessage } from 'element-plus';
+
 import { useVbenForm, z } from '#/adapter/form';
 import {
   createMenu,
@@ -50,20 +52,13 @@ function useSchema(): VbenFormSchema[] {
       component: 'Input',
       fieldName: 'name',
       label: $t('system.menu.menuName'),
+      // 注意：不能用 z.refine(async ...)——vben 表单渲染时会同步调用
+      // rules.isOptional()，异步 refine 会抛错打断渲染（parentNode 报错）。
+      // 唯一性校验移到提交时执行，见 onConfirm。
       rules: z
         .string()
         .min(2, $t('ui.formRules.minLength', [$t('system.menu.menuName'), 2]))
-        .max(30, $t('ui.formRules.maxLength', [$t('system.menu.menuName'), 30]))
-        .refine(
-          async (value: string | undefined) =>
-            !value || !(await isMenuNameExists(value, formData.value?.id)),
-          (value) => ({
-            message: $t('ui.formRules.alreadyExists', [
-              $t('system.menu.menuName'),
-              value,
-            ]),
-          }),
-        ),
+        .max(30, $t('ui.formRules.maxLength', [$t('system.menu.menuName'), 30])),
     },
     {
       component: 'Input',
@@ -93,15 +88,7 @@ function useSchema(): VbenFormSchema[] {
       },
       fieldName: 'path',
       label: $t('system.menu.path'),
-      rules: z
-        .string()
-        .optional()
-        .refine(async (value: string | undefined) => {
-          if (!value) {
-            return true;
-          }
-          return !(await isMenuPathExists(value, formData.value?.id));
-        }, '路由地址已存在'),
+      rules: z.string().max(100).optional(),
     },
     {
       component: 'Input',
@@ -219,6 +206,27 @@ const [Drawer, drawerApi] = useVbenDrawer({
       return;
     }
     const values = await formApi.getValues();
+    // 唯一性校验（提交时执行，表单渲染阶段不能跑异步校验）
+    if (
+      await isMenuNameExists(values.name as string, formData.value?.id)
+    ) {
+      ElMessage.error(
+        $t('ui.formRules.alreadyExists', [
+          $t('system.menu.menuName'),
+          values.name,
+        ]),
+      );
+      return;
+    }
+    if (
+      values.path &&
+      (await isMenuPathExists(values.path as string, formData.value?.id))
+    ) {
+      ElMessage.error(
+        $t('ui.formRules.alreadyExists', [$t('system.menu.path'), values.path]),
+      );
+      return;
+    }
     const meta = values.meta ?? {};
     const payload = {
       authCode: values.authCode,
