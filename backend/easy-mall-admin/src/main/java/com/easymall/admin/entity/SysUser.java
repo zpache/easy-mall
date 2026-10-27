@@ -33,7 +33,12 @@ public class SysUser extends BaseEntity {
 
     private String phone;
 
-    /** 角色标识：ADMIN 超级管理员 / OPERATOR 运营 */
+    private String email;
+
+    /** 所属部门 ID */
+    private Long deptId;
+
+    /** 主角色标识，兜底用；优先取 sys_user_role 关联的角色 */
     private String role;
 
     /** 1 正常，0 禁用 */

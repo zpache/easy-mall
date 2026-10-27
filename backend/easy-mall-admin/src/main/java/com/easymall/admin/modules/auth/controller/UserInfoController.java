@@ -6,6 +6,7 @@ import com.easymall.admin.common.context.UserContext;
 import com.easymall.admin.entity.SysUser;
 import com.easymall.admin.mapper.SysUserMapper;
 import com.easymall.admin.modules.auth.vo.UserInfoVO;
+import com.easymall.admin.modules.system.service.MenuService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import java.util.List;
@@ -25,6 +26,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class UserInfoController {
 
     private final SysUserMapper sysUserMapper;
+    private final MenuService menuService;
 
     @Operation(summary = "当前用户信息")
     @GetMapping("/info")
@@ -37,14 +39,13 @@ public class UserInfoController {
                 loginUser.username(),
                 loginUser.nickname(),
                 sysUser == null ? null : sysUser.getAvatar(),
-                List.of(loginUser.role())));
+                loginUser.roles()));
     }
 
     @Operation(summary = "当前用户权限码")
     @GetMapping("/codes")
     public Result<List<String>> codes() {
-        // 目前只有 ADMIN / OPERATOR 两种角色，菜单按角色过滤即可，暂无细粒度权限码
-        UserContext.require();
-        return Result.ok(List.of());
+        LoginUser loginUser = UserContext.require();
+        return Result.ok(menuService.listAuthCodesByUser(loginUser.userId()));
     }
 }

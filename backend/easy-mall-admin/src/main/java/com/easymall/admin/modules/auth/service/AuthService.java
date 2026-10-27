@@ -47,7 +47,7 @@ public class AuthService {
 
         AdminUserDetails details = (AdminUserDetails) authentication.getPrincipal();
         LoginUser loginUser = new LoginUser(details.getId(), details.getUsername(),
-                details.getNickname(), details.getRole());
+                details.getNickname(), details.getRoles());
         String token = jwtTokenProvider.createToken(loginUser);
 
         sysUserMapper.update(null, Wrappers.<SysUser>lambdaUpdate()
