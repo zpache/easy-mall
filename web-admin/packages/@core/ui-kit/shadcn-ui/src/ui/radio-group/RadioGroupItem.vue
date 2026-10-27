@@ -1,17 +1,14 @@
 <script setup lang="ts">
+import type { RadioGroupItemProps } from 'reka-ui';
+
 import { computed } from 'vue';
 
 import { cn } from '@vben-core/shared/utils';
 
 import { Circle } from 'lucide-vue-next';
-import {
-  RadioGroupIndicator,
-  RadioGroupItem,
-  type RadioGroupItemProps,
-  useForwardProps,
-} from 'radix-vue';
+import { RadioGroupIndicator, RadioGroupItem, useForwardProps } from 'reka-ui';
 
-const props = defineProps<{ class?: any } & RadioGroupItemProps>();
+const props = defineProps<RadioGroupItemProps & { class?: any }>();
 
 const delegatedProps = computed(() => {
   const { class: _, ...delegated } = props;
@@ -27,7 +24,7 @@ const forwardedProps = useForwardProps(delegatedProps);
     v-bind="forwardedProps"
     :class="
       cn(
-        'border-primary text-primary focus-visible:ring-ring aspect-square h-4 w-4 rounded-full border shadow focus:outline-none focus-visible:ring-1 disabled:cursor-not-allowed disabled:opacity-50',
+        'border-primary text-primary focus-visible:ring-ring aspect-square h-4 w-4 rounded-full border shadow-sm focus:outline-hidden focus-visible:ring-1 disabled:cursor-not-allowed disabled:opacity-50',
         props.class,
       )
     "

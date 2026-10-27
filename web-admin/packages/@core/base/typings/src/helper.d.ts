@@ -1,20 +1,38 @@
-import { type ComputedRef, type MaybeRef } from 'vue';
+import type { ComputedRef, MaybeRef } from 'vue';
 
+/**
+ * 类型级递归中增加深度计数
+ */
+type Increment<A extends unknown[]> = [...A, unknown];
 /**
  * 深层递归所有属性为可选
  */
-type DeepPartial<T> = T extends object
-  ? {
-      [P in keyof T]?: DeepPartial<T[P]>;
-    }
-  : T;
+type DeepPartial<
+  T,
+  D extends number = 10,
+  C extends unknown[] = [],
+> = C['length'] extends D
+  ? T
+  : T extends object
+    ? {
+        [P in keyof T]?: DeepPartial<T[P], D, Increment<C>>;
+      }
+    : T;
 
 /**
  * 深层递归所有属性为只读
  */
-type DeepReadonly<T> = {
-  readonly [P in keyof T]: T[P] extends object ? DeepReadonly<T[P]> : T[P];
-};
+type DeepReadonly<
+  T,
+  D extends number = 10,
+  C extends unknown[] = [],
+> = C['length'] extends D
+  ? T
+  : T extends object
+    ? {
+        readonly [P in keyof T]: DeepReadonly<T[P], D, Increment<C>>;
+      }
+    : T;
 
 /**
  * 任意类型的异步函数
@@ -109,6 +127,8 @@ type MergeAll<
 
 type EmitType = (name: Name, ...args: any[]) => void;
 
+type MaybePromise<T> = Promise<T> | T;
+
 export type {
   AnyFunction,
   AnyNormalFunction,
@@ -118,6 +138,7 @@ export type {
   EmitType,
   IntervalHandle,
   MaybeComputedRef,
+  MaybePromise,
   MaybeReadonlyRef,
   Merge,
   MergeAll,

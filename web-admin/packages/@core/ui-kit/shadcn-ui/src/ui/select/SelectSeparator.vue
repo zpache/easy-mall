@@ -1,11 +1,13 @@
 <script setup lang="ts">
+import type { SelectSeparatorProps } from 'reka-ui';
+
 import { computed } from 'vue';
 
 import { cn } from '@vben-core/shared/utils';
 
-import { SelectSeparator, type SelectSeparatorProps } from 'radix-vue';
+import { SelectSeparator } from 'reka-ui';
 
-const props = defineProps<{ class?: any } & SelectSeparatorProps>();
+const props = defineProps<SelectSeparatorProps & { class?: any }>();
 
 const delegatedProps = computed(() => {
   const { class: _, ...delegated } = props;

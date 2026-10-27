@@ -1,36 +1,24 @@
 {
   "name": "easy-mall-web-admin",
-  "version": "5.5.2",
+  "version": "5.7.0",
   "private": true,
   "keywords": [
     "monorepo",
     "turbo",
     "vben",
-    "vben admin",
-    "vben pro",
     "vue",
     "vue admin",
-    "vue vben admin",
-    "vue vben admin pro",
     "vue3"
   ],
   "homepage": "https://github.com/vbenjs/vue-vben-admin",
-  "bugs": "https://github.com/vbenjs/vue-vben-admin/issues",
   "repository": "vbenjs/vue-vben-admin.git",
   "license": "MIT",
-  "author": {
-    "name": "vben",
-    "email": "ann.vben@gmail.com",
-    "url": "https://github.com/anncwb"
-  },
   "type": "module",
   "scripts": {
-    "build": "pnpm -F @vben/web-ele run build",
-    "build:analyze": "turbo build:analyze",
-    "build:ele": "pnpm run build --filter=@vben/web-ele",
+    "build": "cross-env NODE_OPTIONS=--max-old-space-size=8192 pnpm -F @vben/web-ele run build",
     "check": "pnpm run check:circular && pnpm run check:dep && pnpm run check:type && pnpm check:cspell",
     "check:circular": "vsh check-circular",
-    "check:cspell": "cspell lint **/*.ts **/README.md .changeset/*.md --no-progress",
+    "check:cspell": "cspell lint \"**/*.ts\" \"**/README.md\" --no-progress",
     "check:dep": "vsh check-dep",
     "check:type": "turbo run typecheck",
     "clean": "node ./scripts/clean.mjs",
@@ -48,13 +36,11 @@
     "update:deps": "npx taze -r -w"
   },
   "devDependencies": {
-    "@changesets/changelog-github": "catalog:",
-    "@changesets/cli": "catalog:",
-    "@playwright/test": "catalog:",
     "@types/node": "catalog:",
     "@vben/commitlint-config": "workspace:*",
     "@vben/eslint-config": "workspace:*",
-    "@vben/prettier-config": "workspace:*",
+    "@vben/oxfmt-config": "workspace:*",
+    "@vben/oxlint-config": "workspace:*",
     "@vben/stylelint-config": "workspace:*",
     "@vben/tailwind-config": "workspace:*",
     "@vben/tsconfig": "workspace:*",
@@ -63,47 +49,26 @@
     "@vben/vsh": "workspace:*",
     "@vitejs/plugin-vue": "catalog:",
     "@vitejs/plugin-vue-jsx": "catalog:",
-    "@vue/test-utils": "catalog:",
-    "autoprefixer": "catalog:",
     "cross-env": "catalog:",
     "cspell": "catalog:",
     "happy-dom": "catalog:",
-    "husky": "catalog:",
-    "is-ci": "catalog:",
-    "lint-staged": "catalog:",
+    "oxfmt": "catalog:",
+    "oxlint": "catalog:",
+    "oxlint-tsgolint": "catalog:",
     "playwright": "catalog:",
     "rimraf": "catalog:",
     "tailwindcss": "catalog:",
+    "tsdown": "catalog:",
     "turbo": "catalog:",
     "typescript": "catalog:",
-    "unbuild": "catalog:",
     "vite": "catalog:",
     "vitest": "catalog:",
     "vue": "catalog:",
     "vue-tsc": "catalog:"
   },
   "engines": {
-    "node": ">=20.10.0",
-    "pnpm": ">=9.12.0"
+    "node": "^22.18.0 || ^24.0.0",
+    "pnpm": ">=10.0.0"
   },
-  "packageManager": "pnpm@9.15.1",
-  "pnpm": {
-    "peerDependencyRules": {
-      "allowedVersions": {
-        "eslint": "*"
-      }
-    },
-    "overrides": {
-      "@ast-grep/napi": "catalog:",
-      "@ctrl/tinycolor": "catalog:",
-      "clsx": "catalog:",
-      "esbuild": "0.24.0",
-      "pinia": "catalog:",
-      "vue": "catalog:"
-    },
-    "neverBuiltDependencies": [
-      "canvas",
-      "node-gyp"
-    ]
-  }
+  "packageManager": "pnpm@10.33.4"
 }

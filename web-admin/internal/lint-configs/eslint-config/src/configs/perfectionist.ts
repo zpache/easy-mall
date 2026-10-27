@@ -1,8 +1,12 @@
 import type { Linter } from 'eslint';
 
-import perfectionistPlugin from 'eslint-plugin-perfectionist';
+import { interopDefault } from '../util';
 
 export async function perfectionist(): Promise<Linter.Config[]> {
+  const perfectionistPlugin = await interopDefault(
+    import('eslint-plugin-perfectionist'),
+  );
+
   return [
     perfectionistPlugin.configs['recommended-natural'],
     {
@@ -17,38 +21,63 @@ export async function perfectionist(): Promise<Linter.Config[]> {
         'perfectionist/sort-imports': [
           'error',
           {
-            customGroups: {
-              type: {
-                vben: 'vben',
-                vue: 'vue',
+            customGroups: [
+              {
+                selector: 'type',
+                groupName: 'vben-core-type',
+                elementNamePattern: '^@vben-core/.+',
               },
-              value: {
-                vben: ['@vben*', '@vben/**/**', '@vben-core/**/**'],
-                vue: ['vue', 'vue-*', '@vue*'],
+              {
+                selector: 'type',
+                groupName: 'vben-type',
+                elementNamePattern: '^@vben/.+',
               },
-            },
+              {
+                selector: 'type',
+                groupName: 'vue-type',
+                elementNamePattern: ['^vue$', '^vue-.+', '^@vue/.+'],
+              },
+              {
+                groupName: 'vben',
+                elementNamePattern: '^@vben/.+',
+              },
+              {
+                groupName: 'vben-core',
+                elementNamePattern: '^@vben-core/.+',
+              },
+              {
+                groupName: 'vue',
+                elementNamePattern: ['^vue$', '^vue-.+', '^@vue/.+'],
+              },
+            ],
+            environment: 'node',
             groups: [
-              ['external-type', 'builtin-type', 'type'],
-              ['parent-type', 'sibling-type', 'index-type'],
-              ['internal-type'],
-              'builtin',
+              ['type-external', 'type-builtin', 'type-import'],
+              'vue-type',
+              'vben-type',
+              'vben-core-type',
+              ['type-parent', 'type-sibling', 'type-index'],
+              ['type-internal'],
+              'value-builtin',
               'vue',
               'vben',
-              'external',
-              'internal',
-              ['parent', 'sibling', 'index'],
+              'vben-core',
+              'value-external',
+              'value-internal',
+              ['value-parent', 'value-sibling', 'value-index'],
               'side-effect',
               'side-effect-style',
               'style',
-              'object',
+              'ts-equals-import',
               'unknown',
             ],
-            internalPattern: ['#*', '#*/**'],
-            newlinesBetween: 'always',
+            internalPattern: ['^#/.+'],
+            newlinesBetween: 1,
             order: 'asc',
             type: 'natural',
           },
         ],
+        'perfectionist/sort-modules': 'off',
         'perfectionist/sort-named-exports': [
           'error',
           {
@@ -57,7 +86,7 @@ export async function perfectionist(): Promise<Linter.Config[]> {
           },
         ],
         'perfectionist/sort-objects': [
-          'error',
+          'off',
           {
             customGroups: {
               items: 'items',
@@ -67,42 +96,6 @@ export async function perfectionist(): Promise<Linter.Config[]> {
             groups: ['unknown', 'items', 'list', 'children'],
             ignorePattern: ['children'],
             order: 'asc',
-            partitionByComment: 'Part:**',
-            type: 'natural',
-          },
-        ],
-        'perfectionist/sort-vue-attributes': [
-          'error',
-          {
-            // Based on: https://vuejs.org/style-guide/rules-recommended.html#element-attribute-order
-            customGroups: {
-              /* eslint-disable perfectionist/sort-objects */
-              DEFINITION: '*(is|:is|v-is)',
-              LIST_RENDERING: 'v-for',
-              CONDITIONALS: 'v-*(else-if|if|else|show|cloak)',
-              RENDER_MODIFIERS: 'v-*(pre|once)',
-              GLOBAL: '*(:id|id)',
-              UNIQUE: '*(ref|key|:ref|:key)',
-              SLOT: '*(v-slot|slot)',
-              TWO_WAY_BINDING: '*(v-model|v-model:*)',
-              // OTHER_DIRECTIVES e.g. 'v-custom-directive'
-              EVENTS: '*(v-on|@*)',
-              CONTENT: 'v-*(html|text)',
-              /* eslint-enable perfectionist/sort-objects */
-            },
-            groups: [
-              'DEFINITION',
-              'LIST_RENDERING',
-              'CONDITIONALS',
-              'RENDER_MODIFIERS',
-              'GLOBAL',
-              'UNIQUE',
-              'SLOT',
-              'TWO_WAY_BINDING',
-              'unknown',
-              'EVENTS',
-              'CONTENT',
-            ],
             type: 'natural',
           },
         ],

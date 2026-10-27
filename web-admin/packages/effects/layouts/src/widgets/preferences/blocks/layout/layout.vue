@@ -1,15 +1,20 @@
 <script setup lang="ts">
+import type { Component } from 'vue';
+
 import type { LayoutType } from '@vben/types';
 
-import { type Component, computed } from 'vue';
+import { computed } from 'vue';
 
 import { CircleHelp } from '@vben/icons';
 import { $t } from '@vben/locales';
+
 import { VbenTooltip } from '@vben-core/shadcn-ui';
 
 import {
   FullContent,
+  HeaderMixedNav,
   HeaderNav,
+  HeaderSidebarNav,
   MixedNav,
   SidebarMixedNav,
   SidebarNav,
@@ -33,6 +38,8 @@ const components: Record<LayoutType, Component> = {
   'mixed-nav': MixedNav,
   'sidebar-mixed-nav': SidebarMixedNav,
   'sidebar-nav': SidebarNav,
+  'header-mixed-nav': HeaderMixedNav,
+  'header-sidebar-nav': HeaderSidebarNav,
 };
 
 const PRESET = computed((): PresetItem[] => [
@@ -52,9 +59,19 @@ const PRESET = computed((): PresetItem[] => [
     type: 'header-nav',
   },
   {
+    name: $t('preferences.headerSidebarNav'),
+    tip: $t('preferences.headerSidebarNavTip'),
+    type: 'header-sidebar-nav',
+  },
+  {
     name: $t('preferences.mixedMenu'),
     tip: $t('preferences.mixedMenuTip'),
     type: 'mixed-nav',
+  },
+  {
+    name: $t('preferences.headerTwoColumn'),
+    tip: $t('preferences.headerTwoColumnTip'),
+    type: 'header-mixed-nav',
   },
   {
     name: $t('preferences.fullContent'),
@@ -72,14 +89,14 @@ function activeClass(theme: string): string[] {
   <div class="flex w-full flex-wrap gap-5">
     <template v-for="theme in PRESET" :key="theme.name">
       <div
-        class="flex w-[100px] cursor-pointer flex-col"
+        class="flex w-25 cursor-pointer flex-col"
         @click="modelValue = theme.type"
       >
         <div :class="activeClass(theme.type)" class="outline-box flex-center">
           <component :is="components[theme.type]" />
         </div>
         <div
-          class="text-muted-foreground flex-center hover:text-foreground mt-2 text-center text-xs"
+          class="mt-2 flex-center text-center text-xs text-muted-foreground hover:text-foreground"
         >
           {{ theme.name }}
           <VbenTooltip v-if="theme.tip" side="bottom">

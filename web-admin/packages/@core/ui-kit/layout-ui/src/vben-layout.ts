@@ -107,6 +107,11 @@ interface VbenLayoutProps {
    */
   sidebarCollapse?: boolean;
   /**
+   * 侧边菜单折叠按钮
+   * @default true
+   */
+  sidebarCollapsedButton?: boolean;
+  /**
    * 侧边菜单是否折叠时，是否显示title
    * @default true
    */
@@ -122,6 +127,11 @@ interface VbenLayoutProps {
    */
   sidebarExtraCollapsedWidth?: number;
   /**
+   * 侧边菜单折叠按钮是否固定
+   * @default true
+   */
+  sidebarFixedButton?: boolean;
+  /**
    * 侧边栏是否隐藏
    * @default false
    */
@@ -136,6 +146,11 @@ interface VbenLayoutProps {
    * @default dark
    */
   sidebarTheme?: ThemeModeType;
+  /**
+   * 侧边栏子栏
+   * @default dark
+   */
+  sidebarThemeSub?: ThemeModeType;
   /**
    * 侧边栏宽度
    * @default 210

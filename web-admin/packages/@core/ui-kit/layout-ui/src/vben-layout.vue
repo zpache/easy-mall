@@ -1,7 +1,8 @@
 <script setup lang="ts">
+import type { CSSProperties } from 'vue';
+
 import type { VbenLayoutProps } from './vben-layout';
 
-import type { CSSProperties } from 'vue';
 import { computed, ref, watch } from 'vue';
 
 import {
@@ -9,7 +10,7 @@ import {
   useLayoutFooterStyle,
   useLayoutHeaderStyle,
 } from '@vben-core/composables';
-import { Menu } from '@vben-core/icons';
+import { IconifyIcon } from '@vben-core/icons';
 import { VbenIconButton } from '@vben-core/shadcn-ui';
 import { ELEMENT_ID_MAIN_CONTENT } from '@vben-core/shared/constants';
 
@@ -48,11 +49,14 @@ const props = withDefaults(defineProps<Props>(), {
   headerVisible: true,
   isMobile: false,
   layout: 'sidebar-nav',
+  sidebarCollapsedButton: true,
   sidebarCollapseShowTitle: false,
   sidebarExtraCollapsedWidth: 60,
+  sidebarFixedButton: true,
   sidebarHidden: false,
   sidebarMixedWidth: 80,
   sidebarTheme: 'dark',
+  sidebarThemeSub: 'dark',
   sidebarWidth: 180,
   sideCollapseWidth: 60,
   tabbarEnable: true,
@@ -60,11 +64,24 @@ const props = withDefaults(defineProps<Props>(), {
   zIndex: 200,
 });
 
-const emit = defineEmits<{ sideMouseLeave: []; toggleSidebar: [] }>();
-const sidebarCollapse = defineModel<boolean>('sidebarCollapse');
+const emit = defineEmits<{
+  sideMouseLeave: [];
+  toggleSidebar: [];
+  'update:sidebar-width': [value: number];
+}>();
+const sidebarDraggable = defineModel<boolean>('sidebarDraggable', {
+  default: true,
+});
+const sidebarCollapse = defineModel<boolean>('sidebarCollapse', {
+  default: false,
+});
 const sidebarExtraVisible = defineModel<boolean>('sidebarExtraVisible');
-const sidebarExtraCollapse = defineModel<boolean>('sidebarExtraCollapse');
-const sidebarExpandOnHover = defineModel<boolean>('sidebarExpandOnHover');
+const sidebarExtraCollapse = defineModel<boolean>('sidebarExtraCollapse', {
+  default: false,
+});
+const sidebarExpandOnHover = defineModel<boolean>('sidebarExpandOnHover', {
+  default: false,
+});
 const sidebarEnable = defineModel<boolean>('sidebarEnable', { default: true });
 
 // side是否处于hover状态展开菜单中
@@ -87,6 +104,7 @@ const { y: mouseY } = useMouse({ target: contentRef, type: 'client' });
 const {
   currentLayout,
   isFullContent,
+  isHeaderMixedNav,
   isHeaderNav,
   isMixedNav,
   isSidebarMixedNav,
@@ -109,11 +127,16 @@ const headerWrapperHeight = computed(() => {
 });
 
 const getSideCollapseWidth = computed(() => {
-  const { sidebarCollapseShowTitle, sidebarMixedWidth, sideCollapseWidth } =
-    props;
+  const {
+    sidebarCollapseShowTitle,
+    sidebarExtraCollapsedWidth,
+    sideCollapseWidth,
+  } = props;
 
-  return sidebarCollapseShowTitle || isSidebarMixedNav.value
-    ? sidebarMixedWidth
+  return sidebarCollapseShowTitle ||
+    isSidebarMixedNav.value ||
+    isHeaderMixedNav.value
+    ? sidebarExtraCollapsedWidth
     : sideCollapseWidth;
 });
 
@@ -145,12 +168,15 @@ const getSidebarWidth = computed(() => {
 
   if (
     !sidebarEnableState.value ||
-    (sidebarHidden && !isSidebarMixedNav.value && !isMixedNav.value)
+    (sidebarHidden &&
+      !isSidebarMixedNav.value &&
+      !isMixedNav.value &&
+      !isHeaderMixedNav.value)
   ) {
     return width;
   }
 
-  if (isSidebarMixedNav.value && !isMobile) {
+  if ((isHeaderMixedNav.value || isSidebarMixedNav.value) && !isMobile) {
     width = sidebarMixedWidth;
   } else if (sidebarCollapse.value) {
     width = isMobile ? 0 : getSideCollapseWidth.value;
@@ -176,7 +202,9 @@ const isSideMode = computed(
   () =>
     currentLayout.value === 'mixed-nav' ||
     currentLayout.value === 'sidebar-mixed-nav' ||
-    currentLayout.value === 'sidebar-nav',
+    currentLayout.value === 'sidebar-nav' ||
+    currentLayout.value === 'header-mixed-nav' ||
+    currentLayout.value === 'header-sidebar-nav',
 );
 
 /**
@@ -208,19 +236,18 @@ const mainStyle = computed(() => {
     headerFixed.value &&
     currentLayout.value !== 'header-nav' &&
     currentLayout.value !== 'mixed-nav' &&
+    currentLayout.value !== 'header-sidebar-nav' &&
     showSidebar.value &&
     !props.isMobile
   ) {
     // fixed模式下生效
     const isSideNavEffective =
-      isSidebarMixedNav.value &&
+      (isSidebarMixedNav.value || isHeaderMixedNav.value) &&
       sidebarExpandOnHover.value &&
       sidebarExtraVisible.value;
 
     if (isSideNavEffective) {
-      const sideCollapseWidth = sidebarCollapse.value
-        ? getSideCollapseWidth.value
-        : props.sidebarMixedWidth;
+      const sideCollapseWidth = props.sidebarMixedWidth;
       const sideWidth = sidebarExtraCollapse.value
         ? props.sidebarExtraCollapsedWidth
         : props.sidebarWidth;
@@ -229,10 +256,14 @@ const mainStyle = computed(() => {
       sidebarAndExtraWidth = `${sideCollapseWidth + sideWidth}px`;
       width = `calc(100% - ${sidebarAndExtraWidth})`;
     } else {
-      sidebarAndExtraWidth =
-        sidebarExpandOnHovering.value && !sidebarExpandOnHover.value
-          ? `${getSideCollapseWidth.value}px`
-          : `${getSidebarWidth.value}px`;
+      let sidebarWidth = getSidebarWidth.value;
+      if (sidebarExpandOnHovering.value && !sidebarExpandOnHover.value) {
+        sidebarWidth =
+          isSidebarMixedNav.value || isHeaderMixedNav.value
+            ? props.sidebarMixedWidth
+            : getSideCollapseWidth.value;
+      }
+      sidebarAndExtraWidth = `${sidebarWidth}px`;
       width = `calc(100% - ${sidebarAndExtraWidth})`;
     }
   }
@@ -244,7 +275,7 @@ const mainStyle = computed(() => {
 
 // 计算 tabbar 的样式
 const tabbarStyle = computed((): CSSProperties => {
-  let width = '';
+  let width: string;
   let marginLeft = 0;
 
   // 如果不是混合导航，tabbar 的宽度为 100%
@@ -385,13 +416,10 @@ watch(
 );
 
 {
-  const mouseMove = () => {
-    mouseY.value > headerWrapperHeight.value
-      ? (headerIsHidden.value = true)
-      : (headerIsHidden.value = false);
-  };
+  const HEADER_TRIGGER_DISTANCE = 12;
+
   watch(
-    [() => props.headerMode, () => mouseY.value],
+    [() => props.headerMode, () => mouseY.value, () => headerIsHidden.value],
     () => {
       if (!isHeaderAutoMode.value || isMixedNav.value || isFullContent.value) {
         if (props.headerMode !== 'auto-scroll') {
@@ -399,8 +427,12 @@ watch(
         }
         return;
       }
-      headerIsHidden.value = true;
-      mouseMove();
+
+      const isInTriggerZone = mouseY.value <= HEADER_TRIGGER_DISTANCE;
+      const isInHeaderZone =
+        !headerIsHidden.value && mouseY.value <= headerWrapperHeight.value;
+
+      headerIsHidden.value = !(isInTriggerZone || isInHeaderZone);
     },
     {
       immediate: true,
@@ -466,30 +498,35 @@ const idMainContent = ELEMENT_ID_MAIN_CONTENT;
   <div class="relative flex min-h-full w-full">
     <LayoutSidebar
       v-if="sidebarEnableState"
+      v-model:draggable="sidebarDraggable"
       v-model:collapse="sidebarCollapse"
       v-model:expand-on-hover="sidebarExpandOnHover"
       v-model:expand-on-hovering="sidebarExpandOnHovering"
       v-model:extra-collapse="sidebarExtraCollapse"
       v-model:extra-visible="sidebarExtraVisible"
+      :show-collapse-button="sidebarCollapsedButton"
+      :show-fixed-button="sidebarFixedButton"
       :collapse-width="getSideCollapseWidth"
       :dom-visible="!isMobile"
       :extra-width="sidebarExtraWidth"
       :fixed-extra="sidebarExpandOnHover"
       :header-height="isMixedNav ? 0 : headerHeight"
-      :is-sidebar-mixed="isSidebarMixedNav"
+      :is-sidebar-mixed="isSidebarMixedNav || isHeaderMixedNav"
       :margin-top="sidebarMarginTop"
       :mixed-width="sidebarMixedWidth"
       :show="showSidebar"
       :theme="sidebarTheme"
+      :theme-sub="sidebarThemeSub"
       :width="getSidebarWidth"
       :z-index="sidebarZIndex"
       @leave="() => emit('sideMouseLeave')"
+      @update:width="(val) => emit('update:sidebar-width', val)"
     >
       <template v-if="isSideMode && !isMixedNav" #logo>
         <slot name="logo"></slot>
       </template>
 
-      <template v-if="isSidebarMixedNav">
+      <template v-if="isSidebarMixedNav || isHeaderMixedNav">
         <slot name="mixed-menu"></slot>
       </template>
       <template v-else>
@@ -539,7 +576,8 @@ const idMainContent = ELEMENT_ID_MAIN_CONTENT;
               class="my-0 mr-1 rounded-md"
               @click="handleHeaderToggle"
             >
-              <Menu class="size-4" />
+              <IconifyIcon v-if="showSidebar" icon="ep:fold" />
+              <IconifyIcon v-else icon="ep:expand" />
             </VbenIconButton>
           </template>
           <slot name="header"></slot>
@@ -589,7 +627,7 @@ const idMainContent = ELEMENT_ID_MAIN_CONTENT;
     <div
       v-if="maskVisible"
       :style="maskStyle"
-      class="bg-overlay fixed left-0 top-0 h-full w-full transition-[background-color] duration-200"
+      class="fixed top-0 left-0 size-full bg-overlay transition-[background-color] duration-200"
       @click="handleClickMask"
     ></div>
   </div>

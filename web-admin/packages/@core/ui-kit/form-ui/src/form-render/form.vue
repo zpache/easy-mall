@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { GenericObject } from 'vee-validate';
 import type { ZodTypeAny } from 'zod';
 
 import type {
@@ -11,9 +12,12 @@ import type {
 import { computed } from 'vue';
 
 import { Form } from '@vben-core/shadcn-ui';
-import { cn, isString, mergeWithArrayOverride } from '@vben-core/shared/utils';
-
-import { type GenericObject } from 'vee-validate';
+import {
+  cn,
+  isFunction,
+  isString,
+  mergeWithArrayOverride,
+} from '@vben-core/shared/utils';
 
 import { provideFormRenderProps } from './context';
 import { useExpandable } from './expandable';
@@ -23,7 +27,7 @@ import { getBaseRules, getDefaultValueInZodStack } from './helper';
 interface Props extends FormRenderProps {}
 
 const props = withDefaults(
-  defineProps<{ globalCommonConfig?: FormCommonConfig } & Props>(),
+  defineProps<Props & { globalCommonConfig?: FormCommonConfig }>(),
   {
     collapsedRows: 1,
     commonConfig: () => ({}),
@@ -37,8 +41,19 @@ const emits = defineEmits<{
   submit: [event: any];
 }>();
 
+const wrapperClass = computed(() => {
+  const cls = ['flex'];
+  if (props.layout === 'inline') {
+    cls.push('flex-wrap gap-x-2');
+  } else {
+    cls.push(props.compact ? 'gap-x-2' : 'gap-x-4', 'flex-col grid');
+  }
+  return cn(...cls, props.wrapperClass);
+});
+
 provideFormRenderProps(props);
 
+// @ts-expect-error unused
 const { isCalculated, keepFormItemIndex, wrapperRef } = useExpandable(props);
 
 const shapes = computed(() => {
@@ -81,10 +96,10 @@ const formCollapsed = computed(() => {
 });
 
 const computedSchema = computed(
-  (): ({
+  (): (Omit<FormSchema, 'formFieldProps'> & {
     commonComponentProps: Record<string, any>;
     formFieldProps: Record<string, any>;
-  } & Omit<FormSchema, 'formFieldProps'>)[] => {
+  })[] => {
     const {
       colon = false,
       componentProps = {},
@@ -99,6 +114,7 @@ const computedSchema = computed(
       hideRequiredMark = false,
       labelClass = '',
       labelWidth = 100,
+      modelPropName = '',
       wrapperClass = '',
     } = mergeWithArrayOverride(props.commonConfig, props.globalCommonConfig);
     return (props.schema || []).map((schema, index) => {
@@ -110,6 +126,17 @@ const computedSchema = computed(
           ? keepIndex <= index
           : false;
 
+      // 处理函数形式的formItemClass
+      let resolvedSchemaFormItemClass = schema.formItemClass;
+      if (isFunction(schema.formItemClass)) {
+        try {
+          resolvedSchemaFormItemClass = schema.formItemClass();
+        } catch (error) {
+          console.error('Error calling formItemClass function:', error);
+          resolvedSchemaFormItemClass = '';
+        }
+      }
+
       return {
         colon,
         disabled,
@@ -119,6 +146,7 @@ const computedSchema = computed(
         hideLabel,
         hideRequiredMark,
         labelWidth,
+        modelPropName,
         wrapperClass,
         ...schema,
         commonComponentProps: componentProps,
@@ -129,10 +157,10 @@ const computedSchema = computed(
           ...schema.formFieldProps,
         },
         formItemClass: cn(
-          'flex-shrink-0',
+          'shrink-0',
           { hidden },
           formItemClass,
-          schema.formItemClass,
+          resolvedSchemaFormItemClass,
         ),
         labelClass: cn(labelClass, schema.labelClass),
       };
@@ -143,7 +171,7 @@ const computedSchema = computed(
 
 <template>
   <component :is="formComponent" v-bind="formComponentProps">
-    <div ref="wrapperRef" :class="wrapperClass" class="grid">
+    <div ref="wrapperRef" :class="wrapperClass">
       <template v-for="cSchema in computedSchema" :key="cSchema.fieldName">
         <!-- <div v-if="$slots[cSchema.fieldName]" :class="cSchema.formItemClass">
           <slot :definition="cSchema" :name="cSchema.fieldName"> </slot>

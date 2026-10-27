@@ -1,19 +1,33 @@
+import type { RouteRecordRaw } from 'vue-router';
+
 import type {
   ComponentRecordType,
   GenerateMenuAndRoutesOptions,
   RouteRecordStringComponent,
 } from '@vben-core/typings';
-import type { RouteRecordRaw } from 'vue-router';
 
 import { mapTree } from '@vben-core/shared/utils';
 
 /**
+ * 判断路由是否在菜单中显示但访问时展示 403（让用户知悉功能并申请权限）
+ */
+function menuHasVisibleWithForbidden(route: RouteRecordRaw): boolean {
+  return !!route.meta?.menuVisibleWithForbidden;
+}
+
+/**
  * 动态生成路由 - 后端方式
+ * 对 meta.menuVisibleWithForbidden 为 true 的项直接替换为 403 组件，让用户知悉功能并申请权限。
  */
 async function generateRoutesByBackend(
   options: GenerateMenuAndRoutesOptions,
 ): Promise<RouteRecordRaw[]> {
-  const { fetchMenuListAsync, layoutMap = {}, pageMap = {} } = options;
+  const {
+    fetchMenuListAsync,
+    layoutMap = {},
+    pageMap = {},
+    forbiddenComponent,
+  } = options;
 
   try {
     const menuRoutes = await fetchMenuListAsync?.();
@@ -27,12 +41,21 @@ async function generateRoutesByBackend(
       normalizePageMap[normalizeViewPath(key)] = value;
     }
 
-    const routes = convertRoutes(menuRoutes, layoutMap, normalizePageMap);
+    let routes = convertRoutes(menuRoutes, layoutMap, normalizePageMap);
+
+    if (forbiddenComponent) {
+      routes = mapTree(routes, (route) => {
+        if (menuHasVisibleWithForbidden(route)) {
+          route.component = forbiddenComponent;
+        }
+        return route;
+      });
+    }
 
     return routes;
   } catch (error) {
     console.error(error);
-    return [];
+    throw error;
   }
 }
 
@@ -55,12 +78,15 @@ function convertRoutes(
       // 页面组件转换
     } else if (component) {
       const normalizePath = normalizeViewPath(component);
-      route.component =
-        pageMap[
-          normalizePath.endsWith('.vue')
-            ? normalizePath
-            : `${normalizePath}.vue`
-        ];
+      const pageKey = normalizePath.endsWith('.vue')
+        ? normalizePath
+        : `${normalizePath}.vue`;
+      if (pageMap[pageKey]) {
+        route.component = pageMap[pageKey];
+      } else {
+        console.error(`route component is invalid: ${pageKey}`, route);
+        route.component = pageMap['/_core/fallback/not-found.vue'];
+      }
     }
 
     return route;

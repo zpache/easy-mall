@@ -4,14 +4,28 @@ import type {
   ExtendedDrawerApi,
 } from './drawer';
 
-import { defineComponent, h, inject, nextTick, provide, reactive } from 'vue';
+import {
+  defineComponent,
+  h,
+  inject,
+  nextTick,
+  provide,
+  reactive,
+  ref,
+} from 'vue';
 
 import { useStore } from '@vben-core/shared/store';
 
-import VbenDrawer from './drawer.vue';
 import { DrawerApi } from './drawer-api';
+import VbenDrawer from './drawer.vue';
 
 const USER_DRAWER_INJECT_KEY = Symbol('VBEN_DRAWER_INJECT');
+
+const DEFAULT_DRAWER_PROPS: Partial<DrawerProps> = {};
+
+export function setDefaultDrawerProps(props: Partial<DrawerProps>) {
+  Object.assign(DEFAULT_DRAWER_PROPS, props);
+}
 
 export function useVbenDrawer<
   TParentDrawerProps extends DrawerProps = DrawerProps,
@@ -22,6 +36,7 @@ export function useVbenDrawer<
   const { connectedComponent } = options;
   if (connectedComponent) {
     const extendedApi = reactive({});
+    const isDrawerReady = ref(true);
     const Drawer = defineComponent(
       (props: TParentDrawerProps, { attrs, slots }) => {
         provide(USER_DRAWER_INJECT_KEY, {
@@ -31,25 +46,38 @@ export function useVbenDrawer<
             Object.setPrototypeOf(extendedApi, api);
           },
           options,
+          async reCreateDrawer() {
+            isDrawerReady.value = false;
+            await nextTick();
+            isDrawerReady.value = true;
+          },
         });
         checkProps(extendedApi as ExtendedDrawerApi, {
           ...props,
           ...attrs,
           ...slots,
         });
-        return () => h(connectedComponent, { ...props, ...attrs }, slots);
+        return () =>
+          h(
+            isDrawerReady.value ? connectedComponent : 'div',
+            { ...props, ...attrs },
+            slots,
+          );
       },
+      // eslint-disable-next-line vue/one-component-per-file
       {
-        inheritAttrs: false,
         name: 'VbenParentDrawer',
+        inheritAttrs: false,
       },
     );
+
     return [Drawer, extendedApi as ExtendedDrawerApi] as const;
   }
 
   const injectData = inject<any>(USER_DRAWER_INJECT_KEY, {});
 
   const mergedOptions = {
+    ...DEFAULT_DRAWER_PROPS,
     ...injectData.options,
     ...options,
   } as DrawerApiOptions;
@@ -57,6 +85,14 @@ export function useVbenDrawer<
   mergedOptions.onOpenChange = (isOpen: boolean) => {
     options.onOpenChange?.(isOpen);
     injectData.options?.onOpenChange?.(isOpen);
+  };
+
+  const onClosed = mergedOptions.onClosed;
+  mergedOptions.onClosed = () => {
+    onClosed?.();
+    if (mergedOptions.destroyOnClose) {
+      injectData.reCreateDrawer?.();
+    }
   };
   const api = new DrawerApi(mergedOptions);
 
@@ -71,9 +107,10 @@ export function useVbenDrawer<
       return () =>
         h(VbenDrawer, { ...props, ...attrs, drawerApi: extendedApi }, slots);
     },
+    // eslint-disable-next-line vue/one-component-per-file
     {
-      inheritAttrs: false,
       name: 'VbenDrawer',
+      inheritAttrs: false,
     },
   );
   injectData.extendApi?.(extendedApi);

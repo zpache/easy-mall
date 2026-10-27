@@ -1,11 +1,9 @@
 <script lang="ts" setup>
+import type { EchartsUIType } from '@vben/plugins/echarts';
+
 import { onMounted, ref } from 'vue';
 
-import {
-  EchartsUI,
-  type EchartsUIType,
-  useEcharts,
-} from '@vben/plugins/echarts';
+import { EchartsUI, useEcharts } from '@vben/plugins/echarts';
 
 const chartRef = ref<EchartsUIType>();
 const { renderEcharts } = useEcharts(chartRef);
@@ -26,7 +24,7 @@ onMounted(() => {
           { name: '定制', value: 310 },
           { name: '技术支持', value: 274 },
           { name: '远程', value: 400 },
-        ].sort((a, b) => {
+        ].toSorted((a, b) => {
           return a.value - b.value;
         }),
         name: '商业占比',

@@ -1,16 +1,13 @@
 <script setup lang="ts">
+import type { PinInputRootEmits, PinInputRootProps } from 'reka-ui';
+
 import { computed } from 'vue';
 
 import { cn } from '@vben-core/shared/utils';
 
-import {
-  PinInputRoot,
-  type PinInputRootEmits,
-  type PinInputRootProps,
-  useForwardPropsEmits,
-} from 'radix-vue';
+import { PinInputRoot, useForwardPropsEmits } from 'reka-ui';
 
-const props = defineProps<{ class?: any } & PinInputRootProps>();
+const props = defineProps<PinInputRootProps & { class?: any }>();
 const emits = defineEmits<PinInputRootEmits>();
 
 const delegatedProps = computed(() => {

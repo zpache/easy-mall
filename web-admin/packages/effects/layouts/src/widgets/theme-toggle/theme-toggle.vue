@@ -8,6 +8,7 @@ import {
   updatePreferences,
   usePreferences,
 } from '@vben/preferences';
+
 import {
   ToggleGroup,
   ToggleGroupItem,
@@ -24,7 +25,7 @@ withDefaults(defineProps<{ shouldOnHover?: boolean }>(), {
   shouldOnHover: false,
 });
 
-function handleChange(isDark: boolean) {
+function handleChange(isDark: boolean | undefined) {
   updatePreferences({
     theme: { mode: isDark ? 'dark' : 'light' },
   });

@@ -1,12 +1,14 @@
 <script setup lang="ts">
+import type { ContextMenuLabelProps } from 'reka-ui';
+
 import { computed } from 'vue';
 
 import { cn } from '@vben-core/shared/utils';
 
-import { ContextMenuLabel, type ContextMenuLabelProps } from 'radix-vue';
+import { ContextMenuLabel } from 'reka-ui';
 
 const props = defineProps<
-  { class?: any; inset?: boolean } & ContextMenuLabelProps
+  ContextMenuLabelProps & { class?: any; inset?: boolean }
 >();
 
 const delegatedProps = computed(() => {

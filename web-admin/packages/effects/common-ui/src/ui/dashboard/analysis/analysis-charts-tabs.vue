@@ -6,7 +6,7 @@ import { computed } from 'vue';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@vben-core/shadcn-ui';
 
 interface Props {
-  tabs: TabOption[];
+  tabs?: TabOption[];
 }
 
 defineOptions({
@@ -23,7 +23,7 @@ const defaultValue = computed(() => {
 </script>
 
 <template>
-  <div class="card-box w-full px-4 pb-5 pt-3">
+  <div class="card-box w-full px-4 pt-3 pb-5">
     <Tabs :default-value="defaultValue">
       <TabsList>
         <template v-for="tab in tabs" :key="tab.label">

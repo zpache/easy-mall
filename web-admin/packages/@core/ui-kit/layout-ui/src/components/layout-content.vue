@@ -1,7 +1,8 @@
 <script setup lang="ts">
+import type { CSSProperties } from 'vue';
+
 import type { ContentCompactType } from '@vben-core/typings';
 
-import type { CSSProperties } from 'vue';
 import { computed } from 'vue';
 
 import { useLayoutContentStyle } from '@vben-core/composables';
@@ -25,6 +26,7 @@ interface Props {
 
 const props = withDefaults(defineProps<Props>(), {});
 
+// @ts-expect-error - unused
 const { contentElement, overlayStyle } = useLayoutContentStyle();
 
 const style = computed((): CSSProperties => {
@@ -54,7 +56,7 @@ const style = computed((): CSSProperties => {
 </script>
 
 <template>
-  <main ref="contentElement" :style="style" class="bg-background-deep relative">
+  <main ref="contentElement" :style="style" class="relative bg-background-deep">
     <Slot :style="overlayStyle">
       <slot name="overlay"></slot>
     </Slot>

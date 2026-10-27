@@ -1,4 +1,4 @@
 export * from './access';
-export * from './lock';
 export * from './tabbar';
+export * from './timezone';
 export * from './user';

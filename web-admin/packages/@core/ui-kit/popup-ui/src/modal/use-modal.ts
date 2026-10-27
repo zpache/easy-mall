@@ -1,13 +1,27 @@
 import type { ExtendedModalApi, ModalApiOptions, ModalProps } from './modal';
 
-import { defineComponent, h, inject, nextTick, provide, reactive } from 'vue';
+import {
+  defineComponent,
+  h,
+  inject,
+  nextTick,
+  provide,
+  reactive,
+  ref,
+} from 'vue';
 
 import { useStore } from '@vben-core/shared/store';
 
-import VbenModal from './modal.vue';
 import { ModalApi } from './modal-api';
+import VbenModal from './modal.vue';
 
 const USER_MODAL_INJECT_KEY = Symbol('VBEN_MODAL_INJECT');
+
+const DEFAULT_MODAL_PROPS: Partial<ModalProps> = {};
+
+export function setDefaultModalProps(props: Partial<ModalProps>) {
+  Object.assign(DEFAULT_MODAL_PROPS, props);
+}
 
 export function useVbenModal<TParentModalProps extends ModalProps = ModalProps>(
   options: ModalApiOptions = {},
@@ -18,6 +32,7 @@ export function useVbenModal<TParentModalProps extends ModalProps = ModalProps>(
   const { connectedComponent } = options;
   if (connectedComponent) {
     const extendedApi = reactive({});
+    const isModalReady = ref(true);
     const Modal = defineComponent(
       (props: TParentModalProps, { attrs, slots }) => {
         provide(USER_MODAL_INJECT_KEY, {
@@ -26,7 +41,13 @@ export function useVbenModal<TParentModalProps extends ModalProps = ModalProps>(
             // 不能用 Object.assign,会丢失 api 的原型函数
             Object.setPrototypeOf(extendedApi, api);
           },
+          consumed: false,
           options,
+          async reCreateModal() {
+            isModalReady.value = false;
+            await nextTick();
+            isModalReady.value = true;
+          },
         });
         checkProps(extendedApi as ExtendedModalApi, {
           ...props,
@@ -35,7 +56,7 @@ export function useVbenModal<TParentModalProps extends ModalProps = ModalProps>(
         });
         return () =>
           h(
-            connectedComponent,
+            isModalReady.value ? connectedComponent : 'div',
             {
               ...props,
               ...attrs,
@@ -43,17 +64,26 @@ export function useVbenModal<TParentModalProps extends ModalProps = ModalProps>(
             slots,
           );
       },
+      // eslint-disable-next-line vue/one-component-per-file
       {
-        inheritAttrs: false,
         name: 'VbenParentModal',
+        inheritAttrs: false,
       },
     );
+
     return [Modal, extendedApi as ExtendedModalApi] as const;
   }
 
-  const injectData = inject<any>(USER_MODAL_INJECT_KEY, {});
+  let injectData = inject<any>(USER_MODAL_INJECT_KEY, {});
+  // 这个数据已经被使用了，说明这个弹窗是嵌套的弹窗，不应该merge上层的配置
+  if (injectData.consumed) {
+    injectData = {};
+  } else {
+    injectData.consumed = true;
+  }
 
   const mergedOptions = {
+    ...DEFAULT_MODAL_PROPS,
     ...injectData.options,
     ...options,
   } as ModalApiOptions;
@@ -62,6 +92,16 @@ export function useVbenModal<TParentModalProps extends ModalProps = ModalProps>(
     options.onOpenChange?.(isOpen);
     injectData.options?.onOpenChange?.(isOpen);
   };
+
+  const onClosed = mergedOptions.onClosed;
+  mergedOptions.onClosed = () => {
+    onClosed?.();
+    if (mergedOptions.destroyOnClose) {
+      injectData.consumed = false;
+      injectData.reCreateModal?.();
+    }
+  };
+
   const api = new ModalApi(mergedOptions);
 
   const extendedApi: ExtendedModalApi = api as never;
@@ -83,12 +123,14 @@ export function useVbenModal<TParentModalProps extends ModalProps = ModalProps>(
           slots,
         );
     },
+    // eslint-disable-next-line vue/one-component-per-file
     {
-      inheritAttrs: false,
       name: 'VbenModal',
+      inheritAttrs: false,
     },
   );
   injectData.extendApi?.(extendedApi);
+
   return [Modal, extendedApi] as const;
 }
 

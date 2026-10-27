@@ -1,63 +1,24 @@
 <script lang="ts" setup>
-import type { AnyPromiseFunction } from '@vben/types';
+import type {
+  ApiComponentProps,
+  ApiComponentOptionsItem as OptionsItem,
+} from './types';
 
-import { type Component, computed, ref, unref, useAttrs, watch } from 'vue';
+import { computed, nextTick, ref, unref, useAttrs, watch } from 'vue';
 
 import { LoaderCircle } from '@vben/icons';
-import { get, isEqual, isFunction } from '@vben-core/shared/utils';
+
+import { cloneDeep, get, isEqual, isFunction } from '@vben-core/shared/utils';
 
 import { objectOmit } from '@vueuse/core';
 
-type OptionsItem = {
-  [name: string]: any;
-  children?: OptionsItem[];
-  disabled?: boolean;
-  label?: string;
-  value?: string;
-};
-
-interface Props {
-  /** 组件 */
-  component: Component;
-  /** 是否将value从数字转为string */
-  numberToString?: boolean;
-  /** 获取options数据的函数 */
-  api?: (arg?: any) => Promise<OptionsItem[] | Record<string, any>>;
-  /** 传递给api的参数 */
-  params?: Record<string, any>;
-  /** 从api返回的结果中提取options数组的字段名 */
-  resultField?: string;
-  /** label字段名 */
-  labelField?: string;
-  /** children字段名，需要层级数据的组件可用 */
-  childrenField?: string;
-  /** value字段名 */
-  valueField?: string;
-  /** 组件接收options数据的属性名 */
-  optionsPropName?: string;
-  /** 是否立即调用api */
-  immediate?: boolean;
-  /** 每次`visibleEvent`事件发生时都重新请求数据 */
-  alwaysLoad?: boolean;
-  /** 在api请求之前的回调函数 */
-  beforeFetch?: AnyPromiseFunction<any, any>;
-  /** 在api请求之后的回调函数 */
-  afterFetch?: AnyPromiseFunction<any, any>;
-  /** 直接传入选项数据，也作为api返回空数据时的后备数据 */
-  options?: OptionsItem[];
-  /** 组件的插槽名称，用来显示一个"加载中"的图标 */
-  loadingSlot?: string;
-  /** 触发api请求的事件名 */
-  visibleEvent?: string;
-  /** 组件的v-model属性名，默认为modelValue。部分组件可能为value */
-  modelPropName?: string;
-}
-
 defineOptions({ name: 'ApiComponent', inheritAttrs: false });
 
-const props = withDefaults(defineProps<Props>(), {
+const props = withDefaults(defineProps<ApiComponentProps>(), {
   labelField: 'label',
   valueField: 'value',
+  labelFn: undefined,
+  disabledField: 'disabled',
   childrenField: '',
   optionsPropName: 'options',
   resultField: '',
@@ -68,9 +29,11 @@ const props = withDefaults(defineProps<Props>(), {
   alwaysLoad: false,
   loadingSlot: '',
   beforeFetch: undefined,
+  shouldFetch: undefined,
   afterFetch: undefined,
   modelPropName: 'modelValue',
   api: undefined,
+  autoSelect: false,
   options: () => [],
 });
 
@@ -78,37 +41,51 @@ const emit = defineEmits<{
   optionsChange: [OptionsItem[]];
 }>();
 
-const modelValue = defineModel({ default: '' });
+const modelValue = defineModel<any>({ default: undefined });
 
 const attrs = useAttrs();
-
+const innerParams = ref({});
 const refOptions = ref<OptionsItem[]>([]);
 const loading = ref(false);
 // 首次是否加载过了
 const isFirstLoaded = ref(false);
+// 标记是否有待处理的请求
+const hasPendingRequest = ref(false);
 
 const getOptions = computed(() => {
-  const { labelField, valueField, childrenField, numberToString } = props;
+  const {
+    labelField,
+    labelFn,
+    valueField,
+    disabledField,
+    childrenField,
+    numberToString,
+  } = props;
 
-  const refOptionsData = unref(refOptions);
-
-  function transformData(data: OptionsItem[]): OptionsItem[] {
+  function transformData(data: OptionsItem[] = []): OptionsItem[] {
     return data.map((item) => {
       const value = get(item, valueField);
+      const children = childrenField ? get(item, childrenField) : item.children;
       return {
-        ...objectOmit(item, [labelField, valueField, childrenField]),
-        label: get(item, labelField),
+        ...objectOmit(item, [
+          labelField,
+          valueField,
+          disabledField,
+          ...(childrenField ? [childrenField] : []),
+        ]),
+        label: labelFn ? labelFn(item) : get(item, labelField),
         value: numberToString ? `${value}` : value,
-        ...(childrenField && item[childrenField]
-          ? { children: transformData(item[childrenField]) }
+        disabled: get(item, disabledField),
+        ...(Array.isArray(children) && children.length > 0
+          ? { children: transformData(children) }
           : {}),
       };
     });
   }
 
-  const data: OptionsItem[] = transformData(refOptionsData);
+  const data = transformData(unref(refOptions));
 
-  return data.length > 0 ? data : props.options;
+  return data.length > 0 ? data : transformData(props.options);
 });
 
 const bindProps = computed(() => {
@@ -118,7 +95,7 @@ const bindProps = computed(() => {
     [`onUpdate:${props.modelPropName}`]: (val: string) => {
       modelValue.value = val;
     },
-    ...objectOmit(attrs, ['onUpdate:value']),
+    ...objectOmit(attrs, [`onUpdate:${props.modelPropName}`]),
     ...(props.visibleEvent
       ? {
           [props.visibleEvent]: handleFetchForVisible,
@@ -128,18 +105,34 @@ const bindProps = computed(() => {
 });
 
 async function fetchApi() {
-  let { api, beforeFetch, afterFetch, params, resultField } = props;
+  const { api, beforeFetch, shouldFetch, afterFetch, resultField } = props;
 
-  if (!api || !isFunction(api) || loading.value) {
+  if (!api || !isFunction(api)) {
     return;
   }
+
+  // 如果正在加载，标记有待处理的请求并返回
+  if (loading.value) {
+    hasPendingRequest.value = true;
+    return;
+  }
+
   refOptions.value = [];
   try {
     loading.value = true;
+    let finalParams = unref(mergedParams);
     if (beforeFetch && isFunction(beforeFetch)) {
-      params = (await beforeFetch(params)) || params;
+      finalParams = (await beforeFetch(cloneDeep(finalParams))) || finalParams;
     }
-    let res = await api(params);
+    // 判断是否需要控制执行中断
+    if (
+      shouldFetch &&
+      isFunction(shouldFetch) &&
+      !(await shouldFetch(finalParams))
+    ) {
+      return;
+    }
+    let res = await api(finalParams);
     if (afterFetch && isFunction(afterFetch)) {
       res = (await afterFetch(res)) || res;
     }
@@ -159,6 +152,13 @@ async function fetchApi() {
     isFirstLoaded.value = false;
   } finally {
     loading.value = false;
+    // 如果有待处理的请求，立即触发新的请求
+    if (hasPendingRequest.value) {
+      hasPendingRequest.value = false;
+      // 使用 nextTick 确保状态更新完成后再触发新请求
+      await nextTick();
+      fetchApi();
+    }
   }
 }
 
@@ -172,8 +172,15 @@ async function handleFetchForVisible(visible: boolean) {
   }
 }
 
+const mergedParams = computed(() => {
+  return {
+    ...props.params,
+    ...unref(innerParams),
+  };
+});
+
 watch(
-  () => props.params,
+  mergedParams,
   (value, oldValue) => {
     if (isEqual(value, oldValue)) {
       return;
@@ -184,22 +191,63 @@ watch(
 );
 
 function emitChange() {
+  if (
+    modelValue.value === undefined &&
+    props.autoSelect &&
+    unref(getOptions).length > 0
+  ) {
+    let firstOption;
+    if (isFunction(props.autoSelect)) {
+      firstOption = props.autoSelect(unref(getOptions));
+    } else {
+      switch (props.autoSelect) {
+        case 'first': {
+          firstOption = unref(getOptions)[0];
+          break;
+        }
+        case 'last': {
+          firstOption = unref(getOptions)[unref(getOptions).length - 1];
+          break;
+        }
+        case 'one': {
+          if (unref(getOptions).length === 1) {
+            firstOption = unref(getOptions)[0];
+          }
+          break;
+        }
+      }
+    }
+
+    if (firstOption) modelValue.value = firstOption.value;
+  }
   emit('optionsChange', unref(getOptions));
 }
+const componentRef = ref();
+defineExpose({
+  /** 获取options数据 */
+  getOptions: () => unref(getOptions),
+  /** 获取当前值 */
+  getValue: () => unref(modelValue),
+  /** 获取被包装的组件实例 */
+  getComponentRef: <T = any>() => componentRef.value as T,
+  /** 更新Api参数 */
+  updateParam(newParams: Record<string, any>) {
+    innerParams.value = newParams;
+  },
+});
 </script>
 <template>
-  <div v-bind="{ ...$attrs }">
-    <component
-      :is="component"
-      v-bind="bindProps"
-      :placeholder="$attrs.placeholder"
-    >
-      <template v-for="item in Object.keys($slots)" #[item]="data">
-        <slot :name="item" v-bind="data || {}"></slot>
-      </template>
-      <template v-if="loadingSlot && loading" #[loadingSlot]>
-        <LoaderCircle class="animate-spin" />
-      </template>
-    </component>
-  </div>
+  <component
+    :is="component"
+    v-bind="bindProps"
+    :placeholder="$attrs.placeholder"
+    ref="componentRef"
+  >
+    <template v-for="item in Object.keys($slots)" #[item]="data">
+      <slot :name="item" v-bind="data || {}"></slot>
+    </template>
+    <template v-if="loadingSlot && loading" #[loadingSlot]>
+      <LoaderCircle class="animate-spin" />
+    </template>
+  </component>
 </template>

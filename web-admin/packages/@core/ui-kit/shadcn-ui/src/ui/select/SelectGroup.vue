@@ -1,11 +1,13 @@
 <script setup lang="ts">
+import type { SelectGroupProps } from 'reka-ui';
+
 import { computed } from 'vue';
 
 import { cn } from '@vben-core/shared/utils';
 
-import { SelectGroup, type SelectGroupProps } from 'radix-vue';
+import { SelectGroup } from 'reka-ui';
 
-const props = defineProps<{ class?: any } & SelectGroupProps>();
+const props = defineProps<SelectGroupProps & { class?: any }>();
 
 const delegatedProps = computed(() => {
   const { class: _, ...delegated } = props;
