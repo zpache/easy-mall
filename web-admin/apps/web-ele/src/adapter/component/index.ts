@@ -190,6 +190,7 @@ export type ComponentType =
   | 'Select'
   | 'Space'
   | 'Switch'
+  | 'Textarea'
   | 'TimePicker'
   | 'TreeSelect'
   | 'Upload'
@@ -212,6 +213,7 @@ export interface ComponentPropsMap {
   Select: SelectV2Props;
   Space: SpaceProps;
   Switch: SwitchProps;
+  Textarea: InputProps;
   TimePicker: ElTimePickerSchemaProps;
   TreeSelect: ElTreeSelectSchemaProps;
   Upload: UploadProps;
@@ -311,6 +313,30 @@ async function initComponentAdapter() {
     },
     Space: ElSpace,
     Switch: ElSwitch,
+    // Element Plus 无独立 Textarea 组件，用 ElInput(type=textarea) 承接；
+    // 同时归一化 antd 风格的 maxLength/showCount，避免各页面重复转换
+    Textarea: withDefaultPlaceholder(
+      defineComponent({
+        name: 'Textarea',
+        inheritAttrs: false,
+        setup: (_props, { attrs, slots }) => {
+          return () => {
+            const normalized: Recordable<any> = { ...(attrs as Recordable<any>) };
+            if (normalized.maxLength != null) {
+              normalized.maxlength = normalized.maxLength;
+              normalized.showWordLimit = normalized.showWordLimit ?? true;
+              delete normalized.maxLength;
+            }
+            if (normalized.showCount != null) {
+              normalized.showWordLimit = true;
+              delete normalized.showCount;
+            }
+            return h(ElInput, { type: 'textarea', ...normalized }, slots);
+          };
+        },
+      }),
+      'input',
+    ),
     TimePicker: (props, { attrs, slots }) => {
       const { name, id, isRange } = props;
       const extraProps: Recordable<any> = {};
