@@ -25,11 +25,20 @@ async function generateAccess(options: GenerateMenuAndRoutesOptions) {
   return await generateAccessible(preferences.app.accessMode, {
     ...options,
     fetchMenuListAsync: async () => {
-      ElMessage({
-        duration: 1500,
-        message: `${$t('common.loadingMenu')}...`,
-      });
-      return await getAllMenusApi();
+      // 菜单完全由后端按角色下发，取不到时降级为空菜单，避免整个应用卡在守卫里
+      try {
+        const menus = await getAllMenusApi();
+        if (menus && menus.length > 0) {
+          ElMessage({
+            duration: 1500,
+            message: `${$t('common.loadingMenu')}...`,
+          });
+        }
+        return menus;
+      } catch (error) {
+        console.error('[access] 加载菜单失败', error);
+        return [];
+      }
     },
     // 可以指定没有权限跳转403页面
     forbiddenComponent,

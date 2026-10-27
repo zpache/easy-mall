@@ -10,6 +10,8 @@ import java.util.List;
  * @param realName 显示名（昵称）
  * @param avatar   头像地址，可为空
  * @param roles    角色列表（库中单值字符串，包装为数组）
+ * @param homePath 登录后的默认首页，取用户第一个可访问的菜单路径，为空时前端回退默认值
  */
-public record UserInfoVO(Long userId, String username, String realName, String avatar, List<String> roles) {
+public record UserInfoVO(Long userId, String username, String realName, String avatar,
+                         List<String> roles, String homePath) {
 }

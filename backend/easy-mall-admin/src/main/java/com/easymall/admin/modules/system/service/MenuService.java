@@ -5,13 +5,18 @@ import com.baomidou.mybatisplus.spring.service.impl.ServiceImpl;
 import com.easymall.admin.common.api.ResultCode;
 import com.easymall.admin.common.exception.BusinessException;
 import com.easymall.admin.entity.SysMenu;
+import com.easymall.admin.entity.SysRole;
 import com.easymall.admin.entity.SysRoleMenu;
+import com.easymall.admin.entity.SysUser;
 import com.easymall.admin.entity.SysUserRole;
 import com.easymall.admin.mapper.SysMenuMapper;
+import com.easymall.admin.mapper.SysRoleMapper;
 import com.easymall.admin.mapper.SysRoleMenuMapper;
+import com.easymall.admin.mapper.SysUserMapper;
 import com.easymall.admin.mapper.SysUserRoleMapper;
 import com.easymall.admin.modules.system.dto.MenuForm;
 import com.easymall.admin.modules.system.vo.MenuMeta;
+import com.easymall.admin.modules.system.vo.MenuRouteVO;
 import com.easymall.admin.modules.system.vo.MenuVO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -19,6 +24,8 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -32,8 +39,19 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class MenuService extends ServiceImpl<SysMenuMapper, SysMenu> {
 
+    /** 外链 / 内嵌菜单统一使用 vben 的 IFrameView 组件渲染 */
+    private static final String IFRAME_VIEW = "IFrameView";
+
+    private static final String TYPE_BUTTON = "button";
+    private static final String TYPE_CATALOG = "catalog";
+    private static final String TYPE_LINK = "link";
+    private static final String TYPE_EMBEDDED = "embedded";
+    private static final String ROLE_ADMIN = "ADMIN";
+
     private final SysRoleMenuMapper sysRoleMenuMapper;
     private final SysUserRoleMapper sysUserRoleMapper;
+    private final SysRoleMapper sysRoleMapper;
+    private final SysUserMapper sysUserMapper;
 
     /**
      * 全量菜单树（菜单管理页使用）。
@@ -50,22 +68,13 @@ public class MenuService extends ServiceImpl<SysMenuMapper, SysMenu> {
      * 当前用户拥有的菜单树（按角色 → 菜单关联过滤，只保留启用的节点）。
      */
     public List<MenuVO> listTreeByUser(Long userId) {
-        List<Long> roleIds = sysUserRoleMapper.selectList(
-                        Wrappers.<SysUserRole>lambdaQuery().eq(SysUserRole::getUserId, userId))
-                .stream().map(SysUserRole::getRoleId).toList();
-        if (roleIds.isEmpty()) {
+        Set<Long> visibleIds = resolveVisibleMenuIds(userId);
+        if (visibleIds.isEmpty()) {
             return List.of();
         }
-        List<Long> menuIds = sysRoleMenuMapper.selectList(
-                        Wrappers.<SysRoleMenu>lambdaQuery().in(SysRoleMenu::getRoleId, roleIds))
-                .stream().map(SysRoleMenu::getMenuId).distinct().toList();
-        if (menuIds.isEmpty()) {
-            return List.of();
-        }
-        List<SysMenu> all = list(Wrappers.<SysMenu>lambdaQuery()
-                .in(SysMenu::getId, menuIds)
-                .eq(SysMenu::getStatus, 1)
-                .orderByAsc(SysMenu::getOrderNo));
+        List<SysMenu> all = listEnabled().stream()
+                .filter(menu -> visibleIds.contains(menu.getId()))
+                .toList();
         return buildTree(all, 0L);
     }
 
@@ -73,26 +82,75 @@ public class MenuService extends ServiceImpl<SysMenuMapper, SysMenu> {
      * 当前用户的权限码集合（菜单、按钮上的 auth_code）。
      */
     public List<String> listAuthCodesByUser(Long userId) {
-        List<Long> roleIds = sysUserRoleMapper.selectList(
-                        Wrappers.<SysUserRole>lambdaQuery().eq(SysUserRole::getUserId, userId))
-                .stream().map(SysUserRole::getRoleId).toList();
-        if (roleIds.isEmpty()) {
+        Set<Long> visibleIds = resolveVisibleMenuIds(userId);
+        if (visibleIds.isEmpty()) {
             return List.of();
         }
-        List<Long> menuIds = sysRoleMenuMapper.selectList(
-                        Wrappers.<SysRoleMenu>lambdaQuery().in(SysRoleMenu::getRoleId, roleIds))
-                .stream().map(SysRoleMenu::getMenuId).distinct().toList();
-        if (menuIds.isEmpty()) {
-            return List.of();
-        }
-        return list(Wrappers.<SysMenu>lambdaQuery()
-                .in(SysMenu::getId, menuIds)
-                .eq(SysMenu::getStatus, 1))
-                .stream()
+        return listEnabled().stream()
+                .filter(menu -> visibleIds.contains(menu.getId()))
                 .map(SysMenu::getAuthCode)
                 .filter(StringUtils::hasText)
                 .distinct()
                 .toList();
+    }
+
+    /**
+     * 当前用户的路由树，字段与 vue-router 的路由记录一一对应，前端直接交给
+     * vben 的 generateAccessible 生成路由和菜单（accessMode = backend）。
+     * <p>
+     * 与 {@link #listTreeByUser(Long)} 的区别：这里过滤掉按钮，并把外链 / 内嵌
+     * 菜单的 component 统一映射为 IFrameView。
+     */
+    public List<MenuRouteVO> listRoutesByUser(Long userId) {
+        Set<Long> visibleIds = resolveVisibleMenuIds(userId);
+        if (visibleIds.isEmpty()) {
+            return List.of();
+        }
+        Map<Long, SysMenu> byId = listEnabled().stream()
+                .collect(Collectors.toMap(SysMenu::getId, menu -> menu, (a, b) -> a, LinkedHashMap::new));
+        return buildRouteChildren(0L, byId, visibleIds);
+    }
+
+    /**
+     * 用户的默认首页：路由树中第一个可访问的页面路径，找不到时返回 null 由前端兜底。
+     */
+    public String resolveHomePath(Long userId) {
+        return firstPagePath(listRoutesByUser(userId));
+    }
+
+    /**
+     * 当前用户可见的菜单 ID 集合：角色已授权的菜单 + 其祖先链（保证子菜单不会因为
+     * 父级未授权而在建树时丢失）。超级管理员（ADMIN）直接获得全部启用菜单。
+     */
+    public Set<Long> resolveVisibleMenuIds(Long userId) {
+        List<SysMenu> all = listEnabled();
+        if (all.isEmpty()) {
+            return Set.of();
+        }
+        List<Long> roleIds = resolveRoleIds(userId);
+        if (roleIds.isEmpty()) {
+            return Set.of();
+        }
+        if (hasAdminRole(roleIds)) {
+            return all.stream().map(SysMenu::getId).collect(Collectors.toCollection(LinkedHashSet::new));
+        }
+        Set<Long> granted = sysRoleMenuMapper.selectList(
+                        Wrappers.<SysRoleMenu>lambdaQuery().in(SysRoleMenu::getRoleId, roleIds))
+                .stream().map(SysRoleMenu::getMenuId).collect(Collectors.toSet());
+        if (granted.isEmpty()) {
+            return Set.of();
+        }
+        Map<Long, SysMenu> byId = all.stream()
+                .collect(Collectors.toMap(SysMenu::getId, menu -> menu, (a, b) -> a));
+        Set<Long> visible = new LinkedHashSet<>();
+        for (Long menuId : granted) {
+            SysMenu current = byId.get(menuId);
+            // 沿 pid 向上补齐祖先链，父级停用时中断（父级不可见则子级也不可见）
+            while (current != null && visible.add(current.getId())) {
+                current = byId.get(current.getPid());
+            }
+        }
+        return visible;
     }
 
     public SysMenu create(MenuForm form) {
@@ -226,6 +284,93 @@ public class MenuService extends ServiceImpl<SysMenuMapper, SysMenu> {
         return value != null && value == 1;
     }
 
+    /**
+     * 全部启用菜单，按排序值、ID 升序，保证建树顺序稳定。
+     */
+    private List<SysMenu> listEnabled() {
+        return list(Wrappers.<SysMenu>lambdaQuery()
+                .eq(SysMenu::getStatus, 1)
+                .orderByAsc(SysMenu::getOrderNo)
+                .orderByAsc(SysMenu::getId));
+    }
+
+    /**
+     * 用户的角色 ID：优先取 sys_user_role，账号未配置关联时回退到 sys_user.role 角色码，
+     * 兼容早期只有单角色字段的数据。
+     */
+    private List<Long> resolveRoleIds(Long userId) {
+        List<Long> roleIds = sysUserRoleMapper.selectList(
+                        Wrappers.<SysUserRole>lambdaQuery().eq(SysUserRole::getUserId, userId))
+                .stream().map(SysUserRole::getRoleId).distinct().toList();
+        if (!roleIds.isEmpty()) {
+            return roleIds;
+        }
+        SysUser user = sysUserMapper.selectById(userId);
+        if (user == null || !StringUtils.hasText(user.getRole())) {
+            return List.of();
+        }
+        SysRole role = sysRoleMapper.selectOne(
+                Wrappers.<SysRole>lambdaQuery().eq(SysRole::getCode, user.getRole()).last("limit 1"));
+        return role == null ? List.of() : List.of(role.getId());
+    }
+
+    private boolean hasAdminRole(List<Long> roleIds) {
+        return sysRoleMapper.selectList(
+                        Wrappers.<SysRole>lambdaQuery().in(SysRole::getId, roleIds))
+                .stream()
+                .anyMatch(role -> ROLE_ADMIN.equalsIgnoreCase(role.getCode()));
+    }
+
+    private List<MenuRouteVO> buildRouteChildren(Long pid, Map<Long, SysMenu> byId, Set<Long> visibleIds) {
+        List<MenuRouteVO> result = new ArrayList<>();
+        for (SysMenu menu : byId.values()) {
+            if (!Objects.equals(menu.getPid() == null ? 0L : menu.getPid(), pid)) {
+                continue;
+            }
+            if (!visibleIds.contains(menu.getId()) || TYPE_BUTTON.equals(menu.getType())) {
+                continue;
+            }
+            List<MenuRouteVO> children = buildRouteChildren(menu.getId(), byId, visibleIds);
+            // 目录下没有任何可访问页面时不渲染，避免菜单树出现空节点
+            if (TYPE_CATALOG.equals(menu.getType()) && children.isEmpty()) {
+                continue;
+            }
+            result.add(new MenuRouteVO(
+                    menu.getName(),
+                    menu.getPath(),
+                    resolveComponent(menu),
+                    null,
+                    toMeta(menu),
+                    children));
+        }
+        return result;
+    }
+
+    /**
+     * 外链 / 内嵌菜单统一交给 IFrameView 渲染，其余按库中配置的组件路径解析页面。
+     */
+    private String resolveComponent(SysMenu menu) {
+        if (TYPE_LINK.equals(menu.getType()) || TYPE_EMBEDDED.equals(menu.getType())) {
+            return IFRAME_VIEW;
+        }
+        return menu.getComponent();
+    }
+
+    private String firstPagePath(List<MenuRouteVO> routes) {
+        for (MenuRouteVO route : routes) {
+            if (StringUtils.hasText(route.component())
+                    && StringUtils.hasText(route.path())
+                    && !IFRAME_VIEW.equals(route.component())) {
+                return route.path();
+            }
+            String child = firstPagePath(route.children());
+            if (child != null) {
+                return child;
+            }
+        }
+        return null;
+    }
+
     private List<MenuVO> buildTree(List<SysMenu> all, Long pid) {
         Map<Long, List<SysMenu>> childrenMap = all.stream()
                 .collect(Collectors.groupingBy(menu -> menu.getPid() == null ? 0L : menu.getPid()));
@@ -248,23 +393,27 @@ public class MenuService extends ServiceImpl<SysMenuMapper, SysMenu> {
                     menu.getPath(),
                     menu.getComponent(),
                     menu.getStatus(),
-                    new MenuMeta(
-                            menu.getTitle(),
-                            menu.getIcon(),
-                            menu.getOrderNo(),
-                            menu.getBadge(),
-                            menu.getBadgeType(),
-                            menu.getBadgeVariants(),
-                            toBoolean(menu.getKeepAlive()),
-                            toBoolean(menu.getAffixTab()),
-                            toBoolean(menu.getHideInMenu()),
-                            toBoolean(menu.getHideChildrenInMenu()),
-                            toBoolean(menu.getHideInBreadcrumb()),
-                            toBoolean(menu.getHideInTab()),
-                            menu.getLink(),
-                            menu.getIframeSrc()),
+                    toMeta(menu),
                     buildChildren(childrenMap, menu.getId())));
         }
         return result;
+    }
+
+    private MenuMeta toMeta(SysMenu menu) {
+        return new MenuMeta(
+                menu.getTitle(),
+                menu.getIcon(),
+                menu.getOrderNo(),
+                menu.getBadge(),
+                menu.getBadgeType(),
+                menu.getBadgeVariants(),
+                toBoolean(menu.getKeepAlive()),
+                toBoolean(menu.getAffixTab()),
+                toBoolean(menu.getHideInMenu()),
+                toBoolean(menu.getHideChildrenInMenu()),
+                toBoolean(menu.getHideInBreadcrumb()),
+                toBoolean(menu.getHideInTab()),
+                menu.getLink(),
+                menu.getIframeSrc());
     }
 }

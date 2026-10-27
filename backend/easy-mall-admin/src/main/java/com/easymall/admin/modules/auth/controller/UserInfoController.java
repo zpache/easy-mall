@@ -39,7 +39,8 @@ public class UserInfoController {
                 loginUser.username(),
                 loginUser.nickname(),
                 sysUser == null ? null : sysUser.getAvatar(),
-                loginUser.roles()));
+                loginUser.roles(),
+                menuService.resolveHomePath(loginUser.userId())));
     }
 
     @Operation(summary = "当前用户权限码")
