@@ -196,6 +196,147 @@ CREATE TABLE mall_stock_log
 INSERT INTO mall_brand (id, name, sort, status)
 VALUES (1, '果然鲜', 1, 1);
 
+DROP TABLE IF EXISTS mall_order;
+CREATE TABLE mall_order
+(
+    id               bigint AUTO_INCREMENT PRIMARY KEY,
+    order_no         varchar(32)    NOT NULL,
+    user_id          bigint         NOT NULL,
+    total_amount     decimal(10, 2) NOT NULL,
+    freight_amount   decimal(10, 2) NOT NULL DEFAULT 0,
+    pay_amount       decimal(10, 2) NOT NULL,
+    status           tinyint        NOT NULL DEFAULT 0,
+    refund_status    tinyint        NOT NULL DEFAULT 0,
+    receiver_name    varchar(32)    NOT NULL,
+    receiver_phone   varchar(20)    NOT NULL,
+    receiver_address varchar(255)   NOT NULL,
+    delivery_company varchar(50),
+    delivery_no      varchar(64),
+    remark           varchar(255),
+    pay_time         datetime,
+    delivery_time    datetime,
+    finish_time      datetime,
+    cancel_time      datetime,
+    cancel_reason    varchar(255),
+    created_at       datetime       NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at       datetime       NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_by       bigint,
+    updated_by       bigint,
+    version          int            NOT NULL DEFAULT 0,
+    deleted          tinyint        NOT NULL DEFAULT 0
+);
+
+DROP TABLE IF EXISTS order_item;
+CREATE TABLE order_item
+(
+    id           bigint AUTO_INCREMENT PRIMARY KEY,
+    order_id     bigint         NOT NULL,
+    goods_id     bigint         NOT NULL,
+    goods_name   varchar(100)   NOT NULL,
+    goods_image  varchar(255),
+    price        decimal(10, 2) NOT NULL,
+    quantity     int            NOT NULL,
+    total_amount decimal(10, 2) NOT NULL,
+    created_at   datetime       NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at   datetime       NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_by   bigint,
+    updated_by   bigint,
+    version      int            NOT NULL DEFAULT 0,
+    deleted      tinyint        NOT NULL DEFAULT 0
+);
+
+DROP TABLE IF EXISTS mall_order_refund;
+CREATE TABLE mall_order_refund
+(
+    id           bigint AUTO_INCREMENT PRIMARY KEY,
+    refund_no    varchar(32)    NOT NULL,
+    order_id     bigint         NOT NULL,
+    order_no     varchar(32)    NOT NULL,
+    user_id      bigint         NOT NULL,
+    amount       decimal(10, 2) NOT NULL,
+    type         varchar(16)    NOT NULL DEFAULT 'refund',
+    reason       varchar(255),
+    status       tinyint        NOT NULL DEFAULT 0,
+    audit_remark varchar(255),
+    applied_at   datetime       NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    handled_at   datetime,
+    handled_by   bigint,
+    created_at   datetime       NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at   datetime       NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_by   bigint,
+    updated_by   bigint,
+    version      int            NOT NULL DEFAULT 0,
+    deleted      tinyint        NOT NULL DEFAULT 0
+);
+
+DROP TABLE IF EXISTS mall_order_comment;
+CREATE TABLE mall_order_comment
+(
+    id            bigint AUTO_INCREMENT PRIMARY KEY,
+    order_id      bigint       NOT NULL,
+    order_no      varchar(32)  NOT NULL,
+    goods_id      bigint       NOT NULL,
+    goods_name    varchar(100) NOT NULL,
+    goods_image   varchar(255),
+    user_id       bigint       NOT NULL,
+    user_nickname varchar(64),
+    score         tinyint      NOT NULL DEFAULT 5,
+    content       varchar(500),
+    images        varchar(1000),
+    reply         varchar(500),
+    replied_at    datetime,
+    is_show       tinyint      NOT NULL DEFAULT 1,
+    commented_at  datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_at    datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at    datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_by    bigint,
+    updated_by    bigint,
+    version       int          NOT NULL DEFAULT 0,
+    deleted       tinyint      NOT NULL DEFAULT 0
+);
+
+DROP TABLE IF EXISTS app_user;
+CREATE TABLE app_user
+(
+    id         bigint AUTO_INCREMENT PRIMARY KEY,
+    openid     varchar(64)  NOT NULL,
+    unionid    varchar(64),
+    nickname   varchar(64),
+    avatar     varchar(255),
+    phone      varchar(20),
+    gender     tinyint      NOT NULL DEFAULT 0,
+    status     tinyint      NOT NULL DEFAULT 1,
+    created_at datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_by bigint,
+    updated_by bigint,
+    version    int          NOT NULL DEFAULT 0,
+    deleted    tinyint      NOT NULL DEFAULT 0
+);
+
+INSERT INTO app_user (id, openid, nickname, status)
+VALUES (1, 'test-openid-1', '微信用户', 1);
+
+INSERT INTO mall_order (id, order_no, user_id, total_amount, freight_amount, pay_amount, status, refund_status,
+                        receiver_name, receiver_phone, receiver_address, pay_time)
+VALUES (1002, 'EM20261021000002', 1, 29.90, 0.00, 29.90, 1, 0, '周予安', '13800000002', '杭州市西湖区文三路 199 号',
+        '2026-10-21 09:30:00'),
+       (1007, 'EM20261024000007', 1, 59.90, 0.00, 59.90, 2, 1, '林小满', '13800000001', '上海市浦东新区张江路 88 号',
+        '2026-10-24 13:15:00');
+
+INSERT INTO order_item (id, order_id, goods_id, goods_name, price, quantity, total_amount)
+VALUES (2002, 1002, 1, '当季赣南脐橙 5 斤装', 29.90, 1, 29.90),
+       (2008, 1007, 3, '每日坚果混合装 30 包', 59.90, 1, 59.90);
+
+INSERT INTO mall_order_refund (id, refund_no, order_id, order_no, user_id, amount, type, reason, status, applied_at)
+VALUES (3001, 'RF20261024000001', 1007, 'EM20261024000007', 1, 59.90, 'return', '坚果受潮，申请退货退款', 0,
+        '2026-10-25 09:10:00');
+
+INSERT INTO mall_order_comment (id, order_id, order_no, goods_id, goods_name, user_id, user_nickname, score, content,
+                                is_show, commented_at)
+VALUES (4003, 1007, 'EM20261024000007', 3, '每日坚果混合装 30 包', 1, '微信用户', 2, '有两个已经软烂了', 0,
+        '2026-10-24 10:30:00');
+
 INSERT INTO mall_goods (id, category_id, brand_id, name, price, stock, stock_warn, status)
 VALUES (1, 1, 1, '当季赣南脐橙 5 斤装', 29.90, 20, 10, 1);
 

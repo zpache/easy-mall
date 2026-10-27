@@ -1,9 +1,13 @@
 package com.easymall.admin;
 
 import com.easymall.admin.common.api.ResultCode;
+import com.easymall.admin.common.context.LoginUser;
+import com.easymall.admin.common.context.UserContext;
 import com.easymall.admin.common.exception.BusinessException;
 import com.easymall.admin.entity.Brand;
 import com.easymall.admin.entity.Category;
+import com.easymall.admin.entity.Order;
+import com.easymall.admin.entity.OrderRefund;
 import com.easymall.admin.modules.goods.dto.BrandForm;
 import com.easymall.admin.modules.goods.dto.CategoryForm;
 import com.easymall.admin.modules.goods.dto.StockAdjustForm;
@@ -11,6 +15,11 @@ import com.easymall.admin.modules.goods.service.BrandService;
 import com.easymall.admin.modules.goods.service.CategoryService;
 import com.easymall.admin.modules.goods.service.GoodsService;
 import com.easymall.admin.modules.goods.service.StockService;
+import com.easymall.admin.modules.order.dto.DeliverForm;
+import com.easymall.admin.modules.order.dto.RefundAuditForm;
+import com.easymall.admin.modules.order.service.CommentService;
+import com.easymall.admin.modules.order.service.OrderService;
+import com.easymall.admin.modules.order.service.RefundService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -51,6 +60,15 @@ class EasyMallAdminApplicationTests {
 
     @Autowired
     private StockService stockService;
+
+    @Autowired
+    private OrderService orderService;
+
+    @Autowired
+    private RefundService refundService;
+
+    @Autowired
+    private CommentService commentService;
 
     @Test
     @DisplayName("Spring 上下文可正常启动")
@@ -147,5 +165,52 @@ class EasyMallAdminApplicationTests {
         var logs = stockService.pageLogs(1L, 1, 10);
         assertEquals(2, logs.total(), "两次成功调整应各留一条流水");
         assertEquals(-17, logs.records().getFirst().changeQty(), "盘点按差值记录变动量");
+    }
+
+    @Test
+    @DisplayName("订单：待发货订单发货后进入待收货，重复发货被拒绝")
+    void orderDeliverFlow() {
+        orderService.deliver(1002L, new DeliverForm("顺丰速运", "SF100200300"));
+
+        Order delivered = orderService.getById(1002L);
+        assertEquals(Order.STATUS_UNRECEIVED, delivered.getStatus());
+        assertEquals("SF100200300", delivered.getDeliveryNo());
+        assertNotNull(delivered.getDeliveryTime(), "发货时间应自动写入");
+
+        BusinessException repeat = assertThrows(BusinessException.class,
+                () -> orderService.deliver(1002L, new DeliverForm("顺丰速运", "SF999")));
+        assertEquals(ResultCode.DATA_CONFLICT.getCode(), repeat.getCode());
+    }
+
+    @Test
+    @DisplayName("售后：审核同意后订单标记退款中，确认退款后标记已退款")
+    void refundAuditFlow() {
+        UserContext.set(new LoginUser(1L, "admin", "超级管理员", java.util.List.of("ADMIN")));
+        try {
+            refundService.audit(3001L, new RefundAuditForm(true, "同意退货退款"));
+            assertEquals(OrderRefund.STATUS_APPROVED, refundService.getById(3001L).getStatus());
+            assertEquals(Order.REFUND_PROCESSING, orderService.getById(1007L).getRefundStatus());
+
+            refundService.confirm(3001L);
+            assertEquals(OrderRefund.STATUS_REFUNDED, refundService.getById(3001L).getStatus());
+            assertEquals(Order.REFUND_DONE, orderService.getById(1007L).getRefundStatus());
+
+            BusinessException repeat = assertThrows(BusinessException.class,
+                    () -> refundService.audit(3001L, new RefundAuditForm(false, "重复审核")));
+            assertEquals(ResultCode.DATA_CONFLICT.getCode(), repeat.getCode());
+        } finally {
+            UserContext.clear();
+        }
+    }
+
+    @Test
+    @DisplayName("评价：隐藏后可再显示，并支持商家回复")
+    void commentVisibleAndReply() {
+        commentService.updateVisible(4003L, 1);
+        assertEquals(1, commentService.getById(4003L).getIsShow());
+
+        commentService.reply(4003L, "很抱歉影响体验，已为您补发");
+        assertEquals("很抱歉影响体验，已为您补发", commentService.getById(4003L).getReply());
+        assertNotNull(commentService.getById(4003L).getRepliedAt(), "回复时间应自动写入");
     }
 }
