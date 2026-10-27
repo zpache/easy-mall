@@ -1,5 +1,7 @@
 <script setup lang="ts">
-import { AvatarImage, type AvatarImageProps } from 'radix-vue';
+import type { AvatarImageProps } from 'reka-ui';
+
+import { AvatarImage } from 'reka-ui';
 
 const props = defineProps<AvatarImageProps>();
 </script>

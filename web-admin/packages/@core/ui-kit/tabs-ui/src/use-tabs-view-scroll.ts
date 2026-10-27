@@ -59,7 +59,7 @@ export function useTabsViewScroll(props: TabsProps) {
     }
 
     const viewportEl = scrollbarEl?.querySelector(
-      'div[data-radix-scroll-area-viewport]',
+      'div[data-reka-scroll-area-viewport]',
     );
 
     scrollViewportEl.value = viewportEl;
@@ -144,7 +144,7 @@ export function useTabsViewScroll(props: TabsProps) {
 
   function handleWheel({ deltaY }: WheelEvent) {
     scrollViewportEl.value?.scrollBy({
-      behavior: 'smooth',
+      // behavior: 'smooth',
       left: deltaY * 3,
     });
   }

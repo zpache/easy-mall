@@ -1,5 +1,6 @@
-import type { MenuRecordRaw } from '@vben-core/typings';
 import type { RouteRecordRaw } from 'vue-router';
+
+import type { MenuRecordRaw } from '@vben-core/typings';
 
 import { acceptHMRUpdate, defineStore } from 'pinia';
 
@@ -26,6 +27,14 @@ interface AccessState {
    * 是否已经检查过权限
    */
   isAccessChecked: boolean;
+  /**
+   * 是否锁屏状态
+   */
+  isLockScreen: boolean;
+  /**
+   * 锁屏密码
+   */
+  lockScreenPassword?: string;
   /**
    * 登录是否过期
    */
@@ -60,6 +69,10 @@ export const useAccessStore = defineStore('core-access', {
       }
       return findMenu(this.accessMenus, path);
     },
+    lockScreen(password: string) {
+      this.isLockScreen = true;
+      this.lockScreenPassword = password;
+    },
     setAccessCodes(codes: string[]) {
       this.accessCodes = codes;
     },
@@ -81,10 +94,20 @@ export const useAccessStore = defineStore('core-access', {
     setRefreshToken(token: AccessToken) {
       this.refreshToken = token;
     },
+    unlockScreen() {
+      this.isLockScreen = false;
+      this.lockScreenPassword = undefined;
+    },
   },
   persist: {
     // 持久化
-    pick: ['accessToken', 'refreshToken', 'accessCodes'],
+    pick: [
+      'accessToken',
+      'refreshToken',
+      'accessCodes',
+      'isLockScreen',
+      'lockScreenPassword',
+    ],
   },
   state: (): AccessState => ({
     accessCodes: [],
@@ -92,6 +115,8 @@ export const useAccessStore = defineStore('core-access', {
     accessRoutes: [],
     accessToken: null,
     isAccessChecked: false,
+    isLockScreen: false,
+    lockScreenPassword: undefined,
     loginExpired: false,
     refreshToken: null,
   }),

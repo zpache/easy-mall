@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { computed } from 'vue';
+
 import { VbenAvatar } from '../avatar';
 
 interface Props {
@@ -6,6 +8,10 @@ interface Props {
    * @zh_CN 是否收起文本
    */
   collapsed?: boolean;
+  /**
+   * @zh_CN Logo 图片适应方式
+   */
+  fit?: 'contain' | 'cover' | 'fill' | 'none' | 'scale-down';
   /**
    * @zh_CN Logo 跳转地址
    */
@@ -18,6 +24,10 @@ interface Props {
    * @zh_CN Logo 图标
    */
   src?: string;
+  /**
+   * @zh_CN 暗色主题 Logo 图标 (可选，若不设置则使用 src)
+   */
+  srcDark?: string;
   /**
    * @zh_CN Logo 文本
    */
@@ -32,12 +42,26 @@ defineOptions({
   name: 'VbenLogo',
 });
 
-withDefaults(defineProps<Props>(), {
+const props = withDefaults(defineProps<Props>(), {
   collapsed: false,
   href: 'javascript:void 0',
   logoSize: 32,
   src: '',
+  srcDark: '',
   theme: 'light',
+  fit: 'cover',
+});
+
+/**
+ * @zh_CN 根据主题选择合适的 logo 图标
+ */
+const logoSrc = computed(() => {
+  // 如果是暗色主题且提供了 srcDark，则使用暗色主题的 logo
+  if (props.theme === 'dark' && props.srcDark) {
+    return props.srcDark;
+  }
+  // 否则使用默认的 src
+  return props.src;
 });
 </script>
 
@@ -49,17 +73,20 @@ withDefaults(defineProps<Props>(), {
       class="flex h-full items-center gap-2 overflow-hidden px-3 text-lg leading-normal transition-all duration-500"
     >
       <VbenAvatar
-        v-if="src"
+        v-if="logoSrc"
         :alt="text"
-        :src="src"
-        class="relative w-8 rounded-none bg-transparent"
+        :src="logoSrc"
+        :size="logoSize"
+        :fit="fit"
+        class="relative rounded-none bg-transparent"
       />
-      <span
-        v-if="!collapsed"
-        class="text-foreground truncate text-nowrap font-semibold"
-      >
-        {{ text }}
-      </span>
+      <template v-if="!collapsed">
+        <slot name="text">
+          <span class="text-foreground truncate font-semibold text-nowrap">
+            {{ text }}
+          </span>
+        </slot>
+      </template>
     </a>
   </div>
 </template>

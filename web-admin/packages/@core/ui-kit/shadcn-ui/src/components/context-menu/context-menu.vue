@@ -1,16 +1,17 @@
 <script setup lang="ts">
-import type { ClassType } from '@vben-core/typings';
 import type {
   ContextMenuContentProps,
   ContextMenuRootEmits,
   ContextMenuRootProps,
-} from 'radix-vue';
+} from 'reka-ui';
+
+import type { ClassType } from '@vben-core/typings';
 
 import type { IContextMenuItem } from './interface';
 
-import { computed } from 'vue';
+import { computed, onMounted, onUnmounted, ref } from 'vue';
 
-import { useForwardPropsEmits } from 'radix-vue';
+import { useForwardPropsEmits } from 'reka-ui';
 
 import {
   ContextMenu,
@@ -22,17 +23,25 @@ import {
 } from '../../ui/context-menu';
 
 const props = defineProps<
-  {
+  ContextMenuRootProps & {
     class?: ClassType;
     contentClass?: ClassType;
     contentProps?: ContextMenuContentProps;
     handlerData?: Record<string, any>;
     itemClass?: ClassType;
     menus: (data: any) => IContextMenuItem[];
-  } & ContextMenuRootProps
+  }
 >();
 
 const emits = defineEmits<ContextMenuRootEmits>();
+
+const NATIVE_CONTEXT_SELECTORS = [
+  'input',
+  'textarea',
+  'select',
+  '[contenteditable]:not([contenteditable="false"])',
+  '.allow-native-context',
+].join(', ');
 
 const delegatedProps = computed(() => {
   const {
@@ -58,20 +67,43 @@ function handleClick(menu: IContextMenuItem) {
   }
   menu?.handler?.(props.handlerData);
 }
+
+const triggerRef = ref<HTMLElement | null>(null);
+
+function onContextMenuCapture(e: MouseEvent) {
+  if ((e.target as HTMLElement).closest(NATIVE_CONTEXT_SELECTORS)) {
+    e.stopPropagation();
+  }
+}
+
+onMounted(() => {
+  triggerRef.value?.addEventListener('contextmenu', onContextMenuCapture, {
+    capture: true,
+  });
+});
+
+onUnmounted(() => {
+  triggerRef.value?.removeEventListener('contextmenu', onContextMenuCapture, {
+    capture: true,
+  });
+});
 </script>
 
 <template>
   <ContextMenu v-bind="forwarded">
     <ContextMenuTrigger as-child>
-      <slot></slot>
+      <div ref="triggerRef" class="contents">
+        <slot></slot>
+      </div>
     </ContextMenuTrigger>
     <ContextMenuContent
       :class="contentClass"
       v-bind="contentProps"
-      class="side-content z-[1000]"
+      class="side-content z-popup"
     >
       <template v-for="menu in menusView" :key="menu.key">
         <ContextMenuItem
+          v-if="!menu.hidden"
           :class="itemClass"
           :disabled="menu.disabled"
           :inset="menu.inset || !menu.icon"

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { CSSProperties } from 'vue';
+
 import { computed, useTemplateRef } from 'vue';
 
 import { VbenSpineText } from '@vben-core/shadcn-ui';
@@ -35,7 +36,7 @@ defineExpose({
       [$style.success]: isPassing,
     }"
     :style="style"
-    class="absolute top-0 flex size-full select-none items-center justify-center text-xs"
+    class="absolute top-0 flex-center size-full text-xs select-none"
   >
     <slot name="text">
       <VbenSpineText class="flex h-full items-center">

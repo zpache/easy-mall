@@ -1,5 +1,7 @@
 <script setup lang="ts">
-import { computed, type CSSProperties, ref, useTemplateRef } from 'vue';
+import type { CSSProperties } from 'vue';
+
+import { computed, ref, useTemplateRef } from 'vue';
 
 const props = defineProps<{
   barStyle: CSSProperties;
@@ -31,8 +33,8 @@ defineExpose({
 <template>
   <div
     ref="barRef"
-    :class="toLeft && 'transition-width !w-0 duration-300'"
+    :class="toLeft && 'transition-width w-0! duration-300'"
     :style="style"
-    class="bg-success absolute h-full"
+    class="absolute h-full bg-success"
   ></div>
 </template>

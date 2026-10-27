@@ -1,15 +1,15 @@
 <script setup lang="ts">
+import type { BuiltinThemePreset } from '@vben/preferences';
 import type { BuiltinThemeType } from '@vben/types';
 
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 
 import { UserRoundPen } from '@vben/icons';
 import { $t } from '@vben/locales';
-import {
-  BUILT_IN_THEME_PRESETS,
-  type BuiltinThemePreset,
-} from '@vben/preferences';
+import { BUILT_IN_THEME_PRESETS } from '@vben/preferences';
 import { convertToHsl, TinyColor } from '@vben/utils';
+
+import { useThrottleFn } from '@vueuse/core';
 
 defineOptions({
   name: 'PreferenceBuiltinTheme',
@@ -20,6 +20,15 @@ const props = defineProps<{ isDark: boolean }>();
 const colorInput = ref();
 const modelValue = defineModel<BuiltinThemeType>({ default: 'default' });
 const themeColorPrimary = defineModel<string>('themeColorPrimary');
+
+const updateThemeColorPrimary = useThrottleFn(
+  (value: string) => {
+    themeColorPrimary.value = value;
+  },
+  300,
+  true,
+  true,
+);
 
 const inputValue = computed(() => {
   return new TinyColor(themeColorPrimary.value || '').toHexString();
@@ -49,7 +58,6 @@ function typeView(name: BuiltinThemeType) {
     case 'green': {
       return $t('preferences.theme.builtin.green');
     }
-
     case 'neutral': {
       return $t('preferences.theme.builtin.neutral');
     }
@@ -82,21 +90,32 @@ function typeView(name: BuiltinThemeType) {
 
 function handleSelect(theme: BuiltinThemePreset) {
   modelValue.value = theme.type;
-  const primaryColor = props.isDark
-    ? theme.darkPrimaryColor || theme.primaryColor
-    : theme.primaryColor;
-
-  themeColorPrimary.value = primaryColor || theme.color;
 }
 
 function handleInputChange(e: Event) {
   const target = e.target as HTMLInputElement;
-  themeColorPrimary.value = convertToHsl(target.value);
+  updateThemeColorPrimary(convertToHsl(target.value));
 }
 
 function selectColor() {
   colorInput.value?.[0]?.click?.();
 }
+
+watch(
+  () => [modelValue.value, props.isDark] as [BuiltinThemeType, boolean],
+  ([themeType, isDark]) => {
+    const theme = builtinThemePresets.value.find(
+      (item) => item.type === themeType,
+    );
+    if (theme) {
+      const primaryColor = isDark
+        ? theme.darkPrimaryColor || theme.primaryColor
+        : theme.primaryColor;
+
+      themeColorPrimary.value = primaryColor || theme.color;
+    }
+  },
+);
 </script>
 
 <template>
@@ -107,19 +126,19 @@ function selectColor() {
           :class="{
             'outline-box-active': theme.type === modelValue,
           }"
-          class="outline-box flex-center group cursor-pointer"
+          class="group outline-box flex-center cursor-pointer"
         >
           <template v-if="theme.type !== 'custom'">
             <div
               :style="{ backgroundColor: theme.color }"
-              class="mx-10 my-2 size-5 rounded-md"
+              class="mx-9 my-2 size-5 rounded-md"
             ></div>
           </template>
           <template v-else>
-            <div class="size-full px-10 py-2" @click.stop="selectColor">
-              <div class="flex-center relative size-5 rounded-sm">
+            <div class="size-full px-9 py-2" @click.stop="selectColor">
+              <div class="relative flex-center size-5 rounded-sm">
                 <UserRoundPen
-                  class="absolute z-10 size-5 opacity-60 group-hover:opacity-100"
+                  class="absolute z-1 size-5 opacity-60 group-hover:opacity-100"
                 />
                 <input
                   ref="colorInput"
@@ -132,7 +151,7 @@ function selectColor() {
             </div>
           </template>
         </div>
-        <div class="text-muted-foreground my-2 text-center text-xs">
+        <div class="my-2 text-center text-xs text-muted-foreground">
           {{ typeView(theme.type) }}
         </div>
       </div>

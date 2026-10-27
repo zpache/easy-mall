@@ -13,9 +13,10 @@ import VbenUseForm from './vben-use-form.vue';
 
 export function useVbenForm<
   T extends BaseFormComponentType = BaseFormComponentType,
->(options: VbenFormProps<T>) {
+  P extends Record<string, any> = Record<never, never>,
+>(options: VbenFormProps<T, P>) {
   const IS_REACTIVE = isReactive(options);
-  const api = new FormApi(options);
+  const api = new FormApi(options as unknown as VbenFormProps);
   const extendedApi: ExtendedFormApi = api as never;
   extendedApi.useStore = (selector) => {
     return useStore(api.store, selector);
@@ -31,8 +32,8 @@ export function useVbenForm<
         h(VbenUseForm, { ...props, ...attrs, formApi: extendedApi }, slots);
     },
     {
-      inheritAttrs: false,
       name: 'VbenUseForm',
+      inheritAttrs: false,
     },
   );
   // Add reactivity support

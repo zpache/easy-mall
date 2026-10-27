@@ -1,8 +1,11 @@
 <script setup lang="ts">
 import type { LayoutType } from '@vben/types';
 
+import { onMounted } from 'vue';
+
 import { $t } from '@vben/locales';
 
+import CheckboxItem from '../checkbox-item.vue';
 import NumberFieldItem from '../number-field-item.vue';
 import SwitchItem from '../switch-item.vue';
 
@@ -16,13 +19,38 @@ const sidebarCollapsedShowTitle = defineModel<boolean>(
 const sidebarAutoActivateChild = defineModel<boolean>(
   'sidebarAutoActivateChild',
 );
+const sidebarDraggable = defineModel<boolean>('sidebarDraggable');
 const sidebarCollapsed = defineModel<boolean>('sidebarCollapsed');
 const sidebarExpandOnHover = defineModel<boolean>('sidebarExpandOnHover');
+
+const sidebarButtons = defineModel<string[]>('sidebarButtons', { default: [] });
+const sidebarCollapsedButton = defineModel<boolean>('sidebarCollapsedButton');
+const sidebarFixedButton = defineModel<boolean>('sidebarFixedButton');
+
+onMounted(() => {
+  if (
+    sidebarCollapsedButton.value &&
+    !sidebarButtons.value.includes('collapsed')
+  ) {
+    sidebarButtons.value.push('collapsed');
+  }
+  if (sidebarFixedButton.value && !sidebarButtons.value.includes('fixed')) {
+    sidebarButtons.value.push('fixed');
+  }
+});
+
+const handleCheckboxChange = () => {
+  sidebarCollapsedButton.value = !!sidebarButtons.value.includes('collapsed');
+  sidebarFixedButton.value = !!sidebarButtons.value.includes('fixed');
+};
 </script>
 
 <template>
   <SwitchItem v-model="sidebarEnable" :disabled="disabled">
     {{ $t('preferences.sidebar.visible') }}
+  </SwitchItem>
+  <SwitchItem v-model="sidebarDraggable" :disabled="!sidebarEnable || disabled">
+    {{ $t('preferences.sidebar.draggable') }}
   </SwitchItem>
   <SwitchItem v-model="sidebarCollapsed" :disabled="!sidebarEnable || disabled">
     {{ $t('preferences.sidebar.collapsed') }}
@@ -44,7 +72,7 @@ const sidebarExpandOnHover = defineModel<boolean>('sidebarExpandOnHover');
     v-model="sidebarAutoActivateChild"
     :disabled="
       !sidebarEnable ||
-      !['sidebar-mixed-nav', 'mixed-nav', 'sidebar-nav'].includes(
+      !['sidebar-mixed-nav', 'mixed-nav', 'header-mixed-nav'].includes(
         currentLayout as string,
       ) ||
       disabled
@@ -53,6 +81,17 @@ const sidebarExpandOnHover = defineModel<boolean>('sidebarExpandOnHover');
   >
     {{ $t('preferences.sidebar.autoActivateChild') }}
   </SwitchItem>
+  <CheckboxItem
+    :items="[
+      { label: $t('preferences.sidebar.buttonCollapsed'), value: 'collapsed' },
+      { label: $t('preferences.sidebar.buttonFixed'), value: 'fixed' },
+    ]"
+    multiple
+    v-model="sidebarButtons"
+    :on-btn-click="handleCheckboxChange"
+  >
+    {{ $t('preferences.sidebar.buttons') }}
+  </CheckboxItem>
   <NumberFieldItem
     v-model="sidebarWidth"
     :disabled="!sidebarEnable || disabled"

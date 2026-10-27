@@ -3,12 +3,7 @@ import { computed, toRaw, unref, watch } from 'vue';
 
 import { useSimpleLocale } from '@vben-core/composables';
 import { VbenExpandableArrow } from '@vben-core/shadcn-ui';
-import {
-  cn,
-  formatDate,
-  isFunction,
-  triggerWindowResize,
-} from '@vben-core/shared/utils';
+import { cn, isFunction, triggerWindowResize } from '@vben-core/shared/utils';
 
 import { COMPONENT_MAP } from '../config';
 import { injectFormProps } from '../use-form-context';
@@ -35,31 +30,21 @@ const submitButtonOptions = computed(() => {
   };
 });
 
-// const isQueryForm = computed(() => {
-//   return !!unref(rootProps).showCollapseButton;
-// });
-
-const queryFormStyle = computed(() => {
-  if (!unref(rootProps).actionWrapperClass) {
-    return {
-      'grid-column': `-2 / -1`,
-      marginLeft: 'auto',
-    };
-  }
-
-  return {};
-});
-
 async function handleSubmit(e: Event) {
   e?.preventDefault();
   e?.stopPropagation();
-  const { valid } = await form.validate();
+  const props = unref(rootProps);
+  if (!props.formApi) {
+    return;
+  }
+
+  const { valid } = await props.formApi.validate();
   if (!valid) {
     return;
   }
 
-  const values = handleRangeTimeValue(toRaw(form.values));
-  await unref(rootProps).handleSubmit?.(values);
+  const values = toRaw(await props.formApi.getValues()) ?? {};
+  await props.handleSubmit?.(values);
 }
 
 async function handleReset(e: Event) {
@@ -67,57 +52,13 @@ async function handleReset(e: Event) {
   e?.stopPropagation();
   const props = unref(rootProps);
 
-  const values = toRaw(form.values);
-  // 清理时间字段
-  props.fieldMappingTime &&
-    props.fieldMappingTime.forEach(([_, [startTimeKey, endTimeKey]]) => {
-      delete values[startTimeKey];
-      delete values[endTimeKey];
-    });
+  const values = toRaw(await props.formApi?.getValues()) ?? {};
 
   if (isFunction(props.handleReset)) {
     await props.handleReset?.(values);
   } else {
     form.resetForm();
   }
-}
-
-function handleRangeTimeValue(values: Record<string, any>) {
-  const fieldMappingTime = unref(rootProps).fieldMappingTime;
-
-  if (!fieldMappingTime || !Array.isArray(fieldMappingTime)) {
-    return values;
-  }
-
-  fieldMappingTime.forEach(
-    ([field, [startTimeKey, endTimeKey], format = 'YYYY-MM-DD']) => {
-      if (startTimeKey && endTimeKey && values[field] === null) {
-        delete values[startTimeKey];
-        delete values[endTimeKey];
-      }
-
-      if (!values[field]) {
-        delete values[field];
-        return;
-      }
-
-      const [startTime, endTime] = values[field];
-      const [startTimeFormat, endTimeFormat] = Array.isArray(format)
-        ? format
-        : [format, format];
-
-      values[startTimeKey] = startTime
-        ? formatDate(startTime, startTimeFormat)
-        : undefined;
-      values[endTimeKey] = endTime
-        ? formatDate(endTime, endTimeFormat)
-        : undefined;
-
-      delete values[field];
-    },
-  );
-
-  return values;
 }
 
 watch(
@@ -130,22 +71,59 @@ watch(
   },
 );
 
+const actionWrapperClass = computed(() => {
+  const props = unref(rootProps);
+  const actionLayout = props.actionLayout || 'rowEnd';
+  const actionPosition = props.actionPosition || 'right';
+
+  const cls = [
+    'flex',
+    'items-center',
+    'gap-3',
+    props.compact ? 'pb-2' : 'pb-4',
+    props.layout === 'vertical' ? 'self-end' : 'self-center',
+    props.layout === 'inline' ? '' : 'w-full',
+    props.actionWrapperClass,
+  ];
+
+  switch (actionLayout) {
+    case 'newLine': {
+      cls.push('col-span-full');
+      break;
+    }
+    case 'rowEnd': {
+      cls.push('col-[-2/-1]');
+      break;
+    }
+    // 'inline' 不需要额外类名，保持默认
+  }
+
+  switch (actionPosition) {
+    case 'center': {
+      cls.push('justify-center');
+      break;
+    }
+    case 'left': {
+      cls.push('justify-start');
+      break;
+    }
+    default: {
+      // case 'right': 默认右对齐
+      cls.push('justify-end');
+      break;
+    }
+  }
+
+  return cls.join(' ');
+});
+
 defineExpose({
   handleReset,
   handleSubmit,
 });
 </script>
 <template>
-  <div
-    :class="
-      cn(
-        'col-span-full w-full text-right',
-        rootProps.compact ? 'pb-2' : 'pb-6',
-        rootProps.actionWrapperClass,
-      )
-    "
-    :style="queryFormStyle"
-  >
+  <div :class="cn(actionWrapperClass)">
     <template v-if="rootProps.actionButtonsReverse">
       <!-- 提交按钮前 -->
       <slot name="submit-before"></slot>
@@ -153,7 +131,6 @@ defineExpose({
       <component
         :is="COMPONENT_MAP.PrimaryButton"
         v-if="submitButtonOptions.show"
-        class="ml-3"
         type="button"
         @click="handleSubmit"
         v-bind="submitButtonOptions"
@@ -168,7 +145,6 @@ defineExpose({
     <component
       :is="COMPONENT_MAP.DefaultButton"
       v-if="resetButtonOptions.show"
-      class="ml-3"
       type="button"
       @click="handleReset"
       v-bind="resetButtonOptions"
@@ -183,7 +159,6 @@ defineExpose({
       <component
         :is="COMPONENT_MAP.PrimaryButton"
         v-if="submitButtonOptions.show"
-        class="ml-3"
         type="button"
         @click="handleSubmit"
         v-bind="submitButtonOptions"
@@ -196,9 +171,9 @@ defineExpose({
     <slot name="expand-before"></slot>
 
     <VbenExpandableArrow
+      class="ml-[-0.3em]"
       v-if="rootProps.showCollapseButton"
       v-model:model-value="collapsed"
-      class="ml-2"
     >
       <span>{{ collapsed ? $t('expand') : $t('collapse') }}</span>
     </VbenExpandableArrow>

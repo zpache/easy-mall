@@ -1,6 +1,8 @@
 type LayoutType =
   | 'full-content'
+  | 'header-mixed-nav'
   | 'header-nav'
+  | 'header-sidebar-nav'
   | 'mixed-nav'
   | 'sidebar-mixed-nav'
   | 'sidebar-nav';
@@ -8,12 +10,17 @@ type LayoutType =
 type ThemeModeType = 'auto' | 'dark' | 'light';
 
 /**
- * 偏好设置按钮位置
+ * 按钮位置
+ * user-dropdown 用户的下拉弹出框中
  * fixed 固定在右侧
  * header 顶栏
  * auto 自动
  */
-type PreferencesButtonPositionType = 'auto' | 'fixed' | 'header';
+type PreferencesButtonPositionType =
+  | 'auto'
+  | 'fixed'
+  | 'header'
+  | 'user-dropdown';
 
 type BuiltinThemeType =
   | 'custom'
@@ -58,8 +65,9 @@ type BreadcrumbStyleType = 'background' | 'normal';
  * 权限模式
  * backend 后端权限模式
  * frontend 前端权限模式
+ * mixed 混合权限模式
  */
-type AccessModeType = 'backend' | 'frontend';
+type AccessModeType = 'backend' | 'frontend' | 'mixed';
 
 /**
  * 导航风格
@@ -90,6 +98,15 @@ type PageTransitionType = 'fade' | 'fade-down' | 'fade-slide' | 'fade-up';
  */
 type AuthPageLayoutType = 'panel-center' | 'panel-left' | 'panel-right';
 
+/**
+ * 时区选项
+ */
+interface TimezoneOption {
+  label: string;
+  offset: number;
+  timezone: string;
+}
+
 export type {
   AccessModeType,
   AuthPageLayoutType,
@@ -105,4 +122,5 @@ export type {
   PreferencesButtonPositionType,
   TabsStyleType,
   ThemeModeType,
+  TimezoneOption,
 };

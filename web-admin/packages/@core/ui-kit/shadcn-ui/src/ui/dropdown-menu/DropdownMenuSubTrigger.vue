@@ -1,16 +1,14 @@
 <script setup lang="ts">
+import type { DropdownMenuSubTriggerProps } from 'reka-ui';
+
 import { computed } from 'vue';
 
 import { cn } from '@vben-core/shared/utils';
 
 import { ChevronRight } from 'lucide-vue-next';
-import {
-  DropdownMenuSubTrigger,
-  type DropdownMenuSubTriggerProps,
-  useForwardProps,
-} from 'radix-vue';
+import { DropdownMenuSubTrigger, useForwardProps } from 'reka-ui';
 
-const props = defineProps<{ class?: any } & DropdownMenuSubTriggerProps>();
+const props = defineProps<DropdownMenuSubTriggerProps & { class?: any }>();
 
 const delegatedProps = computed(() => {
   const { class: _, ...delegated } = props;
@@ -26,7 +24,7 @@ const forwardedProps = useForwardProps(delegatedProps);
     v-bind="forwardedProps"
     :class="
       cn(
-        'focus:bg-accent data-[state=open]:bg-accent flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none',
+        'focus:bg-accent data-[state=open]:bg-accent flex cursor-default items-center rounded-sm px-2 py-1.5 text-sm outline-hidden select-none',
         props.class,
       )
     "

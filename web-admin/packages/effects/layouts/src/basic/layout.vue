@@ -1,17 +1,22 @@
 <script lang="ts" setup>
+import type { SetupContext } from 'vue';
+import type { RouteLocationNormalizedLoaded } from 'vue-router';
+
 import type { MenuRecordRaw } from '@vben/types';
 
-import { computed, useSlots, watch } from 'vue';
+import { computed, onMounted, useSlots, watch } from 'vue';
+import { useRoute } from 'vue-router';
 
 import { useRefresh } from '@vben/hooks';
-import { $t } from '@vben/locales';
+import { $t, i18n } from '@vben/locales';
 import {
   preferences,
   updatePreferences,
   usePreferences,
 } from '@vben/preferences';
-import { useLockStore } from '@vben/stores';
+import { useAccessStore, useTabbarStore, useTimezoneStore } from '@vben/stores';
 import { cloneDeep, mapTree } from '@vben/utils';
+
 import { VbenAdminLayout } from '@vben-core/layout-ui';
 import { VbenBackTop, VbenLogo } from '@vben-core/shadcn-ui';
 
@@ -31,24 +36,33 @@ import { LayoutTabbar } from './tabbar';
 
 defineOptions({ name: 'BasicLayout' });
 
-const emit = defineEmits<{ clearPreferencesAndLogout: [] }>();
+const emit = defineEmits<{ clearPreferencesAndLogout: []; clickLogo: [] }>();
 
 const {
   isDark,
   isHeaderNav,
   isMixedNav,
   isMobile,
+  isSideMode,
   isSideMixedNav,
+  isHeaderMixedNav,
+  isHeaderSidebarNav,
   layout,
   preferencesButtonPosition,
   sidebarCollapsed,
   theme,
 } = usePreferences();
-const lockStore = useLockStore();
+const accessStore = useAccessStore();
+const timezoneStore = useTimezoneStore();
 const { refresh } = useRefresh();
 
 const sidebarTheme = computed(() => {
   const dark = isDark.value || preferences.theme.semiDarkSidebar;
+  return dark ? 'dark' : 'light';
+});
+
+const sidebarThemeSub = computed(() => {
+  const dark = isDark.value || preferences.theme.semiDarkSidebarSub;
   return dark ? 'dark' : 'light';
 });
 
@@ -80,15 +94,40 @@ const logoCollapsed = computed(() => {
   if (isMobile.value && sidebarCollapsed.value) {
     return true;
   }
-  if (isHeaderNav.value || isMixedNav.value) {
+  if (isHeaderNav.value || isMixedNav.value || isHeaderSidebarNav.value) {
     return false;
   }
-  return sidebarCollapsed.value || isSideMixedNav.value;
+  return (
+    sidebarCollapsed.value || isSideMixedNav.value || isHeaderMixedNav.value
+  );
 });
 
 const showHeaderNav = computed(() => {
-  return !isMobile.value && (isHeaderNav.value || isMixedNav.value);
+  return (
+    !isMobile.value &&
+    (isHeaderNav.value || isMixedNav.value || isHeaderMixedNav.value)
+  );
 });
+
+const logoTheme = computed(() => {
+  const showLogoInHeader =
+    !isSideMode.value ||
+    isHeaderSidebarNav.value ||
+    isMixedNav.value ||
+    isMobile.value;
+  return showLogoInHeader ? headerTheme.value : sidebarTheme.value;
+});
+
+const {
+  handleMenuSelect,
+  handleMenuOpen,
+  headerActive,
+  headerMenus,
+  sidebarActive,
+  sidebarMenus,
+  mixHeaderMenus,
+  sidebarVisible,
+} = useMixedMenu();
 
 // 侧边多列菜单
 const {
@@ -99,17 +138,7 @@ const {
   handleMixedMenuSelect,
   handleSideMouseLeave,
   sidebarExtraVisible,
-} = useExtraMenu();
-
-const {
-  handleMenuSelect,
-  handleMenuOpen,
-  headerActive,
-  headerMenus,
-  sidebarActive,
-  sidebarMenus,
-  sidebarVisible,
-} = useMixedMenu();
+} = useExtraMenu(mixHeaderMenus);
 
 /**
  * 包装菜单，翻译菜单名称
@@ -138,6 +167,29 @@ function clearPreferencesAndLogout() {
   emit('clearPreferencesAndLogout');
 }
 
+function clickLogo() {
+  emit('clickLogo');
+}
+
+function autoCollapseMenuByRouteMeta(route: RouteLocationNormalizedLoaded) {
+  // 只在双列模式下生效
+  if (
+    ['header-mixed-nav', 'sidebar-mixed-nav'].includes(
+      preferences.app.layout,
+    ) &&
+    route.meta &&
+    route.meta.hideInMenu
+  ) {
+    sidebarExtraVisible.value = false;
+  }
+}
+
+const route = useRoute();
+
+onMounted(() => {
+  autoCollapseMenuByRouteMeta(route);
+});
+
 watch(
   () => preferences.app.layout,
   async (val) => {
@@ -151,10 +203,21 @@ watch(
   },
 );
 
-// 语言更新后，刷新页面
-watch(() => preferences.app.locale, refresh, { flush: 'post' });
+const tabbarStore = useTabbarStore();
 
-const slots = useSlots();
+function refreshAll() {
+  tabbarStore.cachedTabs.clear();
+  refresh();
+}
+
+// 语言更新后，刷新页面
+// i18n.global.locale会在preference.app.locale变更之后才会更新，因此watchpreference.app.locale是不合适的，刷新页面时可能语言配置尚未完全加载完成
+watch(i18n.global.locale, refreshAll, { flush: 'post' });
+
+// 时区更新后，刷新页面
+watch(() => timezoneStore.timezone, refreshAll, { flush: 'post' });
+
+const slots: SetupContext['slots'] = useSlots();
 const headerSlots = computed(() => {
   return Object.keys(slots).filter((key) => key.startsWith('header-'));
 });
@@ -164,8 +227,16 @@ const headerSlots = computed(() => {
   <VbenAdminLayout
     v-model:sidebar-extra-visible="sidebarExtraVisible"
     :content-compact="preferences.app.contentCompact"
+    :content-compact-width="preferences.app.contentCompactWidth"
+    :content-padding="preferences.app.contentPadding"
+    :content-padding-bottom="preferences.app.contentPaddingBottom"
+    :content-padding-left="preferences.app.contentPaddingLeft"
+    :content-padding-right="preferences.app.contentPaddingRight"
+    :content-padding-top="preferences.app.contentPaddingTop"
     :footer-enable="preferences.footer.enable"
     :footer-fixed="preferences.footer.fixed"
+    :footer-height="preferences.footer.height"
+    :header-height="preferences.header.height"
     :header-hidden="preferences.header.hidden"
     :header-mode="preferences.header.mode"
     :header-theme="headerTheme"
@@ -173,16 +244,24 @@ const headerSlots = computed(() => {
     :header-visible="preferences.header.enable"
     :is-mobile="preferences.app.isMobile"
     :layout="layout"
+    :sidebar-draggable="preferences.sidebar.draggable"
     :sidebar-collapse="preferences.sidebar.collapsed"
     :sidebar-collapse-show-title="preferences.sidebar.collapsedShowTitle"
     :sidebar-enable="sidebarVisible"
+    :sidebar-collapsed-button="preferences.sidebar.collapsedButton"
+    :sidebar-fixed-button="preferences.sidebar.fixedButton"
     :sidebar-expand-on-hover="preferences.sidebar.expandOnHover"
     :sidebar-extra-collapse="preferences.sidebar.extraCollapse"
+    :sidebar-extra-collapsed-width="preferences.sidebar.extraCollapsedWidth"
     :sidebar-hidden="preferences.sidebar.hidden"
+    :sidebar-mixed-width="preferences.sidebar.mixedWidth"
     :sidebar-theme="sidebarTheme"
+    :sidebar-theme-sub="sidebarThemeSub"
     :sidebar-width="preferences.sidebar.width"
+    :side-collapse-width="preferences.sidebar.collapseWidth"
     :tabbar-enable="preferences.tabbar.enable"
     :tabbar-height="preferences.tabbar.height"
+    :z-index="preferences.app.zIndex"
     @side-mouse-leave="handleSideMouseLeave"
     @toggle-sidebar="toggleSidebar"
     @update:sidebar-collapse="
@@ -199,17 +278,27 @@ const headerSlots = computed(() => {
       (value: boolean) =>
         updatePreferences({ sidebar: { extraCollapse: value } })
     "
+    @update:sidebar-width="
+      (value: number) => updatePreferences({ sidebar: { width: value } })
+    "
   >
     <!-- logo -->
     <template #logo>
       <VbenLogo
         v-if="preferences.logo.enable"
+        :fit="preferences.logo.fit"
         :class="logoClass"
         :collapsed="logoCollapsed"
         :src="preferences.logo.source"
+        :src-dark="preferences.logo.sourceDark"
         :text="preferences.app.name"
-        :theme="showHeaderNav ? headerTheme : theme"
-      />
+        :theme="logoTheme"
+        @click="clickLogo"
+      >
+        <template v-if="$slots['logo-text']" #text>
+          <slot name="logo-text"></slot>
+        </template>
+      </VbenLogo>
     </template>
     <!-- 头部区域 -->
     <template #header>
@@ -245,6 +334,9 @@ const headerSlots = computed(() => {
         <template #notification>
           <slot name="notification"></slot>
         </template>
+        <template #timezone>
+          <slot name="timezone"></slot>
+        </template>
         <template v-for="item in headerSlots" #[item]>
           <slot :name="item"></slot>
         </template>
@@ -268,7 +360,7 @@ const headerSlots = computed(() => {
     <template #mixed-menu>
       <LayoutMixedMenu
         :active-path="extraActiveMenu"
-        :menus="wrapperMenus(headerMenus, false)"
+        :menus="wrapperMenus(mixHeaderMenus, false)"
         :rounded="isMenuRounded"
         :theme="sidebarTheme"
         @default-select="handleDefaultSelect"
@@ -283,15 +375,20 @@ const headerSlots = computed(() => {
         :collapse="preferences.sidebar.extraCollapse"
         :menus="wrapperMenus(extraMenus)"
         :rounded="isMenuRounded"
-        :theme="sidebarTheme"
+        :theme="sidebarThemeSub"
       />
     </template>
     <template #side-extra-title>
       <VbenLogo
         v-if="preferences.logo.enable"
+        :fit="preferences.logo.fit"
         :text="preferences.app.name"
-        :theme="theme"
-      />
+        :theme="sidebarThemeSub"
+      >
+        <template v-if="$slots['logo-text']" #text>
+          <slot name="logo-text"></slot>
+        </template>
+      </VbenLogo>
     </template>
 
     <template #tabbar>
@@ -329,12 +426,12 @@ const headerSlots = computed(() => {
       />
 
       <Transition v-if="preferences.widget.lockScreen" name="slide-up">
-        <slot v-if="lockStore.isLockScreen" name="lock-screen"></slot>
+        <slot v-if="accessStore.isLockScreen" name="lock-screen"></slot>
       </Transition>
 
       <template v-if="preferencesButtonPosition.fixed">
         <Preferences
-          class="z-100 fixed bottom-20 right-0"
+          class="fixed top-1/2 right-0 z-100 -translate-y-1/2 transform"
           @clear-preferences-and-logout="clearPreferencesAndLogout"
         />
       </template>

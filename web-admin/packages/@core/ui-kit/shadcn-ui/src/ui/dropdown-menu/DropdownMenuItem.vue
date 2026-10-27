@@ -1,16 +1,14 @@
 <script setup lang="ts">
+import type { DropdownMenuItemProps } from 'reka-ui';
+
 import { computed } from 'vue';
 
 import { cn } from '@vben-core/shared/utils';
 
-import {
-  DropdownMenuItem,
-  type DropdownMenuItemProps,
-  useForwardProps,
-} from 'radix-vue';
+import { DropdownMenuItem, useForwardProps } from 'reka-ui';
 
 const props = defineProps<
-  { class?: any; inset?: boolean } & DropdownMenuItemProps
+  DropdownMenuItemProps & { class?: any; inset?: boolean }
 >();
 
 const delegatedProps = computed(() => {
@@ -27,7 +25,7 @@ const forwardedProps = useForwardProps(delegatedProps);
     v-bind="forwardedProps"
     :class="
       cn(
-        'focus:bg-accent focus:text-accent-foreground relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
+        'focus:bg-accent focus:text-accent-foreground relative flex cursor-default items-center rounded-sm px-2 py-1.5 text-sm outline-hidden transition-colors select-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
         inset && 'pl-8',
         props.class,
       )

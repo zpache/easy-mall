@@ -1,11 +1,13 @@
 <script setup lang="ts">
+import type { LabelProps } from 'reka-ui';
+
 import { computed } from 'vue';
 
 import { cn } from '@vben-core/shared/utils';
 
-import { Label, type LabelProps } from 'radix-vue';
+import { Label } from 'reka-ui';
 
-const props = defineProps<{ class?: any } & LabelProps>();
+const props = defineProps<LabelProps & { class?: any }>();
 
 const delegatedProps = computed(() => {
   const { class: _, ...delegated } = props;
@@ -19,7 +21,7 @@ const delegatedProps = computed(() => {
     v-bind="delegatedProps"
     :class="
       cn(
-        'text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70',
+        'text-sm leading-none font-medium peer-disabled:cursor-not-allowed peer-disabled:opacity-70',
         props.class,
       )
     "
