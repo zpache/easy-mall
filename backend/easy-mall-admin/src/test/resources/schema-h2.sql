@@ -435,3 +435,135 @@ VALUES (1, 1),
 
 INSERT INTO mall_category (id, name, parent_id, sort, status)
 VALUES (1, '新鲜水果', 0, 1, 1);
+
+-- ============================================================
+-- 营销中心模块
+-- ============================================================
+CREATE TABLE mk_coupon
+(
+    id          bigint AUTO_INCREMENT PRIMARY KEY,
+    name        varchar(100)  NOT NULL,
+    type        tinyint       NOT NULL DEFAULT 1,
+    amount      decimal(10,2),
+    discount    decimal(4, 1),
+    threshold   decimal(10,2) NOT NULL DEFAULT 0,
+    total_count int           NOT NULL DEFAULT 0,
+    send_count  int           NOT NULL DEFAULT 0,
+    used_count  int           NOT NULL DEFAULT 0,
+    per_limit   int           NOT NULL DEFAULT 1,
+    valid_type  tinyint       NOT NULL DEFAULT 1,
+    valid_start date,
+    valid_end   date,
+    valid_days  int,
+    status      tinyint       NOT NULL DEFAULT 1,
+    remark      varchar(255),
+    created_at  datetime      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at  datetime      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_by  bigint,
+    updated_by  bigint,
+    version     int           NOT NULL DEFAULT 0,
+    deleted     tinyint       NOT NULL DEFAULT 0
+);
+
+INSERT INTO mk_coupon (id, name, type, amount, discount, threshold, total_count, send_count, used_count, per_limit,
+                       valid_type, valid_start, valid_end, status)
+VALUES (1, '全场满 99 减 15', 1, 15.00, NULL, 99.00, 5000, 100, 30, 2, 1, '2026-10-01', '2026-11-11', 1);
+
+CREATE TABLE mk_coupon_user
+(
+    id          bigint AUTO_INCREMENT PRIMARY KEY,
+    coupon_id   bigint   NOT NULL,
+    user_id     bigint   NOT NULL,
+    status      tinyint  NOT NULL DEFAULT 0,
+    order_no    varchar(32),
+    received_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    used_at     datetime,
+    expired_at  datetime
+);
+
+INSERT INTO mk_coupon_user (id, coupon_id, user_id, status, received_at)
+VALUES (7001, 1, 1, 0, '2026-10-25 09:30:00');
+
+CREATE TABLE mk_promotion
+(
+    id             bigint AUTO_INCREMENT PRIMARY KEY,
+    name           varchar(100)  NOT NULL,
+    type           tinyint       NOT NULL DEFAULT 1,
+    goods_id       bigint        NOT NULL,
+    goods_name     varchar(200)  NOT NULL,
+    original_price decimal(10,2) NOT NULL,
+    promo_price    decimal(10,2) NOT NULL,
+    group_size     int,
+    group_hours    int,
+    stock          int           NOT NULL DEFAULT 0,
+    sold_count     int           NOT NULL DEFAULT 0,
+    start_time     datetime      NOT NULL,
+    end_time       datetime      NOT NULL,
+    status         tinyint       NOT NULL DEFAULT 1,
+    created_at     datetime      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at     datetime      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_by     bigint,
+    updated_by     bigint,
+    version        int           NOT NULL DEFAULT 0,
+    deleted        tinyint       NOT NULL DEFAULT 0
+);
+
+INSERT INTO mk_promotion (id, name, type, goods_id, goods_name, original_price, promo_price, stock, sold_count,
+                          start_time, end_time, status)
+VALUES (1, '脐橙季限时秒杀', 1, 1, '当季赣南脐橙 5 斤装', 29.90, 19.90, 500, 10,
+        '2026-10-25 10:00:00', '2026-10-31 22:00:00', 1);
+
+CREATE TABLE mk_signin_rule
+(
+    id               bigint AUTO_INCREMENT PRIMARY KEY,
+    name             varchar(100) NOT NULL,
+    points_per_day   int          NOT NULL DEFAULT 1,
+    bonus_every_days int          NOT NULL DEFAULT 0,
+    bonus_points     int          NOT NULL DEFAULT 0,
+    status           tinyint      NOT NULL DEFAULT 1,
+    remark           varchar(255),
+    created_at       datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at       datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_by       bigint,
+    updated_by       bigint,
+    version          int          NOT NULL DEFAULT 0,
+    deleted          tinyint      NOT NULL DEFAULT 0
+);
+
+INSERT INTO mk_signin_rule (id, name, points_per_day, bonus_every_days, bonus_points, status)
+VALUES (1, '基础签到', 1, 7, 10, 1);
+
+CREATE TABLE mk_signin_log
+(
+    id              bigint AUTO_INCREMENT PRIMARY KEY,
+    user_id         bigint   NOT NULL,
+    sign_date       date     NOT NULL,
+    continuous_days int      NOT NULL DEFAULT 1,
+    points          int      NOT NULL DEFAULT 0,
+    created_at      datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT uk_signin_user_date UNIQUE (user_id, sign_date)
+);
+
+INSERT INTO mk_signin_log (id, user_id, sign_date, continuous_days, points, created_at)
+VALUES (8001, 1, '2026-10-25', 3, 1, '2026-10-25 08:30:00');
+
+CREATE TABLE mk_reduction
+(
+    id         bigint AUTO_INCREMENT PRIMARY KEY,
+    name       varchar(100)  NOT NULL,
+    mode       tinyint       NOT NULL DEFAULT 1,
+    threshold  decimal(10,2) NOT NULL,
+    benefit    decimal(10,2) NOT NULL,
+    start_time datetime      NOT NULL,
+    end_time   datetime      NOT NULL,
+    status     tinyint       NOT NULL DEFAULT 1,
+    created_at datetime      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at datetime      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_by bigint,
+    updated_by bigint,
+    version    int           NOT NULL DEFAULT 0,
+    deleted    tinyint       NOT NULL DEFAULT 0
+);
+
+INSERT INTO mk_reduction (id, name, mode, threshold, benefit, start_time, end_time, status)
+VALUES (1, '满 99 减 10', 2, 99.00, 10.00, '2026-10-01 00:00:00', '2026-10-31 23:59:59', 1);
