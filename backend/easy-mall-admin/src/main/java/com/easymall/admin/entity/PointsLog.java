@@ -13,7 +13,7 @@ import java.time.LocalDateTime;
  * 会员积分流水：消费获得 / 积分抵扣 / 人工调整，每次变动留痕。
  */
 @Data
-@TableName("mall_points_log")
+@TableName("m_points_log")
 public class PointsLog implements Serializable {
 
     @TableId(type = IdType.AUTO)

@@ -11,7 +11,7 @@ import lombok.EqualsAndHashCode;
  */
 @Data
 @EqualsAndHashCode(callSuper = true)
-@TableName("mall_member_tag")
+@TableName("m_member_tag")
 public class MemberTag extends BaseEntity {
 
     @TableId(type = IdType.AUTO)

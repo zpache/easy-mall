@@ -11,7 +11,7 @@ import lombok.EqualsAndHashCode;
  */
 @Data
 @EqualsAndHashCode(callSuper = true)
-@TableName("app_user")
+@TableName("m_member")
 public class AppUser extends BaseEntity {
 
     @TableId(type = IdType.AUTO)

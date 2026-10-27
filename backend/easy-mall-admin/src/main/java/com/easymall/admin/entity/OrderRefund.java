@@ -14,7 +14,7 @@ import java.time.LocalDateTime;
  */
 @Data
 @EqualsAndHashCode(callSuper = true)
-@TableName("mall_order_refund")
+@TableName("o_order_refund")
 public class OrderRefund extends BaseEntity {
 
     /** 待审核 */

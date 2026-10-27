@@ -14,7 +14,7 @@ import java.time.LocalDateTime;
  */
 @Data
 @EqualsAndHashCode(callSuper = true)
-@TableName("mall_order")
+@TableName("o_order")
 public class MallOrder extends BaseEntity {
 
     /** 订单状态：0 待付款 / 1 待发货 / 2 待收货 / 3 已完成 / 4 已取消 */

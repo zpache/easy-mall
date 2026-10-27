@@ -196,8 +196,8 @@ CREATE TABLE mall_stock_log
 INSERT INTO mall_brand (id, name, sort, status)
 VALUES (1, '果然鲜', 1, 1);
 
-DROP TABLE IF EXISTS mall_order;
-CREATE TABLE mall_order
+DROP TABLE IF EXISTS o_order;
+CREATE TABLE o_order
 (
     id               bigint AUTO_INCREMENT PRIMARY KEY,
     order_no         varchar(32)    NOT NULL,
@@ -226,8 +226,8 @@ CREATE TABLE mall_order
     deleted          tinyint        NOT NULL DEFAULT 0
 );
 
-DROP TABLE IF EXISTS order_item;
-CREATE TABLE order_item
+DROP TABLE IF EXISTS o_order_item;
+CREATE TABLE o_order_item
 (
     id           bigint AUTO_INCREMENT PRIMARY KEY,
     order_id     bigint         NOT NULL,
@@ -245,8 +245,8 @@ CREATE TABLE order_item
     deleted      tinyint        NOT NULL DEFAULT 0
 );
 
-DROP TABLE IF EXISTS mall_order_refund;
-CREATE TABLE mall_order_refund
+DROP TABLE IF EXISTS o_order_refund;
+CREATE TABLE o_order_refund
 (
     id           bigint AUTO_INCREMENT PRIMARY KEY,
     refund_no    varchar(32)    NOT NULL,
@@ -269,8 +269,8 @@ CREATE TABLE mall_order_refund
     deleted      tinyint        NOT NULL DEFAULT 0
 );
 
-DROP TABLE IF EXISTS mall_order_comment;
-CREATE TABLE mall_order_comment
+DROP TABLE IF EXISTS o_order_comment;
+CREATE TABLE o_order_comment
 (
     id            bigint AUTO_INCREMENT PRIMARY KEY,
     order_id      bigint       NOT NULL,
@@ -295,8 +295,8 @@ CREATE TABLE mall_order_comment
     deleted       tinyint      NOT NULL DEFAULT 0
 );
 
-DROP TABLE IF EXISTS app_user;
-CREATE TABLE app_user
+DROP TABLE IF EXISTS m_member;
+CREATE TABLE m_member
 (
     id          bigint AUTO_INCREMENT PRIMARY KEY,
     openid      varchar(64)   NOT NULL,
@@ -319,11 +319,11 @@ CREATE TABLE app_user
     deleted     tinyint       NOT NULL DEFAULT 0
 );
 
-INSERT INTO app_user (id, openid, nickname, phone, status, level_id, points, source)
+INSERT INTO m_member (id, openid, nickname, phone, status, level_id, points, source)
 VALUES (1, 'test-openid-1', '微信用户', '13800000001', 1, 2, 300, 1),
        (2, 'test-openid-2', '测试二号', '13900000002', 1, 1, 50, 0);
 
-CREATE TABLE mall_member_level
+CREATE TABLE m_member_level
 (
     id          bigint AUTO_INCREMENT PRIMARY KEY,
     name        varchar(50)   NOT NULL,
@@ -340,11 +340,11 @@ CREATE TABLE mall_member_level
     deleted     tinyint       NOT NULL DEFAULT 0
 );
 
-INSERT INTO mall_member_level (id, name, discount, threshold, description, sort, status)
+INSERT INTO m_member_level (id, name, discount, threshold, description, sort, status)
 VALUES (1, '普通会员', 100.0, 0, '注册即享', 1, 1),
        (2, '银卡会员', 98.0, 500, '全场 98 折', 2, 1);
 
-CREATE TABLE mall_points_log
+CREATE TABLE m_points_log
 (
     id         bigint AUTO_INCREMENT PRIMARY KEY,
     user_id    bigint      NOT NULL,
@@ -357,10 +357,10 @@ CREATE TABLE mall_points_log
     created_by bigint
 );
 
-INSERT INTO mall_points_log (id, user_id, change, balance, type, remark)
+INSERT INTO m_points_log (id, user_id, change, balance, type, remark)
 VALUES (5001, 1, 300, 300, 'earn', '历史积分迁移');
 
-CREATE TABLE mall_member_tag
+CREATE TABLE m_member_tag
 (
     id         bigint AUTO_INCREMENT PRIMARY KEY,
     name       varchar(50) NOT NULL,
@@ -374,11 +374,11 @@ CREATE TABLE mall_member_tag
     deleted    tinyint     NOT NULL DEFAULT 0
 );
 
-INSERT INTO mall_member_tag (id, name, color, remark)
+INSERT INTO m_member_tag (id, name, color, remark)
 VALUES (1, '高价值用户', 'red', '月消费高'),
        (2, '新客', 'blue', '注册 30 天内');
 
-CREATE TABLE mall_member_user_tag
+CREATE TABLE m_member_user_tag
 (
     id      bigint AUTO_INCREMENT PRIMARY KEY,
     user_id bigint NOT NULL,
@@ -386,26 +386,26 @@ CREATE TABLE mall_member_user_tag
     CONSTRAINT uk_user_tag UNIQUE (user_id, tag_id)
 );
 
-INSERT INTO mall_member_user_tag (id, user_id, tag_id)
+INSERT INTO m_member_user_tag (id, user_id, tag_id)
 VALUES (6001, 1, 1),
        (6002, 2, 2);
 
-INSERT INTO mall_order (id, order_no, user_id, total_amount, freight_amount, pay_amount, status, refund_status,
+INSERT INTO o_order (id, order_no, user_id, total_amount, freight_amount, pay_amount, status, refund_status,
                         receiver_name, receiver_phone, receiver_address, pay_time)
 VALUES (1002, 'EM20261021000002', 1, 29.90, 0.00, 29.90, 1, 0, '周予安', '13800000002', '杭州市西湖区文三路 199 号',
         '2026-10-21 09:30:00'),
        (1007, 'EM20261024000007', 1, 59.90, 0.00, 59.90, 2, 1, '林小满', '13800000001', '上海市浦东新区张江路 88 号',
         '2026-10-24 13:15:00');
 
-INSERT INTO order_item (id, order_id, goods_id, goods_name, price, quantity, total_amount)
+INSERT INTO o_order_item (id, order_id, goods_id, goods_name, price, quantity, total_amount)
 VALUES (2002, 1002, 1, '当季赣南脐橙 5 斤装', 29.90, 1, 29.90),
        (2008, 1007, 3, '每日坚果混合装 30 包', 59.90, 1, 59.90);
 
-INSERT INTO mall_order_refund (id, refund_no, order_id, order_no, user_id, amount, type, reason, status, applied_at)
+INSERT INTO o_order_refund (id, refund_no, order_id, order_no, user_id, amount, type, reason, status, applied_at)
 VALUES (3001, 'RF20261024000001', 1007, 'EM20261024000007', 1, 59.90, 'return', '坚果受潮，申请退货退款', 0,
         '2026-10-25 09:10:00');
 
-INSERT INTO mall_order_comment (id, order_id, order_no, goods_id, goods_name, user_id, user_nickname, score, content,
+INSERT INTO o_order_comment (id, order_id, order_no, goods_id, goods_name, user_id, user_nickname, score, content,
                                 is_show, commented_at)
 VALUES (4003, 1007, 'EM20261024000007', 3, '每日坚果混合装 30 包', 1, '微信用户', 2, '有两个已经软烂了', 0,
         '2026-10-24 10:30:00');
