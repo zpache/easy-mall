@@ -135,18 +135,69 @@ CREATE TABLE mall_category
     deleted    tinyint     NOT NULL DEFAULT 0
 );
 
+DROP TABLE IF EXISTS mall_brand;
+CREATE TABLE mall_brand
+(
+    id         bigint AUTO_INCREMENT PRIMARY KEY,
+    name       varchar(50) NOT NULL,
+    logo       varchar(255),
+    sort       int         NOT NULL DEFAULT 0,
+    status     tinyint     NOT NULL DEFAULT 1,
+    remark     varchar(255),
+    created_at datetime    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at datetime    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_by bigint,
+    updated_by bigint,
+    version    int         NOT NULL DEFAULT 0,
+    deleted    tinyint     NOT NULL DEFAULT 0
+);
+
 DROP TABLE IF EXISTS mall_goods;
 CREATE TABLE mall_goods
 (
-    id         bigint AUTO_INCREMENT PRIMARY KEY,
-    category_id bigint,
-    created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    created_by bigint,
-    updated_by bigint,
-    version    int      NOT NULL DEFAULT 0,
-    deleted    tinyint  NOT NULL DEFAULT 0
+    id             bigint AUTO_INCREMENT PRIMARY KEY,
+    category_id    bigint         NOT NULL,
+    brand_id       bigint,
+    name           varchar(100)   NOT NULL,
+    subtitle       varchar(200),
+    main_image     varchar(255),
+    images         varchar(2000),
+    price          decimal(10, 2) NOT NULL DEFAULT 0,
+    original_price decimal(10, 2),
+    stock          int            NOT NULL DEFAULT 0,
+    stock_warn     int            NOT NULL DEFAULT 10,
+    sales          int            NOT NULL DEFAULT 0,
+    unit           varchar(16),
+    detail         text,
+    status         tinyint        NOT NULL DEFAULT 1,
+    sort           int            NOT NULL DEFAULT 0,
+    created_at     datetime       NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at     datetime       NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_by     bigint,
+    updated_by     bigint,
+    version        int            NOT NULL DEFAULT 0,
+    deleted        tinyint        NOT NULL DEFAULT 0
 );
+
+DROP TABLE IF EXISTS mall_stock_log;
+CREATE TABLE mall_stock_log
+(
+    id           bigint AUTO_INCREMENT PRIMARY KEY,
+    goods_id     bigint      NOT NULL,
+    type         varchar(16) NOT NULL,
+    change_qty   int         NOT NULL,
+    before_stock int         NOT NULL,
+    after_stock  int         NOT NULL,
+    remark       varchar(255),
+    created_at   datetime    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_by   bigint
+);
+
+INSERT INTO mall_brand (id, name, sort, status)
+VALUES (1, '果然鲜', 1, 1);
+
+INSERT INTO mall_goods (id, category_id, brand_id, name, price, stock, stock_warn, status)
+VALUES (1, 1, 1, '当季赣南脐橙 5 斤装', 29.90, 20, 10, 1);
 
 INSERT INTO sys_user (id, username, password, nickname, role, status, dept_id)
 VALUES (1, 'admin', '$2a$10$p4026qPjmgn80u.iSAh7BOwesH4y6Vc2SsT8eTwpPOLbS0Sg9RWKi', '超级管理员', 'ADMIN', 1, 1);
