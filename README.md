@@ -14,6 +14,7 @@ easy-mall/
 │   ├── pom.xml                  # Java 25 / Spring Boot 4.1.2 / Lombok
 │   ├── easy-mall-admin/         # 管理后台接口服务，端口 8081，context-path=/admin
 │   └── easy-mall-api/           # 小程序接口服务，端口 8082，context-path=/api
+├── web-admin/                   # 管理后台前端（Vben Admin 5 · web-ele），见 web-admin/README.md
 ├── miniprogram/                 # 小程序端（uni-app）
 └── db/easy_mall.sql             # 建库建表 + 演示数据
 ```
@@ -124,6 +125,16 @@ mvn -pl easy-mall-admin spring-boot:run
 
 - 管理后台：<http://127.0.0.1:8081/admin/swagger-ui.html>
 - 小程序：<http://127.0.0.1:8082/api/swagger-ui.html>
+
+### 3.5 启动 Web 管理后台
+
+```bash
+cd web-admin
+corepack pnpm install   # 首次（根 package.json 锁定 pnpm@9.15.1）
+pnpm dev                # http://localhost:5777，默认账号 admin / admin123
+```
+
+dev 模式下 `/admin` 请求由 Vite 代理转发到 `http://127.0.0.1:8081`，需要先启动 `easy-mall-admin`。裁剪与对接细节见 `web-admin/README.md`。
 
 ### 4. 启动小程序端
 
