@@ -3,7 +3,7 @@ package com.easymall.api.common.api;
 /**
  * 统一响应结构。
  *
- * @param code    业务码，200 表示成功
+ * @param code    业务码，0 表示成功
  * @param message 提示信息
  * @param data    业务数据
  */

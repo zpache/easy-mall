@@ -36,7 +36,7 @@ class EasyMallApiApplicationTests {
     void goodsListIsPublic() throws Exception {
         mockMvc.perform(get("/goods").param("pageNum", "1").param("pageSize", "10"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.code").value(200))
+                .andExpect(jsonPath("$.code").value(0))
                 .andExpect(jsonPath("$.data.total").value(2));
     }
 
@@ -55,7 +55,7 @@ class EasyMallApiApplicationTests {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"code\":\"test-code\"}"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.code").value(200))
+                .andExpect(jsonPath("$.code").value(0))
                 .andExpect(jsonPath("$.data.accessToken").isNotEmpty())
                 .andReturn();
 
@@ -64,6 +64,6 @@ class EasyMallApiApplicationTests {
 
         mockMvc.perform(get("/cart").header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.code").value(200));
+                .andExpect(jsonPath("$.code").value(0));
     }
 }

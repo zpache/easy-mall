@@ -54,6 +54,6 @@ public class AuthService {
                 .eq(SysUser::getId, details.getId())
                 .set(SysUser::getLastLoginAt, LocalDateTime.now()));
 
-        return new LoginVO(token, "Bearer", jwtTokenProvider.getExpireSeconds(), loginUser);
+        return new LoginVO(token, token, "Bearer", jwtTokenProvider.getExpireSeconds(), loginUser);
     }
 }
