@@ -1,6 +1,8 @@
 import type { Component } from 'vue';
 
 interface AnalysisOverviewItem {
+  /** 数值小数位数，默认 0（销售额等场景可设为 2） */
+  decimals?: number;
   icon: Component | string;
   title: string;
   totalTitle: string;
