@@ -44,9 +44,16 @@ withDefaults(defineProps<Props>(), {
         </CardContent>
         <CardFooter class="justify-between">
           <span>{{ item.totalTitle }}</span>
+          <span
+            v-if="item.totalText !== undefined"
+            :class="item.totalTextClass"
+          >
+            {{ item.totalText }}
+          </span>
           <VbenCountToAnimator
+            v-else
             :decimals="item.decimals ?? 0"
-            :end-val="item.totalValue"
+            :end-val="item.totalValue ?? 0"
             :start-val="1"
             prefix=""
           />
