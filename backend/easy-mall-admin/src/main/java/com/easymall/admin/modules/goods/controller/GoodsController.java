@@ -5,11 +5,20 @@ import com.easymall.admin.common.api.Result;
 import com.easymall.admin.entity.Goods;
 import com.easymall.admin.modules.goods.dto.GoodsForm;
 import com.easymall.admin.modules.goods.service.GoodsService;
+import com.easymall.admin.modules.goods.vo.GoodsVO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
 /**
  * 商品管理。
@@ -24,17 +33,18 @@ public class GoodsController {
 
     @Operation(summary = "分页查询商品")
     @GetMapping
-    public Result<PageResult<Goods>> page(@RequestParam(defaultValue = "1") long pageNum,
-                                          @RequestParam(defaultValue = "10") long pageSize,
-                                          @RequestParam(required = false) String keyword,
-                                          @RequestParam(required = false) Long categoryId,
-                                          @RequestParam(required = false) Integer status) {
-        return Result.ok(goodsService.pageQuery(pageNum, pageSize, keyword, categoryId, status));
+    public Result<PageResult<GoodsVO>> page(@RequestParam(defaultValue = "1") long pageNum,
+                                            @RequestParam(defaultValue = "10") long pageSize,
+                                            @RequestParam(required = false) String keyword,
+                                            @RequestParam(required = false) Long categoryId,
+                                            @RequestParam(required = false) Long brandId,
+                                            @RequestParam(required = false) Integer status) {
+        return Result.ok(goodsService.pageQuery(pageNum, pageSize, keyword, categoryId, brandId, status));
     }
 
     @Operation(summary = "商品详情")
     @GetMapping("/{id}")
-    public Result<Goods> detail(@PathVariable Long id) {
+    public Result<GoodsVO> detail(@PathVariable Long id) {
         return Result.ok(goodsService.detail(id));
     }
 

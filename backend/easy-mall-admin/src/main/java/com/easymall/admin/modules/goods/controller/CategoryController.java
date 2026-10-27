@@ -29,6 +29,12 @@ public class CategoryController {
         return Result.ok(categoryService.listAll());
     }
 
+    @Operation(summary = "分类树（分类管理页与下拉树使用）")
+    @GetMapping("/tree")
+    public Result<List<Category>> tree() {
+        return Result.ok(categoryService.listTree());
+    }
+
     @Operation(summary = "新增分类")
     @PostMapping
     public Result<Category> create(@Valid @RequestBody CategoryForm form) {

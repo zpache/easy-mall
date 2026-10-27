@@ -13,6 +13,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * 商品分类服务。
@@ -27,6 +29,18 @@ public class CategoryService extends ServiceImpl<CategoryMapper, Category> {
         return list(Wrappers.<Category>lambdaQuery()
                 .orderByAsc(Category::getSort)
                 .orderByAsc(Category::getId));
+    }
+
+    /**
+     * 分类树（分类管理页与下拉树使用）。
+     */
+    public List<Category> listTree() {
+        List<Category> all = listAll();
+        Map<Long, List<Category>> childrenMap = all.stream()
+                .collect(Collectors.groupingBy(category -> category.getParentId() == null ? 0L : category.getParentId()));
+        all.forEach(category -> category.setChildren(
+                childrenMap.getOrDefault(category.getId(), List.of())));
+        return childrenMap.getOrDefault(0L, List.of());
     }
 
     public Category create(CategoryForm form) {

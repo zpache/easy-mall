@@ -15,6 +15,9 @@ public record GoodsForm(
         @NotNull(message = "请选择商品分类")
         Long categoryId,
 
+        /** 品牌，可为空 */
+        Long brandId,
+
         @NotBlank(message = "商品名称不能为空")
         @Size(max = 100, message = "商品名称过长")
         String name,
@@ -37,6 +40,9 @@ public record GoodsForm(
         @NotNull(message = "库存不能为空")
         @Min(value = 0, message = "库存不能小于 0")
         Integer stock,
+
+        @Min(value = 0, message = "库存预警值不能小于 0")
+        Integer stockWarn,
 
         String unit,
 

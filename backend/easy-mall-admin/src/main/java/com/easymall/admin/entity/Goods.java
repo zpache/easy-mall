@@ -21,6 +21,9 @@ public class Goods extends BaseEntity {
 
     private Long categoryId;
 
+    /** 品牌 ID，可为空 */
+    private Long brandId;
+
     private String name;
 
     private String subtitle;
@@ -36,6 +39,9 @@ public class Goods extends BaseEntity {
     private BigDecimal originalPrice;
 
     private Integer stock;
+
+    /** 库存预警值：库存低于等于该值时在库存管理中标注 */
+    private Integer stockWarn;
 
     private Integer sales;
 
