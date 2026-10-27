@@ -1,0 +1,93 @@
+import type { Recordable } from '@vben/types';
+
+import { requestClient } from '#/api/request';
+
+export namespace OrderApi {
+  export interface OrderItem {
+    goodsId: number;
+    goodsImage?: string;
+    goodsName: string;
+    id: number;
+    orderId: number;
+    price: number;
+    quantity: number;
+    totalAmount: number;
+  }
+
+  export interface Order {
+    [key: string]: any;
+    cancelReason?: string;
+    cancelTime?: string;
+    createdAt?: string;
+    deliveryCompany?: string;
+    deliveryNo?: string;
+    deliveryTime?: string;
+    finishTime?: string;
+    freightAmount: number;
+    id: number;
+    itemCount: number;
+    items: OrderItem[];
+    orderNo: string;
+    payAmount: number;
+    payTime?: string;
+    receiverAddress: string;
+    receiverName: string;
+    receiverPhone: string;
+    refundStatus: 0 | 1 | 2 | 3;
+    remark?: string;
+    status: 0 | 1 | 2 | 3 | 4;
+    totalAmount: number;
+    totalQuantity: number;
+    userAvatar?: string;
+    userId: number;
+    userNickname?: string;
+  }
+
+  export interface DeliverPayload {
+    deliveryCompany: string;
+    deliveryNo: string;
+  }
+
+  export interface PageResult<T> {
+    pageNum: number;
+    pageSize: number;
+    pages: number;
+    records: T[];
+    total: number;
+  }
+}
+
+/**
+ * 订单分页列表
+ */
+async function getOrderList(params: Recordable<any>) {
+  const result = await requestClient.get<
+    OrderApi.PageResult<OrderApi.Order>
+  >('/orders', { params });
+  return { items: result.records, total: result.total };
+}
+
+/**
+ * 订单详情
+ */
+async function getOrderDetail(id: number) {
+  return requestClient.get<OrderApi.Order>(`/orders/${id}`);
+}
+
+/**
+ * 订单发货
+ */
+async function deliverOrder(id: number, data: OrderApi.DeliverPayload) {
+  return requestClient.put(`/orders/${id}/deliver`, data);
+}
+
+/**
+ * 关闭订单
+ */
+async function closeOrder(id: number, reason?: string) {
+  return requestClient.put(`/orders/${id}/close`, null, {
+    params: { reason },
+  });
+}
+
+export { closeOrder, deliverOrder, getOrderDetail, getOrderList };
