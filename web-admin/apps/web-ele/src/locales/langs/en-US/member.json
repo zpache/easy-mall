@@ -1,0 +1,83 @@
+{
+  "level": {
+    "create": "New Level",
+    "description": "Benefits",
+    "discount": "Discount",
+    "discountTip": "Percentage discount, 100 means none, 95 means 5% off",
+    "edit": "Edit Level",
+    "entity": "Level",
+    "list": "Levels & Benefits",
+    "name": "Level Name",
+    "noDiscount": "None",
+    "searchPlaceholder": "Level name…",
+    "sort": "Sort",
+    "status": "Status",
+    "statusUpdated": "Status updated",
+    "threshold": "Upgrade Threshold",
+    "thresholdTip": "Auto upgrade when total spend reaches this amount (CNY)"
+  },
+  "levelOptions": {
+    "normal": "Basic"
+  },
+  "list": {
+    "adjustPoints": "Adjust Points",
+    "createdAt": "Registered At",
+    "entity": "Member",
+    "keyword": "Keyword",
+    "level": "Level",
+    "list": "Member List",
+    "nickname": "Nickname",
+    "operation": "Actions",
+    "orderCount": "Orders",
+    "phone": "Phone",
+    "points": "Points",
+    "searchPlaceholder": "Nickname / phone…",
+    "setTag": "Set Tags",
+    "source": "Source",
+    "tag": "Tags",
+    "title": "Member List",
+    "totalSpend": "Total Spend"
+  },
+  "points": {
+    "adjustAny": "Adjust Points",
+    "adjustTitle": "Adjust Points",
+    "balance": "Balance After",
+    "change": "Change",
+    "changeTip": "Positive to grant, negative to deduct",
+    "list": "Points Log",
+    "orderNo": "Related Order",
+    "remark": "Remark",
+    "selectMember": "Search and select member…",
+    "time": "Time",
+    "type": "Type",
+    "typeAdjust": "Manual",
+    "typeConsume": "Redeemed",
+    "typeEarn": "Earned",
+    "userId": "Member ID",
+    "userIdPlaceholder": "Exact match by member ID"
+  },
+  "source": {
+    "h5": "H5 Scan",
+    "miniapp": "Mini Program",
+    "wechat": "Official Account"
+  },
+  "tag": {
+    "color": "Color",
+    "createdAt": "Created At",
+    "colorBlue": "Blue",
+    "colorDefault": "Gray",
+    "colorGreen": "Green",
+    "colorOrange": "Orange",
+    "colorRed": "Red",
+    "coverTip": "Saving will replace all existing tags of this member",
+    "deleteConfirm": "Deleting tag \"{0}\" will also unlink it from all members. Continue?",
+    "entity": "Tag",
+    "list": "Tags & Segments",
+    "memberCount": "Members",
+    "name": "Tag Name",
+    "remark": "Remark",
+    "searchPlaceholder": "Tag name…",
+    "selectPlaceholder": "Select tags…",
+    "setTitle": "Set Tags"
+  }
+}

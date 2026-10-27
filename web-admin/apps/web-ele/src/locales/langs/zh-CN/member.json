@@ -1,0 +1,83 @@
+{
+  "level": {
+    "create": "新增等级",
+    "description": "权益说明",
+    "discount": "购物折扣",
+    "discountTip": "百分比折扣，100 表示无折扣，95 表示 95 折",
+    "edit": "编辑等级",
+    "entity": "等级",
+    "list": "等级与权益",
+    "name": "等级名称",
+    "noDiscount": "无折扣",
+    "searchPlaceholder": "等级名称…",
+    "sort": "排序",
+    "status": "状态",
+    "statusUpdated": "状态已更新",
+    "threshold": "升级门槛",
+    "thresholdTip": "累计消费达到该金额自动升级（元）"
+  },
+  "levelOptions": {
+    "normal": "普通会员"
+  },
+  "list": {
+    "adjustPoints": "调整积分",
+    "createdAt": "注册时间",
+    "entity": "会员",
+    "keyword": "关键词",
+    "level": "会员等级",
+    "list": "会员列表",
+    "nickname": "昵称",
+    "operation": "操作",
+    "orderCount": "订单数",
+    "phone": "手机号",
+    "points": "积分",
+    "searchPlaceholder": "昵称 / 手机号…",
+    "setTag": "打标签",
+    "source": "来源渠道",
+    "tag": "标签",
+    "title": "会员列表",
+    "totalSpend": "累计消费"
+  },
+  "points": {
+    "adjustAny": "调整积分",
+    "adjustTitle": "调整积分",
+    "balance": "变动后余额",
+    "change": "积分变动",
+    "changeTip": "正数为发放，负数为扣减",
+    "list": "积分流水",
+    "orderNo": "关联订单",
+    "remark": "备注",
+    "selectMember": "搜索并选择会员…",
+    "time": "时间",
+    "type": "类型",
+    "typeAdjust": "人工调整",
+    "typeConsume": "积分抵扣",
+    "typeEarn": "消费获得",
+    "userId": "会员 ID",
+    "userIdPlaceholder": "按会员 ID 精确查询"
+  },
+  "source": {
+    "h5": "H5 扫码",
+    "miniapp": "小程序",
+    "wechat": "公众号"
+  },
+  "tag": {
+    "color": "颜色",
+    "createdAt": "创建时间",
+    "colorBlue": "蓝色",
+    "colorDefault": "灰色",
+    "colorGreen": "绿色",
+    "colorOrange": "橙色",
+    "colorRed": "红色",
+    "coverTip": "保存后将覆盖该会员已有的标签",
+    "deleteConfirm": "删除标签「{0}」会同时解除所有会员与该标签的关联，确定删除？",
+    "entity": "标签",
+    "list": "标签与分群",
+    "memberCount": "会员数",
+    "name": "标签名称",
+    "remark": "备注",
+    "searchPlaceholder": "标签名称…",
+    "selectPlaceholder": "选择标签…",
+    "setTitle": "设置标签"
+  }
+}
