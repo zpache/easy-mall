@@ -1,5 +1,6 @@
 package com.easymall.admin;
 
+import com.easymall.admin.common.api.PageResult;
 import com.easymall.admin.common.api.ResultCode;
 import com.easymall.admin.common.context.LoginUser;
 import com.easymall.admin.common.context.UserContext;
@@ -17,6 +18,16 @@ import com.easymall.admin.modules.goods.service.GoodsService;
 import com.easymall.admin.modules.goods.service.StockService;
 import com.easymall.admin.modules.dashboard.service.DashboardService;
 import com.easymall.admin.modules.dashboard.vo.DashboardOverviewVO;
+import com.easymall.admin.modules.member.dto.LevelForm;
+import com.easymall.admin.modules.member.dto.MemberTagForm;
+import com.easymall.admin.modules.member.dto.PointsAdjustForm;
+import com.easymall.admin.modules.member.dto.TagForm;
+import com.easymall.admin.modules.member.service.LevelService;
+import com.easymall.admin.modules.member.service.MemberService;
+import com.easymall.admin.modules.member.service.PointsService;
+import com.easymall.admin.modules.member.service.TagService;
+import com.easymall.admin.modules.member.vo.MemberVO;
+import com.easymall.admin.modules.member.vo.TagVO;
 import com.easymall.admin.modules.order.dto.DeliverForm;
 import com.easymall.admin.modules.order.dto.RefundAuditForm;
 import com.easymall.admin.modules.order.service.CommentService;
@@ -74,6 +85,18 @@ class EasyMallAdminApplicationTests {
 
     @Autowired
     private DashboardService dashboardService;
+
+    @Autowired
+    private MemberService memberService;
+
+    @Autowired
+    private LevelService levelService;
+
+    @Autowired
+    private TagService tagService;
+
+    @Autowired
+    private PointsService pointsService;
 
     @Test
     @DisplayName("Spring 上下文可正常启动")
@@ -227,6 +250,58 @@ class EasyMallAdminApplicationTests {
         assertNotNull(overview.finishedOrders());
         assertNotNull(overview.stockWarning());
         assertNotNull(overview.onSaleGoods());
+    }
+
+    @Test
+    @DisplayName("会员：来源渠道与标签筛选、积分调整留痕、等级删除保护、标签分群")
+    void memberModuleFlow() {
+        // 渠道筛选：种子用户 1 为小程序(1)、用户 2 为公众号(0)
+        assertEquals(1, memberService.pageQuery(1, 10, null, null, 0, null).total(),
+                "公众号渠道应只有 1 位会员");
+        // 标签筛选：标签 2（新客）只挂在用户 2
+        PageResult<MemberVO> byTag = memberService.pageQuery(1, 10, null, null, null, 2L);
+        assertEquals(1, byTag.total(), "标签「新客」应筛出 1 位会员");
+        assertEquals(2L, byTag.records().getFirst().id());
+        // 详情聚合等级名称与标签
+        MemberVO detail = memberService.detail(1L);
+        assertEquals("银卡会员", detail.levelName());
+        assertEquals(1, detail.tags().size());
+
+        // 积分调整：扣到负数被拒绝，正常调整写流水
+        BusinessException overdraft = assertThrows(BusinessException.class,
+                () -> memberService.adjustPoints(2L, -999, "超额扣减"));
+        assertEquals("积分不足，当前余额 50 分", overdraft.getMessage());
+        memberService.adjustPoints(2L, 100, "活动补发");
+        assertEquals(150, memberService.detail(2L).points());
+        var logs = pointsService.pageLogs(1, 10, 2L, "adjust");
+        assertEquals(1, logs.total(), "人工调整应留一条流水");
+        assertEquals(150, logs.records().getFirst().balance());
+
+        // 打标签：全量覆盖
+        UserContext.set(new LoginUser(1L, "admin", "超级管理员", java.util.List.of("ADMIN")));
+        try {
+            memberService.updateTags(2L, new MemberTagForm(java.util.List.of(1L, 2L)));
+            assertEquals(2, memberService.detail(2L).tags().size(), "打标后应有 2 个标签");
+        } finally {
+            UserContext.clear();
+        }
+
+        // 等级：重名拒绝、被会员引用时删除拒绝、可用等级下拉
+        levelService.create(new LevelForm("黑卡会员", new java.math.BigDecimal("88.0"), 50000, "内部邀请", 9, 1, null));
+        BusinessException duplicate = assertThrows(BusinessException.class,
+                () -> levelService.create(new LevelForm("黑卡会员", new java.math.BigDecimal("88.0"), 50000, null, 9, 1, null)));
+        assertEquals("等级名称已存在", duplicate.getMessage());
+        BusinessException used = assertThrows(BusinessException.class, () -> levelService.delete(1L));
+        assertEquals(ResultCode.DATA_CONFLICT.getCode(), used.getCode(), "有会员的等级不可删除");
+
+        // 标签：删除后关联同步解除
+        tagService.create(new TagForm("测试分群", "blue", "临时标签", null));
+        TagVO newTag = tagService.listAll().stream()
+                .filter(tag -> "测试分群".equals(tag.name())).findFirst().orElseThrow();
+        memberService.updateTags(2L, new MemberTagForm(java.util.List.of(newTag.id())));
+        assertEquals(1, memberService.detail(2L).tags().size());
+        tagService.delete(newTag.id());
+        assertEquals(0, memberService.detail(2L).tags().size(), "删除标签后会员关联应同步解除");
     }
 
     @Test

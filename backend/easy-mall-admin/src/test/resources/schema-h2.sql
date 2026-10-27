@@ -298,24 +298,97 @@ CREATE TABLE mall_order_comment
 DROP TABLE IF EXISTS app_user;
 CREATE TABLE app_user
 (
-    id         bigint AUTO_INCREMENT PRIMARY KEY,
-    openid     varchar(64)  NOT NULL,
-    unionid    varchar(64),
-    nickname   varchar(64),
-    avatar     varchar(255),
-    phone      varchar(20),
-    gender     tinyint      NOT NULL DEFAULT 0,
-    status     tinyint      NOT NULL DEFAULT 1,
-    created_at datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    created_by bigint,
-    updated_by bigint,
-    version    int          NOT NULL DEFAULT 0,
-    deleted    tinyint      NOT NULL DEFAULT 0
+    id          bigint AUTO_INCREMENT PRIMARY KEY,
+    openid      varchar(64)   NOT NULL,
+    unionid     varchar(64),
+    nickname    varchar(64),
+    avatar      varchar(255),
+    phone       varchar(20),
+    gender      tinyint       NOT NULL DEFAULT 0,
+    level_id    bigint        NOT NULL DEFAULT 1,
+    points      int           NOT NULL DEFAULT 0,
+    source      tinyint       NOT NULL DEFAULT 1,
+    total_spend decimal(10,2) NOT NULL DEFAULT 0,
+    order_count int           NOT NULL DEFAULT 0,
+    status      tinyint       NOT NULL DEFAULT 1,
+    created_at  datetime      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at  datetime      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_by  bigint,
+    updated_by  bigint,
+    version     int           NOT NULL DEFAULT 0,
+    deleted     tinyint       NOT NULL DEFAULT 0
 );
 
-INSERT INTO app_user (id, openid, nickname, status)
-VALUES (1, 'test-openid-1', '微信用户', 1);
+INSERT INTO app_user (id, openid, nickname, phone, status, level_id, points, source)
+VALUES (1, 'test-openid-1', '微信用户', '13800000001', 1, 2, 300, 1),
+       (2, 'test-openid-2', '测试二号', '13900000002', 1, 1, 50, 0);
+
+CREATE TABLE mall_member_level
+(
+    id          bigint AUTO_INCREMENT PRIMARY KEY,
+    name        varchar(50)   NOT NULL,
+    discount    decimal(4, 1) NOT NULL DEFAULT 100.0,
+    threshold   int           NOT NULL DEFAULT 0,
+    description varchar(500),
+    sort        int           NOT NULL DEFAULT 0,
+    status      tinyint       NOT NULL DEFAULT 1,
+    created_at  datetime      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at  datetime      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_by  bigint,
+    updated_by  bigint,
+    version     int           NOT NULL DEFAULT 0,
+    deleted     tinyint       NOT NULL DEFAULT 0
+);
+
+INSERT INTO mall_member_level (id, name, discount, threshold, description, sort, status)
+VALUES (1, '普通会员', 100.0, 0, '注册即享', 1, 1),
+       (2, '银卡会员', 98.0, 500, '全场 98 折', 2, 1);
+
+CREATE TABLE mall_points_log
+(
+    id         bigint AUTO_INCREMENT PRIMARY KEY,
+    user_id    bigint      NOT NULL,
+    change     int         NOT NULL,
+    balance    int         NOT NULL,
+    type       varchar(16) NOT NULL DEFAULT 'earn',
+    order_no   varchar(32),
+    remark     varchar(255),
+    created_at datetime    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_by bigint
+);
+
+INSERT INTO mall_points_log (id, user_id, change, balance, type, remark)
+VALUES (5001, 1, 300, 300, 'earn', '历史积分迁移');
+
+CREATE TABLE mall_member_tag
+(
+    id         bigint AUTO_INCREMENT PRIMARY KEY,
+    name       varchar(50) NOT NULL,
+    color      varchar(20),
+    remark     varchar(255),
+    created_at datetime    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at datetime    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_by bigint,
+    updated_by bigint,
+    version    int         NOT NULL DEFAULT 0,
+    deleted    tinyint     NOT NULL DEFAULT 0
+);
+
+INSERT INTO mall_member_tag (id, name, color, remark)
+VALUES (1, '高价值用户', 'red', '月消费高'),
+       (2, '新客', 'blue', '注册 30 天内');
+
+CREATE TABLE mall_member_user_tag
+(
+    id      bigint AUTO_INCREMENT PRIMARY KEY,
+    user_id bigint NOT NULL,
+    tag_id  bigint NOT NULL,
+    CONSTRAINT uk_user_tag UNIQUE (user_id, tag_id)
+);
+
+INSERT INTO mall_member_user_tag (id, user_id, tag_id)
+VALUES (6001, 1, 1),
+       (6002, 2, 2);
 
 INSERT INTO mall_order (id, order_no, user_id, total_amount, freight_amount, pay_amount, status, refund_status,
                         receiver_name, receiver_phone, receiver_address, pay_time)
