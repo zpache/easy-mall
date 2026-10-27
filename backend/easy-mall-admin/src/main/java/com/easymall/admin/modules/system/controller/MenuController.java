@@ -5,6 +5,7 @@ import com.easymall.admin.common.context.UserContext;
 import com.easymall.admin.entity.SysMenu;
 import com.easymall.admin.modules.system.dto.MenuForm;
 import com.easymall.admin.modules.system.service.MenuService;
+import com.easymall.admin.modules.system.vo.MenuRouteVO;
 import com.easymall.admin.modules.system.vo.MenuVO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -44,6 +45,12 @@ public class MenuController {
     @GetMapping("/list-by-user")
     public Result<List<MenuVO>> listByUser() {
         return Result.ok(menuService.listTreeByUser(UserContext.userId()));
+    }
+
+    @Operation(summary = "当前用户的动态路由树（前端登录后生成菜单用）")
+    @GetMapping("/routes")
+    public Result<List<MenuRouteVO>> routes() {
+        return Result.ok(menuService.listRoutesByUser(UserContext.userId()));
     }
 
     @Operation(summary = "校验路由名称是否存在")
