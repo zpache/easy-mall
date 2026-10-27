@@ -1,8 +1,8 @@
 package com.easymall.api.modules.user.controller;
 
 import com.easymall.api.common.api.Result;
+import com.easymall.api.entity.AppUser;
 import com.easymall.api.modules.user.dto.ProfileForm;
-import com.easymall.api.modules.user.entity.AppUser;
 import com.easymall.api.modules.user.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;

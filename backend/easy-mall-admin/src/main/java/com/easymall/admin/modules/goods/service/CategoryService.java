@@ -4,11 +4,11 @@ import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.spring.service.impl.ServiceImpl;
 import com.easymall.admin.common.api.ResultCode;
 import com.easymall.admin.common.exception.BusinessException;
+import com.easymall.admin.entity.Category;
+import com.easymall.admin.entity.Goods;
+import com.easymall.admin.mapper.CategoryMapper;
+import com.easymall.admin.mapper.GoodsMapper;
 import com.easymall.admin.modules.goods.dto.CategoryForm;
-import com.easymall.admin.modules.goods.entity.Category;
-import com.easymall.admin.modules.goods.entity.Goods;
-import com.easymall.admin.modules.goods.mapper.CategoryMapper;
-import com.easymall.admin.modules.goods.mapper.GoodsMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 

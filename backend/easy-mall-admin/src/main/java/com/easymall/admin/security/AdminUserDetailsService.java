@@ -1,8 +1,8 @@
 package com.easymall.admin.security;
 
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
-import com.easymall.admin.modules.system.entity.SysUser;
-import com.easymall.admin.modules.system.mapper.SysUserMapper;
+import com.easymall.admin.entity.SysUser;
+import com.easymall.admin.mapper.SysUserMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;

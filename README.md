@@ -23,10 +23,12 @@ easy-mall/
 ```
 com.easymall.{admin|api}
 ├── EasyMall{Admin|Api}Application.java
-├── common/            # 统一响应 Result、分页、异常、登录上下文、实体基类、日志 traceId 过滤器
+├── common/            # 统一响应 Result、分页、异常、登录上下文、日志 traceId 过滤器
 ├── config/            # MyBatis-Plus、Swagger、跨域、安全
 ├── security/          # JWT 签发解析、认证过滤器 / 拦截器
-└── modules/           # 按业务垂直切分，每个模块内含 controller/service/mapper/entity/dto/vo
+├── entity/            # 数据层：实体基类 BaseEntity + 全部实体，不按业务拆分
+├── mapper/            # 数据层：全部 Mapper 接口，不按业务拆分
+└── modules/           # 业务层：按业务垂直切分，模块内只放 controller/service/dto/vo
     ├── auth           # 登录
     ├── system         # 管理员（仅 admin）
     ├── goods          # 商品 / 分类
@@ -35,6 +37,8 @@ com.easymall.{admin|api}
     ├── address        # 收货地址（仅 api）
     └── order          # 订单（仅 api）
 ```
+
+`entity` / `mapper` 平铺在模块根下，是因为它们属于数据层、天然跨业务复用（分类被商品和购物车同时用到，订单要读商品快照）；按业务切分会逼出无意义的跨模块依赖。业务规则仍然收在 `modules/<biz>/service` 里。
 
 ## 技术栈与版本
 

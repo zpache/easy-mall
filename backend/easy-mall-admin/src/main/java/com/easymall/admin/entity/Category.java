@@ -1,14 +1,13 @@
-package com.easymall.api.modules.goods.entity;
+package com.easymall.admin.entity;
 
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
-import com.easymall.api.common.base.BaseEntity;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
 /**
- * 商品分类。
+ * 商品分类（二级结构，parentId = 0 表示一级分类）。
  */
 @Data
 @EqualsAndHashCode(callSuper = true)
@@ -26,5 +25,6 @@ public class Category extends BaseEntity {
 
     private Integer sort;
 
+    /** 1 启用，0 停用 */
     private Integer status;
 }

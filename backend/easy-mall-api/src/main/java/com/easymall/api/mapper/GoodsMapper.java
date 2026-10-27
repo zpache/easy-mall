@@ -1,7 +1,7 @@
-package com.easymall.admin.modules.goods.mapper;
+package com.easymall.api.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
-import com.easymall.admin.modules.goods.entity.Goods;
+import com.easymall.api.entity.Goods;
 import org.apache.ibatis.annotations.Mapper;
 
 @Mapper

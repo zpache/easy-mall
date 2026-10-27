@@ -2,8 +2,8 @@ package com.easymall.admin.modules.system.controller;
 
 import com.easymall.admin.common.api.PageResult;
 import com.easymall.admin.common.api.Result;
+import com.easymall.admin.entity.SysUser;
 import com.easymall.admin.modules.system.dto.SysUserForm;
-import com.easymall.admin.modules.system.entity.SysUser;
 import com.easymall.admin.modules.system.service.SysUserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;

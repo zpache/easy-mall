@@ -1,7 +1,7 @@
-package com.easymall.api.modules.cart.mapper;
+package com.easymall.api.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
-import com.easymall.api.modules.cart.entity.CartItem;
+import com.easymall.api.entity.CartItem;
 import org.apache.ibatis.annotations.Mapper;
 
 @Mapper

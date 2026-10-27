@@ -1,8 +1,8 @@
 package com.easymall.api.modules.address.controller;
 
 import com.easymall.api.common.api.Result;
+import com.easymall.api.entity.Address;
 import com.easymall.api.modules.address.dto.AddressForm;
-import com.easymall.api.modules.address.entity.Address;
 import com.easymall.api.modules.address.service.AddressService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;

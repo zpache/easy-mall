@@ -1,4 +1,4 @@
-package com.easymall.api.common.base;
+package com.easymall.api.entity;
 
 import com.baomidou.mybatisplus.annotation.FieldFill;
 import com.baomidou.mybatisplus.annotation.TableField;
