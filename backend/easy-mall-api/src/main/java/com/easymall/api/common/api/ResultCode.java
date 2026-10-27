@@ -4,13 +4,13 @@ import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
 /**
- * 业务响应码。小程序端只关心 code 是否等于 200。
+ * 业务响应码。成功码为 0（前端约定），业务错误从 4xxx 起。
  */
 @Getter
 @RequiredArgsConstructor
 public enum ResultCode {
 
-    SUCCESS(200, "操作成功"),
+    SUCCESS(0, "操作成功"),
     PARAM_ERROR(400, "请求参数错误"),
     UNAUTHORIZED(401, "登录已失效，请重新登录"),
     FORBIDDEN(403, "没有操作权限"),

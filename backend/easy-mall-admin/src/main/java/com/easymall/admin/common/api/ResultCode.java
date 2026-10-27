@@ -5,13 +5,13 @@ import lombok.RequiredArgsConstructor;
 
 /**
  * 业务响应码。
- * code 与 HTTP 状态码保持一致的语义，前端只需判断 code 是否为 200。
+ * 成功码为 0（vben 前端约定）；框架级错误码沿用 HTTP 状态语义，业务错误从 4xxx 起。
  */
 @Getter
 @RequiredArgsConstructor
 public enum ResultCode {
 
-    SUCCESS(200, "操作成功"),
+    SUCCESS(0, "操作成功"),
     PARAM_ERROR(400, "请求参数错误"),
     UNAUTHORIZED(401, "登录已失效，请重新登录"),
     FORBIDDEN(403, "没有操作权限"),
