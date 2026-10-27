@@ -5,9 +5,7 @@ import { computed, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 
 import { AuthenticationLoginExpiredModal } from '@vben/common-ui';
-import { VBEN_DOC_URL, VBEN_GITHUB_URL } from '@vben/constants';
 import { useWatermark } from '@vben/hooks';
-import { BookOpenText, CircleHelp, SvgGithubIcon } from '@vben/icons';
 import {
   BasicLayout,
   LockScreen,
@@ -16,7 +14,6 @@ import {
 } from '@vben/layouts';
 import { preferences, usePreferences } from '@vben/preferences';
 import { useAccessStore, useUserStore } from '@vben/stores';
-import { openWindow } from '@vben/utils';
 
 import { $t } from '#/locales';
 import { useAuthStore } from '#/store';
@@ -92,33 +89,6 @@ const menus = computed(() => [
     },
     icon: 'lucide:user',
     text: $t('page.auth.profile'),
-  },
-  {
-    handler: () => {
-      openWindow(VBEN_DOC_URL, {
-        target: '_blank',
-      });
-    },
-    icon: BookOpenText,
-    text: $t('ui.widgets.document'),
-  },
-  {
-    handler: () => {
-      openWindow(VBEN_GITHUB_URL, {
-        target: '_blank',
-      });
-    },
-    icon: SvgGithubIcon,
-    text: 'GitHub',
-  },
-  {
-    handler: () => {
-      openWindow(`${VBEN_GITHUB_URL}/issues`, {
-        target: '_blank',
-      });
-    },
-    icon: CircleHelp,
-    text: $t('ui.widgets.qa'),
   },
 ]);
 

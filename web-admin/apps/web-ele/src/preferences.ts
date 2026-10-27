@@ -12,4 +12,8 @@ export const overridesPreferences = defineOverridesPreferences({
     // 菜单与路由完全由后端 /system/menu/routes 下发（登录后动态加载）
     accessMode: 'backend',
   },
+  theme: {
+    // 默认浅色主题（浏览器缓存过旧偏好的需在偏好设置里点「恢复默认」或清缓存）
+    mode: 'light',
+  },
 });
