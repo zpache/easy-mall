@@ -12,7 +12,9 @@ import org.springframework.stereotype.Component;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Arrays;
 import java.util.Date;
+import java.util.List;
 import java.util.Optional;
 import javax.crypto.SecretKey;
 
@@ -46,7 +48,7 @@ public class JwtTokenProvider {
                 .issuer(properties.getIssuer())
                 .claim("username", loginUser.username())
                 .claim("nickname", loginUser.nickname())
-                .claim("role", loginUser.role())
+                .claim("roles", String.join(",", loginUser.roles()))
                 .issuedAt(Date.from(now))
                 .expiration(Date.from(now.plus(ttl)))
                 .signWith(secretKey)
@@ -68,7 +70,7 @@ public class JwtTokenProvider {
                     Long.valueOf(claims.getSubject()),
                     claims.get("username", String.class),
                     claims.get("nickname", String.class),
-                    claims.get("role", String.class)));
+                    parseRoles(claims)));
         } catch (JwtException | IllegalArgumentException e) {
             return Optional.empty();
         }
@@ -76,5 +78,20 @@ public class JwtTokenProvider {
 
     public long getExpireSeconds() {
         return properties.getAdminExpire().toSeconds();
+    }
+
+    /**
+     * 解析角色：新令牌为 roles（逗号分隔），兼容旧令牌的单值 role。
+     */
+    private List<String> parseRoles(Claims claims) {
+        String roles = claims.get("roles", String.class);
+        if (roles != null && !roles.isBlank()) {
+            return Arrays.stream(roles.split(","))
+                    .map(String::trim)
+                    .filter(role -> !role.isEmpty())
+                    .toList();
+        }
+        String legacyRole = claims.get("role", String.class);
+        return legacyRole == null || legacyRole.isBlank() ? List.of() : List.of(legacyRole);
     }
 }

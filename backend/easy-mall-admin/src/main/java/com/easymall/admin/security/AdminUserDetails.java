@@ -20,12 +20,15 @@ public class AdminUserDetails implements UserDetails {
     private final String username;
     private final String password;
     private final String nickname;
-    private final String role;
+    private final List<String> roles;
     private final boolean enabled;
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        return List.of(new SimpleGrantedAuthority("ROLE_" + role));
+        return roles.stream()
+                .map(role -> new SimpleGrantedAuthority("ROLE_" + role))
+                .map(GrantedAuthority.class::cast)
+                .toList();
     }
 
     @Override

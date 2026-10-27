@@ -2,9 +2,9 @@ package com.easymall.admin;
 
 import com.easymall.admin.common.api.ResultCode;
 import com.easymall.admin.common.exception.BusinessException;
-import com.easymall.admin.entity.SysUser;
-import com.easymall.admin.modules.system.dto.SysUserForm;
-import com.easymall.admin.modules.system.service.SysUserService;
+import com.easymall.admin.entity.Category;
+import com.easymall.admin.modules.goods.dto.CategoryForm;
+import com.easymall.admin.modules.goods.service.CategoryService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -35,7 +35,7 @@ class EasyMallAdminApplicationTests {
     private MockMvc mockMvc;
 
     @Autowired
-    private SysUserService sysUserService;
+    private CategoryService categoryService;
 
     @Test
     @DisplayName("Spring 上下文可正常启动")
@@ -59,7 +59,7 @@ class EasyMallAdminApplicationTests {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(0))
                 .andExpect(jsonPath("$.data.accessToken").isNotEmpty())
-                .andExpect(jsonPath("$.data.user.role").value("ADMIN"))
+                .andExpect(jsonPath("$.data.user.roles[0]").value("ADMIN"))
                 .andReturn();
 
         String body = result.getResponse().getContentAsString();
@@ -83,18 +83,17 @@ class EasyMallAdminApplicationTests {
     @Test
     @DisplayName("乐观锁：版本号自增，用过期版本号更新返回 4006")
     void optimisticLockRejectsStaleVersion() {
-        SysUser user = sysUserService.getById(1L);
-        Integer version = user.getVersion();
+        Category category = categoryService.getById(1L);
+        CategoryForm form = new CategoryForm(category.getName(), category.getParentId(),
+                category.getIcon(), category.getSort(), category.getStatus(), category.getVersion());
+        Integer version = category.getVersion();
         assertNotNull(version, "插入时应自动填充 version=0");
 
-        SysUserForm form = new SysUserForm(user.getUsername(), null, user.getNickname(),
-                user.getAvatar(), user.getPhone(), user.getRole(), user.getStatus(), version);
-
-        sysUserService.update(1L, form);
-        assertEquals(version + 1, sysUserService.getById(1L).getVersion(), "更新成功后版本号应 +1");
+        categoryService.update(1L, form);
+        assertEquals(version + 1, categoryService.getById(1L).getVersion(), "更新成功后版本号应 +1");
 
         // 拿着旧版本号再提交一次，模拟两个管理员同时编辑同一条数据
-        BusinessException ex = assertThrows(BusinessException.class, () -> sysUserService.update(1L, form));
+        BusinessException ex = assertThrows(BusinessException.class, () -> categoryService.update(1L, form));
         assertEquals(ResultCode.DATA_CONFLICT.getCode(), ex.getCode());
     }
 }
