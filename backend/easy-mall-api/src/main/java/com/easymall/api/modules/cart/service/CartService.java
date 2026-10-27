@@ -4,12 +4,12 @@ import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.easymall.api.common.api.ResultCode;
 import com.easymall.api.common.context.UserContext;
 import com.easymall.api.common.exception.BusinessException;
+import com.easymall.api.entity.CartItem;
+import com.easymall.api.entity.Goods;
+import com.easymall.api.mapper.CartItemMapper;
+import com.easymall.api.mapper.GoodsMapper;
 import com.easymall.api.modules.cart.dto.CartAddRequest;
-import com.easymall.api.modules.cart.entity.CartItem;
-import com.easymall.api.modules.cart.mapper.CartItemMapper;
 import com.easymall.api.modules.cart.vo.CartItemVO;
-import com.easymall.api.modules.goods.entity.Goods;
-import com.easymall.api.modules.goods.mapper.GoodsMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 

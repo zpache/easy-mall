@@ -1,7 +1,7 @@
 package com.easymall.api.modules.goods.vo;
 
-import com.easymall.api.modules.goods.entity.Category;
-import com.easymall.api.modules.goods.entity.Goods;
+import com.easymall.api.entity.Category;
+import com.easymall.api.entity.Goods;
 
 import java.util.List;
 

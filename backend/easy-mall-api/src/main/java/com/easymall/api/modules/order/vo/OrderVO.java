@@ -1,6 +1,6 @@
 package com.easymall.api.modules.order.vo;
 
-import com.easymall.api.modules.order.entity.OrderItem;
+import com.easymall.api.entity.OrderItem;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;

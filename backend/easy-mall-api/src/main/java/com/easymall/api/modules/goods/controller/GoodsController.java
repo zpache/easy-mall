@@ -2,8 +2,8 @@ package com.easymall.api.modules.goods.controller;
 
 import com.easymall.api.common.api.PageResult;
 import com.easymall.api.common.api.Result;
-import com.easymall.api.modules.goods.entity.Category;
-import com.easymall.api.modules.goods.entity.Goods;
+import com.easymall.api.entity.Category;
+import com.easymall.api.entity.Goods;
 import com.easymall.api.modules.goods.service.GoodsService;
 import com.easymall.api.modules.goods.vo.HomeVO;
 import io.swagger.v3.oas.annotations.Operation;

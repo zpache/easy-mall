@@ -1,9 +1,8 @@
-package com.easymall.api.modules.user.entity;
+package com.easymall.api.entity;
 
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
-import com.easymall.api.common.base.BaseEntity;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 

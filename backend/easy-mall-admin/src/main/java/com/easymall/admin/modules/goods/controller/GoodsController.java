@@ -2,8 +2,8 @@ package com.easymall.admin.modules.goods.controller;
 
 import com.easymall.admin.common.api.PageResult;
 import com.easymall.admin.common.api.Result;
+import com.easymall.admin.entity.Goods;
 import com.easymall.admin.modules.goods.dto.GoodsForm;
-import com.easymall.admin.modules.goods.entity.Goods;
 import com.easymall.admin.modules.goods.service.GoodsService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;

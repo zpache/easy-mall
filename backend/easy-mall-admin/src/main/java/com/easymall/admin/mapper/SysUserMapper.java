@@ -1,7 +1,7 @@
-package com.easymall.admin.modules.system.mapper;
+package com.easymall.admin.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
-import com.easymall.admin.modules.system.entity.SysUser;
+import com.easymall.admin.entity.SysUser;
 import org.apache.ibatis.annotations.Mapper;
 
 @Mapper
