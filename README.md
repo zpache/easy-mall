@@ -17,6 +17,7 @@
 | 商品管理 | 商品列表 / 商品分类 / 品牌管理 / 库存管理 | 商品上下架、分类树、品牌（重名与删除保护）、库存调整（原子防超卖）与流水 |
 | 订单管理 | 订单列表 / 待发货 / 售后退款 / 评价管理 | 订单详情与关闭、发货（乐观锁防并发）、售后审核→确认退款（订单售后状态联动）、评价显示/隐藏/回复/删除 |
 | 会员管理 | 会员列表 / 等级与权益 / 积分管理 / 标签与分群 | 会员四维筛选（关键词/等级/**来源渠道**（公众号/小程序/H5 扫码）/标签）、积分调整与流水、等级折扣与成长值门槛、标签打标与分群 |
+| 营销中心 | 优惠券 / 拼团秒杀 / 签到管理 / 满减活动 | 满减券/折扣券/无门槛券（固定日期或领取后 N 天有效、限领、领取/核销记录）、秒杀与拼团活动（成团人数与时长、已售/库存）、签到规则（每日积分 + 连续签到额外奖励）与签到记录、阶梯满减与每满减 |
 | 系统管理 | 部门 / 用户 / 角色 / 菜单 | 组织架构、账号管理、RBAC 角色授权、菜单维护（登录后 `/system/menu/routes` 动态下发路由，按钮级权限走 `/user/codes`） |
 
 **小程序商城**：微信登录（code 换 token，本地可模拟）、首页聚合、分类/商品列表与详情、购物车、收货地址、下单（拍库存快照防超卖）、模拟支付、取消订单（回滚库存）、订单列表/详情。
@@ -53,6 +54,7 @@ com.easymall.{admin|api}
     ├── goods          # 商品/分类/品牌/库存（仅 admin）
     ├── order          # 订单/售后/评价（admin 为管理，api 为交易）
     ├── member         # 会员/等级/积分/标签（仅 admin）
+    ├── marketing      # 优惠券/拼团秒杀/签到/满减（仅 admin）
     ├── user           # 小程序用户（仅 api）
     ├── cart           # 购物车（仅 api）
     └── address        # 收货地址（仅 api）
@@ -62,7 +64,7 @@ com.easymall.{admin|api}
 
 ## 数据库表结构
 
-表名按模块划分前缀：**订单 `o_`、会员 `m_`、商品 `mall_`、系统 `sys_`**。
+表名按模块划分前缀：**订单 `o_`、会员 `m_`、营销 `mk_`、商品 `mall_`、系统 `sys_`**。
 
 | 模块 | 表 |
 | --- | --- |
@@ -70,6 +72,7 @@ com.easymall.{admin|api}
 | 商品 | mall_goods、mall_category、mall_brand、mall_stock_log |
 | 订单 | o_order、o_order_item、o_order_refund、o_order_comment |
 | 会员 | m_member、m_member_level、m_points_log、m_member_tag、m_member_user_tag |
+| 营销 | mk_coupon、mk_coupon_user、mk_promotion、mk_signin_rule、mk_signin_log、mk_reduction |
 | 小程序 | cart_item、user_address |
 
 增量迁移脚本（老库按序执行即可，全部幂等）：
@@ -83,6 +86,7 @@ com.easymall.{admin|api}
 | `20261030_order_module.sql` | 订单发货/售后字段、售后/评价表、订单管理菜单 |
 | `20261031_member_module.sql` | 会员等级/积分/标签表、会员字段、会员管理菜单 |
 | `20261101_rename_tables.sql` | 表名规范化（订单 o_、会员 m_ 前缀） |
+| `20261102_marketing_module.sql` | 优惠券/领券/拼团秒杀/签到/满减表、营销中心菜单 |
 
 ## 技术栈与版本
 
