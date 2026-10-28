@@ -5,12 +5,19 @@ import DecorateTabbar from '@/components/decorate/tabbar.vue'
 import { couponApi } from '@/api/coupon'
 import { useDecorateStore } from '@/store/decorate'
 import { useUserStore } from '@/store/user'
+import { resolveMediaUrl } from '@/utils/url'
 
 const userStore = useUserStore()
 const decorateStore = useDecorateStore()
 
 const nickname = computed(() => userStore.profile?.nickname || '未登录')
-const avatar = computed(() => userStore.profile?.avatar || '')
+const avatar = computed(() => resolveMediaUrl(userStore.profile?.avatar))
+/** 未设置头像时用昵称首字占位 */
+const avatarText = computed(() => (userStore.isLogin ? nickname.value.slice(0, 1) : '未'))
+const profileDesc = computed(() => {
+  if (!userStore.isLogin) return '点击登录，开启购物之旅'
+  return userStore.profileIncomplete ? '微信不再下发头像昵称，点这里设置 ›' : '欢迎回来，买点好东西'
+})
 
 /** 可用优惠券张数：个人中心入口上的角标文案 */
 const couponAvailable = ref(0)
@@ -40,11 +47,12 @@ async function ensureLogin() {
   return true
 }
 
-async function toLogin() {
-  if (userStore.isLogin) {
+async function toProfile() {
+  if (!userStore.isLogin) {
+    uni.navigateTo({ url: '/pages/login/index' })
     return
   }
-  uni.navigateTo({ url: '/pages/login/index' })
+  uni.navigateTo({ url: '/pages/mine/profile' })
 }
 
 async function toOrders(status?: number) {
@@ -82,15 +90,14 @@ onShow(() => {
 
 <template>
   <view class="page">
-    <view class="profile">
+    <view class="profile" @tap="toProfile">
       <image v-if="avatar" class="profile__avatar" :src="avatar" mode="aspectFill" />
-      <view v-else class="profile__avatar profile__avatar--placeholder">{{ nickname.slice(0, 1) }}</view>
+      <view v-else class="profile__avatar profile__avatar--placeholder">{{ avatarText }}</view>
       <view class="profile__info">
         <text class="profile__name">{{ nickname }}</text>
-        <text class="profile__desc" @tap="toLogin">
-          {{ userStore.isLogin ? '欢迎回来，买点好东西' : '点击登录，开启购物之旅' }}
-        </text>
+        <text class="profile__desc">{{ profileDesc }}</text>
       </view>
+      <text v-if="userStore.isLogin" class="profile__arrow">›</text>
     </view>
 
     <view class="card">
@@ -180,7 +187,14 @@ onShow(() => {
   }
 
   &__info {
+    flex: 1;
     margin-left: 24rpx;
+  }
+
+  &__arrow {
+    margin-left: 12rpx;
+    color: rgba(255, 255, 255, 0.8);
+    font-size: 40rpx;
   }
 
   &__name {

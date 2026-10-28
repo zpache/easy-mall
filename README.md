@@ -212,6 +212,16 @@ easy-mall:
 - `app-id` 还要写进 `miniprogram/src/manifest.json` 的 `mp-weixin.appid`，编译产物 `project.config.json` 的 appid 由它生成（否则是 `touristappid`，无法真机预览/上传）。
 - H5 端没有 `wx.login`，关闭 mock 后 H5 的「微信一键登录」会返回 4008，只适合调试免登录页面。
 
+#### 头像与昵称从哪来
+
+`jscode2session` 只返回 `openid` / `unionid` / `session_key`，**不含昵称头像**；`wx.getUserProfile` 自 2022-10-25 起也被收回，只会给出「微信用户」+ 灰色默认头像。所以资料只能由用户主动填写一次：
+
+1. `pages/mine/profile` 用微信「头像昵称填写能力」：`<button open-type="chooseAvatar">` + `<input type="nickname">`
+2. 选好头像先 `POST /api/uploads/avatar`（multipart，字段名 `file`，仅 jpg/png/gif/webp，≤2MB），返回可直接访问的绝对地址
+3. 再 `PUT /api/user/profile` 写回 `nickname` / `avatar`
+
+文件默认落在 `easy-mall.upload.dir`（`./uploads`，已 gitignore），由 `/files/**` 静态映射对外提供；返回地址默认按客户端请求的 host 拼装，真机用局域网 IP 访问时地址自动一致。挂 CDN 时配 `easy-mall.upload.public-base` 即可。首次登录若仍是「微信用户」，登录成功后会直接跳到资料页引导补全。
+
 ### 5. 图片上传（COS 直传）
 
 装修素材等图片走**前端直传腾讯云 COS**，文件不经过应用服务器，后端只负责签发临时密钥与登记回执：

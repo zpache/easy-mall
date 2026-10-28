@@ -11,7 +11,13 @@ async function login() {
   try {
     await userStore.login()
     uni.showToast({ title: '登录成功', icon: 'success' })
+    // 微信只下发 openid，首次登录顺手引导补全头像昵称
+    const needProfile = userStore.profileIncomplete
     setTimeout(() => {
+      if (needProfile) {
+        uni.redirectTo({ url: '/pages/mine/profile' })
+        return
+      }
       const pages = getCurrentPages()
       if (pages.length > 1) {
         uni.navigateBack()

@@ -26,13 +26,25 @@ export const useUserStore = defineStore('user', () => {
     return profile.value
   }
 
+  /** 资料页保存成功后本地同步，省一次查询 */
+  function setProfile(value: UserProfile) {
+    profile.value = value
+  }
+
+  /** 微信不再下发昵称头像，这里判断是否还需要用户补全 */
+  const profileIncomplete = computed(() => {
+    if (!profile.value) return false
+    const { avatar, nickname } = profile.value
+    return !avatar || !nickname || nickname === '微信用户'
+  })
+
   function logout() {
     token.value = ''
     profile.value = null
     clearToken()
   }
 
-  return { token, profile, isLogin, login, fetchProfile, logout }
+  return { token, profile, isLogin, profileIncomplete, login, fetchProfile, setProfile, logout }
 })
 
 /**

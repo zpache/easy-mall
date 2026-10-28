@@ -14,6 +14,11 @@ spring:
     active: dev,local
   jackson:
     time-zone: Asia/Shanghai
+  servlet:
+    multipart:
+      # 头像上传走 multipart，容器层限制略大于业务校验（业务限制见 easy-mall.upload.avatar-max-size）
+      max-file-size: 5MB
+      max-request-size: 10MB
 
 mybatis-plus:
   configuration:
@@ -50,12 +55,20 @@ easy-mall:
       - /swagger-ui/**
       - /swagger-ui.html
       - /actuator/health
+      # 头像等本地上传文件：image 组件无法携带 token，静态资源放开
+      - /files/**
   wx:
     app-id: ${WX_APP_ID:}
     app-secret: ${WX_APP_SECRET:}
     # 默认走真实微信 jscode2session 换取 openid；
     # 仅当本地没有小程序凭证、需要免凭证联调时才显式设置 WX_MOCK=true
     mock: ${WX_MOCK:false}
+  upload:
+    # 上传文件落盘目录（相对进程工作目录，已 gitignore）
+    dir: ${UPLOAD_DIR:./uploads}
+    # 对外访问前缀；留空则按当前请求的协议 + host 自动拼装，真机/内网穿透无需改配置
+    public-base: ${UPLOAD_PUBLIC_BASE:}
+    avatar-max-size: ${UPLOAD_AVATAR_MAX_SIZE:2097152}
 
 springdoc:
   api-docs:
