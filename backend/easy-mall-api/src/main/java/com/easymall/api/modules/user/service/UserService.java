@@ -33,10 +33,15 @@ public class UserService {
     public AppUser updateProfile(ProfileForm form) {
         AppUser user = currentUser();
         if (StringUtils.hasText(form.nickname())) {
-            user.setNickname(form.nickname());
+            user.setNickname(form.nickname().trim());
         }
         if (StringUtils.hasText(form.avatar())) {
-            user.setAvatar(form.avatar());
+            String avatar = form.avatar().trim();
+            // 只接受 http(s) 地址或本服务上传路径，避免把 javascript: / 本地路径写进头像字段
+            if (!(avatar.startsWith("https://") || avatar.startsWith("http://") || avatar.startsWith("/files/"))) {
+                throw new BusinessException(ResultCode.PARAM_ERROR, "头像地址不合法");
+            }
+            user.setAvatar(avatar);
         }
         if (form.gender() != null) {
             user.setGender(form.gender());

@@ -16,6 +16,8 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.multipart.MultipartException;
 
 import java.util.stream.Collectors;
 
@@ -80,6 +82,20 @@ public class GlobalExceptionHandler {
     @ResponseStatus(HttpStatus.NOT_FOUND)
     public Result<Void> handleNoResourceFound(NoResourceFoundException e) {
         return Result.fail(ResultCode.NOT_FOUND, "接口不存在: /" + e.getResourcePath());
+    }
+
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public Result<Void> handleMaxUploadSize(MaxUploadSizeExceededException e) {
+        log.warn("上传文件超过限制: {}", e.getMessage());
+        return Result.fail(ResultCode.FILE_TOO_LARGE);
+    }
+
+    @ExceptionHandler(MultipartException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public Result<Void> handleMultipart(MultipartException e) {
+        log.warn("上传请求解析失败: {}", e.getMessage());
+        return Result.fail(ResultCode.PARAM_ERROR, "请使用 multipart/form-data 上传文件");
     }
 
     @ExceptionHandler(Exception.class)

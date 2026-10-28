@@ -3,6 +3,9 @@ import { clearToken, getToken } from '@/utils/storage'
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL
 
+/** 接口根地址，上传等非 request 封装的场景复用 */
+export const API_BASE_URL = BASE_URL
+
 export interface RequestOptions {
   url: string
   method?: 'GET' | 'POST' | 'PUT' | 'DELETE'

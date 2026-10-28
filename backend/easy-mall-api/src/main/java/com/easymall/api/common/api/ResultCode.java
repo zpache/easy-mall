@@ -34,7 +34,12 @@ public enum ResultCode {
     COUPON_OFFLINE(4012, "优惠券已停止发放"),
     COUPON_SOLD_OUT(4013, "优惠券已被领完"),
     COUPON_EXPIRED(4014, "优惠券已过领取时间"),
-    COUPON_LIMIT_REACHED(4015, "已达到每人限领张数");
+    COUPON_LIMIT_REACHED(4015, "已达到每人限领张数"),
+
+    FILE_EMPTY(4016, "请选择要上传的文件"),
+    FILE_TOO_LARGE(4017, "图片体积过大，请压缩后重试"),
+    FILE_TYPE_NOT_ALLOWED(4018, "仅支持 jpg/png/gif/webp 图片"),
+    FILE_SAVE_FAILED(4019, "文件保存失败，请稍后重试");
 
     private final int code;
     private final String message;
