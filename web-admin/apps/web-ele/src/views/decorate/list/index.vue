@@ -19,7 +19,6 @@ import {
   createDecoratePage,
   deleteDecoratePage,
   getDecoratePages,
-  setDecoratePageHome,
 } from '#/api/decorate/page';
 import { $t } from '#/locales';
 
@@ -85,10 +84,6 @@ function onActionClick(e: OnActionClickParams<DecorateApi.Page>) {
       router.push(`/decorate/editor/${row.id}`);
       break;
     }
-    case 'home': {
-      void onSetHome(row);
-      break;
-    }
     case 'preview': {
       previewPage.value = row;
       previewVisible.value = true;
@@ -100,16 +95,6 @@ function onActionClick(e: OnActionClickParams<DecorateApi.Page>) {
 async function onCopy(row: DecorateApi.Page) {
   const copy = await copyDecoratePage(row.id);
   ElMessage.success(`已复制为「${copy.name}」`);
-  gridApi.query();
-}
-
-async function onSetHome(row: DecorateApi.Page) {
-  if (row.isHome === 1) {
-    ElMessage.info('该页面已是首页');
-    return;
-  }
-  await setDecoratePageHome(row.id);
-  ElMessage.success('已设为商城首页');
   gridApi.query();
 }
 

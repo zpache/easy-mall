@@ -10,6 +10,12 @@ export const PAGE_TYPES = [
   { label: '微页面', value: 3 },
 ];
 
+/** 新建页面可选类型：商城首页固定唯一（随种子数据初始化且不可删除），不允许再建 */
+export const NEW_PAGE_TYPES = [
+  { label: '分类页', value: 2 },
+  { label: '微页面', value: 3 },
+];
+
 export function useTypeOptions() {
   return [
     { color: 'danger', label: '首页', value: 1 },
@@ -45,11 +51,11 @@ export function useFormSchema(): VbenFormSchema[] {
       component: 'RadioGroup',
       componentProps: {
         buttonStyle: 'solid',
-        options: PAGE_TYPES,
+        options: NEW_PAGE_TYPES,
       },
-      defaultValue: 1,
+      defaultValue: 3,
       fieldName: 'type',
-      help: '首页用于商城默认入口；微页面可用于活动落地页',
+      help: '商城首页固定唯一（列表中带 🏠 标识），此处新建分类页或活动微页面',
       label: '页面类型',
     },
     {
@@ -144,7 +150,6 @@ export function useColumns<T = DecorateApi.Page>(
           { code: 'edit', text: '装修' },
           { code: 'preview', text: '预览' },
           { code: 'copy', text: '复制' },
-          { code: 'home', text: '设为首页' },
           { code: 'delete', text: '删除' },
         ],
       },
