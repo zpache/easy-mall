@@ -18,7 +18,7 @@
 | 订单管理 | 订单列表 / 待发货 / 售后退款 / 评价管理 | 订单详情与关闭、发货（乐观锁防并发）、售后审核→确认退款（订单售后状态联动）、评价显示/隐藏/回复/删除 |
 | 会员管理 | 会员列表 / 等级与权益 / 积分管理 / 标签与分群 | 会员四维筛选（关键词/等级/**来源渠道**（公众号/小程序/H5 扫码）/标签）、积分调整与流水、等级折扣与成长值门槛、标签打标与分群 |
 | 营销中心 | 优惠券 / 拼团秒杀 / 签到管理 / 满减活动 | 满减券/折扣券/无门槛券（固定日期或领取后 N 天有效、限领、领取/核销记录）、秒杀与拼团活动（成团人数与时长、已售/库存）、签到规则（每日积分 + 连续签到额外奖励）与签到记录、阶梯满减与每满减 |
-| 商城装修 | 页面装修（可视化拖拽编辑器） | **三栏设计器**（组件库 / 手机画布 / 属性面板）：拖拽插入与排序、选中高亮、显示隐藏、复制删除、**撤销/重做**（⌘Z / ⇧⌘Z）；右侧改配置画布即时生效，草稿防抖自动保存；12 个内置组件（搜索框、公告、轮播、单图、图标导航、标题、富文本、商品列表、限时秒杀、优惠券、辅助空白、店铺信息）；**图片上传**（属性面板直接选图，按文件头校验类型、服务端重命名，静态访问免登录）；发布生成快照，**真机扫码预览**（免登录预览页 + 二维码） |
+| 商城装修 | 页面装修（可视化拖拽编辑器） | **三栏设计器**（组件库 / 手机画布 / 属性面板）：拖拽插入与排序、选中高亮、显示隐藏、复制删除、**撤销/重做**（⌘Z / ⇧⌘Z）；右侧改配置画布即时生效，草稿防抖自动保存；12 个内置组件（搜索框、公告、轮播、单图、图标导航、标题、富文本、商品列表、限时秒杀、优惠券、辅助空白、店铺信息）；**图片上传**（属性面板直接选图，**前端取临时密钥直传 COS**，回传 objectKey 登记，带上传进度）；发布生成快照，**真机扫码预览**（免登录预览页 + 二维码） |
 | 系统管理 | 部门 / 用户 / 角色 / 菜单 | 组织架构、账号管理、RBAC 角色授权、菜单维护（登录后 `/system/menu/routes` 动态下发路由，按钮级权限走 `/user/codes`） |
 
 **小程序商城**：微信登录（code 换 token，本地可模拟）、首页聚合、分类/商品列表与详情、购物车、收货地址、下单（拍库存快照防超卖）、模拟支付、取消订单（回滚库存）、订单列表/详情。
@@ -57,7 +57,7 @@ com.easymall.{admin|api}
     ├── member         # 会员/等级/积分/标签（仅 admin）
     ├── marketing      # 优惠券/拼团秒杀/签到/满减（仅 admin）
     ├── decorate       # 商城装修：页面 CRUD/发布/扫码预览（仅 admin）
-    ├── file           # 图片上传（按文件头校验 + 本地存储，仅 admin）
+    ├── file           # 图片上传：COS 临时密钥签发 + objectKey 回执登记（仅 admin）
     ├── user           # 小程序用户（仅 api）
     ├── cart           # 购物车（仅 api）
     └── address        # 收货地址（仅 api）
@@ -77,6 +77,7 @@ com.easymall.{admin|api}
 | 会员 | m_member、m_member_level、m_points_log、m_member_tag、m_member_user_tag |
 | 营销 | mk_coupon、mk_coupon_user、mk_promotion、mk_signin_rule、mk_signin_log、mk_reduction |
 | 装修 | dc_page（草稿/发布双 JSON 快照 + 预览码） |
+| 文件 | sys_file（COS 对象键、访问地址、大小、场景） |
 | 小程序 | cart_item、user_address |
 
 增量迁移脚本（老库按序执行即可，全部幂等）：
@@ -92,6 +93,7 @@ com.easymall.{admin|api}
 | `20261101_rename_tables.sql` | 表名规范化（订单 o_、会员 m_ 前缀） |
 | `20261102_marketing_module.sql` | 优惠券/领券/拼团秒杀/签到/满减表、营销中心菜单 |
 | `20261103_decorate_module.sql` | 装修页面表、商城装修菜单、演示首页 |
+| `20261104_cos_upload.sql` | 上传文件记录表（COS 直传回执） |
 
 ## 技术栈与版本
 
@@ -202,6 +204,36 @@ pnpm dev:mp-weixin     # 微信开发者工具导入 miniprogram/dist/dev/mp-wei
 WX_APP_ID=xxx WX_APP_SECRET=xxx WX_MOCK=false
 ```
 
+### 5. 图片上传（COS 直传）
+
+装修素材等图片走**前端直传腾讯云 COS**，文件不经过应用服务器，后端只负责签发临时密钥与登记回执：
+
+```
+浏览器 ──① POST /upload/credential ────────> 后端（STS GetFederationToken，默认 30 分钟）
+       <── 临时密钥（只授 decorate/ 前缀的写权限）──
+       ──② PUT 直传 COS ─────────────────────────> COS
+       ──③ POST /upload/complete（回传 objectKey）> 后端（校验前缀与格式 → 落 sys_file → 返回访问 URL）
+```
+
+配置写在 `application-local.yml`（或环境变量）：
+
+| 配置项 | 说明 |
+| --- | --- |
+| `easy-mall.upload.mode` | `cos`（默认）/ `local`（服务端转存本地磁盘，仅开发无凭证时用） |
+| `easy-mall.upload.cos.secret-id` / `secret-key` | 子账号密钥，需具备 `sts:GetFederationToken` |
+| `easy-mall.upload.cos.bucket` | 形如 `easymall-1250000000`，后缀即 APPID |
+| `easy-mall.upload.cos.region` | 如 `ap-guangzhou` |
+| `easy-mall.upload.cos.key-prefix` | 对象键前缀，同时是临时密钥的授权范围，默认 `decorate/` |
+| `easy-mall.upload.cos.domain` | CDN 加速域名，留空则用桶默认域名拼 URL |
+
+COS 侧需要三项设置，缺一项都会表现为「上传成功但图片不显示」或「直传被拒」：
+
+1. **CORS**：允许管理后台来源的 `PUT`、`POST`、`GET`，允许头包含 `*`，暴露头包含 `ETag`
+2. **读权限**：桶或 CDN 需公网可读，否则页面里的图片 URL 会 403
+3. **子账号策略**：`sts:GetFederationToken` + 目标桶 `decorate/*` 的 `cos:PutObject`（策略由后端下发，无需手写临时密钥策略）
+
+回执校验：objectKey 必须落在授权前缀内、字符集合法（`[A-Za-z0-9._/-]`）、扩展名在白名单（jpg/png/gif/webp/bmp），重复回传按幂等处理。
+
 ## 接口约定
 
 **统一响应**
@@ -278,6 +310,20 @@ admin 使用 Spring Security 无状态鉴权（token 12 小时），api 使用 M
 | GET | `/points` | 积分流水分页 |
 | GET/POST/PUT/DELETE | `/member-levels` | 等级 CRUD（重名校验、删除保护）+ 选项 |
 | GET/POST/PUT/DELETE | `/member-tags` | 标签 CRUD（删除级联解除关联）+ 选项（含会员数） |
+| GET/POST/PUT/DELETE | `/coupons` | 优惠券 CRUD（券类型口径校验、已领取禁删） |
+| GET | `/coupons/records` | 领券记录分页（券/会员/核销状态） |
+| PUT | `/coupons/{id}/status` | 优惠券启停用 |
+| GET/POST/PUT/DELETE | `/promotions` | 拼团 / 秒杀活动 CRUD（活动价必须低于原价、已售禁删） |
+| GET/POST/PUT/DELETE | `/signin-rules` | 签到规则 CRUD |
+| GET | `/signin-logs` | 签到记录分页（会员/日期区间） |
+| GET/POST/PUT/DELETE | `/reductions` | 满减活动 CRUD（减免额必须小于门槛） |
+| GET/POST/PUT/DELETE | `/decorate/pages` | 装修页面列表 / 新建 / 保存草稿（JSON 校验 + 乐观锁）/ 删除 |
+| POST | `/decorate/pages/{id}/publish` `/copy` | 发布快照（空画布拒绝）/ 复制页面 |
+| PUT | `/decorate/pages/{id}/home` | 设为首页（全库唯一，要求已发布） |
+| GET | `/decorate/preview/{code}` | 免登录扫码预览 |
+| POST | `/upload/credential` | 取 COS 直传临时密钥（local 模式返回降级标识） |
+| POST | `/upload/complete` | 回传 objectKey，校验后登记并返回访问地址 |
+| POST | `/upload/image` | 服务端转存图片（仅 local 模式） |
 
 小程序端（`/api`，★ 表示需要登录）
 

@@ -27,8 +27,6 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class FileStorageService {
 
-    /** 单图上限 5MB */
-    private static final long MAX_IMAGE_SIZE = 5 * 1024 * 1024L;
     private static final int HEAD_LENGTH = 12;
     private static final DateTimeFormatter MONTH_PATH = DateTimeFormatter.ofPattern("yyyy/MM");
 
@@ -38,8 +36,8 @@ public class FileStorageService {
         if (file == null || file.isEmpty()) {
             throw BusinessException.of("请选择要上传的图片");
         }
-        if (file.getSize() > MAX_IMAGE_SIZE) {
-            throw BusinessException.of("图片不能超过 5MB");
+        if (file.getSize() > uploadProperties.getMaxSize()) {
+            throw BusinessException.of("图片不能超过 %dMB".formatted(uploadProperties.getMaxSize() / 1024 / 1024));
         }
 
         byte[] head;
@@ -73,7 +71,7 @@ public class FileStorageService {
             throw BusinessException.of("图片保存失败，请稍后重试");
         }
 
-        String url = "%s/%s/%s".formatted(trimTrailingSlash(uploadProperties.getUrlPrefix()), monthPath, fileName);
+        String url = "%s/%s/%s".formatted(uploadProperties.normalizedUrlPrefix(), monthPath, fileName);
         return new ImageUploadVO(url, fileName, file.getSize());
     }
 
@@ -99,12 +97,5 @@ public class FileStorageService {
             return "bmp";
         }
         return null;
-    }
-
-    private String trimTrailingSlash(String value) {
-        if (value == null || value.isBlank()) {
-            return "/admin/uploads";
-        }
-        return value.endsWith("/") ? value.substring(0, value.length() - 1) : value;
     }
 }

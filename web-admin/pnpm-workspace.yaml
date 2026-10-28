@@ -107,6 +107,7 @@ catalog:
   clsx: ^2.1.1
   commitlint-plugin-function-rules: ^5.0.1
   consola: ^3.4.2
+  cos-js-sdk-v5: ^1.10.1
   cross-env: ^10.1.0
   cspell: ^10.0.0
   cz-git: ^1.13.1

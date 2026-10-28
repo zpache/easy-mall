@@ -594,3 +594,24 @@ CREATE TABLE dc_page
 INSERT INTO dc_page (id, name, type, status, is_home, preview_code, schema_json)
 VALUES (1, '商城首页', 1, 0, 0, 'TESTCODE01',
         '{"page":{"title":"商城首页","bgColor":"#f5f6f7","bgImage":"","padding":0},"components":[{"id":"c1","type":"search","visible":true,"props":{"placeholder":"搜索商品"}}]}');
+
+-- ============================================================
+-- 上传文件记录（COS 直传回执）
+-- ============================================================
+CREATE TABLE sys_file
+(
+    id         bigint AUTO_INCREMENT PRIMARY KEY,
+    object_key varchar(300) NOT NULL,
+    bucket     varchar(100) NOT NULL,
+    region     varchar(50)  NOT NULL,
+    url        varchar(500) NOT NULL,
+    size       bigint       NOT NULL DEFAULT 0,
+    mime       varchar(100),
+    scene      varchar(50),
+    created_at datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_by bigint,
+    updated_by bigint,
+    version    int          NOT NULL DEFAULT 0,
+    deleted    tinyint      NOT NULL DEFAULT 0
+);
