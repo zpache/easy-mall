@@ -196,13 +196,21 @@ pnpm dev:mp-weixin     # 微信开发者工具导入 miniprogram/dist/dev/mp-wei
 ```
 
 小程序需要配置的变量在 `.env.development`：`VITE_API_BASE_URL=http://127.0.0.1:8082/api`。
-本地调试请在微信开发者工具中勾选「不校验合法域名」。
+本地调试请在微信开发者工具中勾选「不校验合法域名」；真机预览要把 `VITE_API_BASE_URL` 换成电脑的局域网地址（如 `http://192.168.1.10:8082/api`），手机与电脑需在同一网络。
 
-后端 `easy-mall.wx.mock=true` 时，任何 code 都能登录（本地联调用）；接真实小程序时设置：
+登录走真实微信链路：`wx.login` 取 code → 后端 `jscode2session` 换 openid（不存在则自动注册）→ 签发 JWT。凭证写在 `application-local.yml`（已 gitignore）：
 
-```bash
-WX_APP_ID=xxx WX_APP_SECRET=xxx WX_MOCK=false
+```yaml
+easy-mall:
+  wx:
+    app-id: wx9e3a05ced8c0a4eb
+    app-secret: <你的 AppSecret>
+    mock: false
 ```
+
+- `mock` 默认为 `false`，不再提供免凭证登录；只有临时联调且没有小程序凭证时，才用 `WX_MOCK=true` 伪造 openid（生产环境禁止）。
+- `app-id` 还要写进 `miniprogram/src/manifest.json` 的 `mp-weixin.appid`，编译产物 `project.config.json` 的 appid 由它生成（否则是 `touristappid`，无法真机预览/上传）。
+- H5 端没有 `wx.login`，关闭 mock 后 H5 的「微信一键登录」会返回 4008，只适合调试免登录页面。
 
 ### 5. 图片上传（COS 直传）
 

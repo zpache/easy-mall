@@ -53,8 +53,9 @@ easy-mall:
   wx:
     app-id: ${WX_APP_ID:}
     app-secret: ${WX_APP_SECRET:}
-    # 本地开发用模拟登录，生产环境必须设为 false
-    mock: ${WX_MOCK:true}
+    # 默认走真实微信 jscode2session 换取 openid；
+    # 仅当本地没有小程序凭证、需要免凭证联调时才显式设置 WX_MOCK=true
+    mock: ${WX_MOCK:false}
 
 springdoc:
   api-docs:
