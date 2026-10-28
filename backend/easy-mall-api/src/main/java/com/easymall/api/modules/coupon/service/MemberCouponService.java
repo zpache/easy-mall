@@ -1,21 +1,28 @@
 package com.easymall.api.modules.coupon.service;
 
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import com.easymall.api.common.api.ResultCode;
 import com.easymall.api.common.context.UserContext;
+import com.easymall.api.common.exception.BusinessException;
 import com.easymall.api.entity.Coupon;
 import com.easymall.api.entity.CouponUser;
 import com.easymall.api.mapper.CouponMapper;
 import com.easymall.api.mapper.CouponUserMapper;
+import com.easymall.api.modules.coupon.vo.CouponCardVO;
 import com.easymall.api.modules.coupon.vo.MemberCouponResult;
 import com.easymall.api.modules.coupon.vo.MemberCouponVO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -151,5 +158,136 @@ public class MemberCouponService {
             return "无门槛";
         }
         return "满" + threshold.stripTrailingZeros().toPlainString() + "元可用";
+    }
+
+    /* ========================= 领券中心 ========================= */
+
+    /**
+     * 领券中心的券卡片：按装修配置的 id 顺序返回，跳过停用、未开始、已过有效期的券。
+     *
+     * @param ids 装修组件里选中的券 id，最多取前 20 个
+     */
+    public List<CouponCardVO> cards(List<Long> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return List.of();
+        }
+        List<Long> ordered = ids.stream().filter(Objects::nonNull).distinct().limit(20).toList();
+        if (ordered.isEmpty()) {
+            return List.of();
+        }
+        Map<Long, Coupon> couponMap = couponMapper.selectList(Wrappers.<Coupon>lambdaQuery()
+                        .in(Coupon::getId, ordered)
+                        .eq(Coupon::getStatus, 1))
+                .stream()
+                .collect(Collectors.toMap(Coupon::getId, Function.identity()));
+
+        LocalDate today = LocalDate.now();
+        return ordered.stream()
+                .map(couponMap::get)
+                .filter(Objects::nonNull)
+                .filter(coupon -> !isExpired(coupon, today))
+                .map(this::toCard)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * 领取一张券：库存用 SQL 原子占用，避免并发超发。
+     * 同一张券的限领校验按“未使用 + 已使用”计数，已过期的记录不占名额。
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public MemberCouponVO receive(Long couponId) {
+        Long userId = UserContext.userId();
+        Coupon coupon = couponMapper.selectById(couponId);
+        if (coupon == null) {
+            throw new BusinessException(ResultCode.COUPON_NOT_FOUND);
+        }
+        if (coupon.getStatus() == null || coupon.getStatus() != 1) {
+            throw new BusinessException(ResultCode.COUPON_OFFLINE);
+        }
+        LocalDate today = LocalDate.now();
+        if (isNotStarted(coupon, today)) {
+            throw new BusinessException(ResultCode.COUPON_EXPIRED, "优惠券还未开始领取");
+        }
+        if (isExpired(coupon, today)) {
+            throw new BusinessException(ResultCode.COUPON_EXPIRED);
+        }
+
+        long received = couponUserMapper.selectCount(Wrappers.<CouponUser>lambdaQuery()
+                .eq(CouponUser::getUserId, userId)
+                .eq(CouponUser::getCouponId, couponId)
+                .ne(CouponUser::getStatus, STATUS_EXPIRED));
+        int perLimit = coupon.getPerLimit() == null || coupon.getPerLimit() <= 0 ? 1 : coupon.getPerLimit();
+        if (received >= perLimit) {
+            throw new BusinessException(ResultCode.COUPON_LIMIT_REACHED);
+        }
+
+        if (couponMapper.increaseSendCount(couponId) == 0) {
+            throw new BusinessException(ResultCode.COUPON_SOLD_OUT);
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+        CouponUser record = new CouponUser();
+        record.setCouponId(couponId);
+        record.setUserId(userId);
+        record.setStatus(STATUS_UNUSED);
+        record.setReceivedAt(now);
+        record.setExpiredAt(resolveNewExpireAt(coupon, now));
+        couponUserMapper.insert(record);
+
+        return toVO(record, coupon, now);
+    }
+
+    private CouponCardVO toCard(Coupon coupon) {
+        int total = coupon.getTotalCount() == null ? 0 : coupon.getTotalCount();
+        int sent = coupon.getSendCount() == null ? 0 : coupon.getSendCount();
+        // total_count = 0 视为不限量，remain 返回 -1 由前端隐藏“剩余”角标
+        int remain = total <= 0 ? -1 : Math.max(0, total - sent);
+        int perLimit = coupon.getPerLimit() == null || coupon.getPerLimit() <= 0 ? 1 : coupon.getPerLimit();
+        return new CouponCardVO(
+                coupon.getId(),
+                coupon.getName(),
+                coupon.getType(),
+                valueText(coupon),
+                ruleText(coupon),
+                validText(coupon),
+                total,
+                remain,
+                perLimit,
+                remain == 0);
+    }
+
+    private String validText(Coupon coupon) {
+        if (coupon.getValidType() != null && coupon.getValidType() == 2) {
+            int days = coupon.getValidDays() == null || coupon.getValidDays() <= 0 ? 7 : coupon.getValidDays();
+            return "领取后" + days + "天有效";
+        }
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy.MM.dd");
+        if (coupon.getValidStart() != null && coupon.getValidEnd() != null) {
+            return coupon.getValidStart().format(formatter) + "-" + coupon.getValidEnd().format(formatter);
+        }
+        if (coupon.getValidEnd() != null) {
+            return "有效期至" + coupon.getValidEnd().format(formatter);
+        }
+        return "长期有效";
+    }
+
+    /** 固定日期券在结束日之后不再可领；领取后 N 天券始终可领 */
+    private boolean isExpired(Coupon coupon, LocalDate today) {
+        return coupon.getValidType() != null && coupon.getValidType() == 1
+                && coupon.getValidEnd() != null && coupon.getValidEnd().isBefore(today);
+    }
+
+    private boolean isNotStarted(Coupon coupon, LocalDate today) {
+        return coupon.getValidType() != null && coupon.getValidType() == 1
+                && coupon.getValidStart() != null && coupon.getValidStart().isAfter(today);
+    }
+
+    /** 新领记录的到期时间：固定日期券取结束日 23:59:59，N 天券取领取时间 + N 天 */
+    private LocalDateTime resolveNewExpireAt(Coupon coupon, LocalDateTime now) {
+        if (coupon.getValidType() != null && coupon.getValidType() == 2) {
+            int days = coupon.getValidDays() == null || coupon.getValidDays() <= 0 ? 7 : coupon.getValidDays();
+            return now.plusDays(days);
+        }
+        return coupon.getValidEnd() == null ? null : coupon.getValidEnd().atTime(23, 59, 59);
     }
 }

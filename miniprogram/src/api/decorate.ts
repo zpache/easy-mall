@@ -1,4 +1,5 @@
-import { request } from './request'
+import { buildQuery, request } from './request'
+import type { CouponCard } from '@/types/coupon'
 import type { DecoratePageData, NavConfig } from '@/types/decorate'
 
 interface RawNav<A, B, C> {
@@ -15,7 +16,11 @@ export const decorateApi = {
   page: (id: number | string) => request<DecoratePageData>({ url: `/decorate/page/${id}` }),
 
   /** 全局导航配置（三段 JSON 字符串） */
-  nav: () => request<RawNav<string, string, string>>({ url: '/decorate/nav' })
+  nav: () => request<RawNav<string, string, string>>({ url: '/decorate/nav' }),
+
+  /** 装修「优惠券」组件的券卡片，按传入 id 顺序返回（免登录） */
+  coupons: (ids: number[]) =>
+    request<CouponCard[]>({ url: `/decorate/coupons${buildQuery({ ids: ids.join(',') })}` })
 }
 
 export type { NavConfig }

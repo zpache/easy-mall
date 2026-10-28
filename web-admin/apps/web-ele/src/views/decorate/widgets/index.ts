@@ -335,26 +335,17 @@ export const WIDGETS: WidgetDefinition[] = [
     component: CouponWidget,
     defaultProps: {
       bgColor: '#ffffff',
-      coupons: [
-        { amount: 10, discount: 0, name: '新人专享 10 元券', threshold: 0, validDays: 7 },
-        { amount: 15, discount: 0, name: '满 99 减 15', threshold: 99, validDays: 30 },
-      ],
+      couponIds: [],
       title: '领券中心',
     },
     fields: [
       { key: 'title', label: '标题', type: 'input' },
       {
-        itemFields: [
-          { key: 'name', label: '券名称', type: 'input' },
-          { key: 'amount', label: '面额', type: 'number', min: 0, step: 1 },
-          { key: 'threshold', label: '门槛', type: 'number', min: 0, step: 1 },
-          { key: 'validDays', label: '有效天数', type: 'number', min: 1 },
-        ],
-        itemLabelKey: 'name',
-        key: 'coupons',
+        key: 'couponIds',
         label: '优惠券',
-        maxItems: 6,
-        type: 'items',
+        max: 6,
+        tip: '来自营销中心，最多 6 张',
+        type: 'coupons',
       },
       { key: 'bgColor', label: '背景色', type: 'color' },
     ],

@@ -1,11 +1,52 @@
 <script lang="ts" setup>
-import { computed } from 'vue';
+import { computed, onMounted, ref } from 'vue';
+
+import { getCouponList } from '#/api/marketing/coupon';
 
 const props = defineProps<{ config: Record<string, any> }>();
 
-const coupons = computed(() =>
-  Array.isArray(props.config.coupons) ? props.config.coupons : [],
+/** 券字典模块级缓存：同一画布上多个优惠券组件共用一次请求 */
+let poolPromise: null | Promise<any[]> = null;
+
+const pool = ref<any[]>([]);
+
+const ids = computed<number[]>(() =>
+  Array.isArray(props.config.couponIds) ? props.config.couponIds : [],
 );
+
+/** 按配置顺序取券，已被删除/停用的券自动跳过 */
+const coupons = computed(() => {
+  if (ids.value.length === 0) {
+    return [];
+  }
+  const map = new Map(pool.value.map((coupon) => [coupon.id, coupon]));
+  return ids.value.map((id) => map.get(id)).filter(Boolean);
+});
+
+function cond(coupon: any) {
+  return Number(coupon.threshold) > 0
+    ? `满${coupon.threshold}可用`
+    : '无门槛';
+}
+
+function valid(coupon: any) {
+  if (coupon.validType === 2) {
+    return `领取后${coupon.validDays || 7}天有效`;
+  }
+  return coupon.validEnd ? `有效期至 ${coupon.validEnd}` : '长期有效';
+}
+
+onMounted(async () => {
+  if (!poolPromise) {
+    poolPromise = getCouponList({ pageNum: 1, pageSize: 200 })
+      .then((res) => res.items || [])
+      .catch(() => {
+        poolPromise = null;
+        return [];
+      });
+  }
+  pool.value = await poolPromise;
+});
 </script>
 
 <template>
@@ -14,21 +55,31 @@ const coupons = computed(() =>
       <span class="title">{{ config.title || '领券中心' }}</span>
       <span class="more">更多 ›</span>
     </div>
-    <div class="list">
-      <div v-for="(item, index) in coupons" :key="index" class="coupon">
+
+    <div v-if="coupons.length > 0" class="list">
+      <div v-for="item in coupons" :key="item.id" class="coupon">
         <div class="left">
-          <span v-if="item.discount" class="amount">{{ (item.discount / 10).toFixed(1) }}<i>折</i></span>
-          <span v-else class="amount"><i>¥</i>{{ item.amount }}</span>
-          <span class="cond">
-            {{ Number(item.threshold) > 0 ? `满${item.threshold}可用` : '无门槛' }}
+          <span class="amount">
+            <template v-if="item.type === 2">
+              {{ Number(item.discount ?? 0) / 10 }}<i>折</i>
+            </template>
+            <template v-else><i>¥</i>{{ item.amount }}</template>
           </span>
+          <span class="cond">{{ cond(item) }}</span>
         </div>
         <div class="right">
           <p class="name">{{ item.name }}</p>
-          <p class="valid">{{ item.validDays }} 天内有效</p>
+          <p class="valid">{{ valid(item) }}</p>
         </div>
         <span class="btn">领取</span>
       </div>
+    </div>
+
+    <div v-else class="empty">
+      <span class="empty__icon">🎫</span>
+      <span class="empty__text">
+        {{ ids.length > 0 ? '所选优惠券已下架' : '请在右侧属性面板选择优惠券' }}
+      </span>
     </div>
   </div>
 </template>
@@ -68,6 +119,7 @@ const coupons = computed(() =>
 }
 .left {
   display: flex;
+  flex: none;
   flex-direction: column;
   align-items: center;
   justify-content: center;
@@ -114,5 +166,24 @@ const coupons = computed(() =>
   color: #fff;
   background: #e02020;
   border-radius: 12px;
+}
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 18px 0;
+  background: #fafafa;
+  border: 1px dashed #e4e7ed;
+  border-radius: 8px;
+}
+.empty__icon {
+  font-size: 18px;
+  opacity: 0.5;
+}
+.empty__text {
+  margin-top: 4px;
+  font-size: 11px;
+  color: #b1b3b8;
 }
 </style>

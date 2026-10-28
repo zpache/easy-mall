@@ -1,6 +1,8 @@
 package com.easymall.api.modules.decorate.controller;
 
 import com.easymall.api.common.api.Result;
+import com.easymall.api.modules.coupon.service.MemberCouponService;
+import com.easymall.api.modules.coupon.vo.CouponCardVO;
 import com.easymall.api.modules.decorate.service.DecorateService;
 import com.easymall.api.modules.decorate.vo.DecoratePageVO;
 import com.easymall.api.modules.decorate.vo.NavConfigVO;
@@ -10,10 +12,13 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
+
 /**
- * 商城装修（免登录）：首页与微页面结构、全局导航配置。
+ * 商城装修（免登录）：首页与微页面结构、全局导航配置、装修组件的券卡片。
  */
 @Tag(name = "装修")
 @RestController
@@ -22,6 +27,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class DecorateController {
 
     private final DecorateService decorateService;
+    private final MemberCouponService memberCouponService;
 
     @Operation(summary = "商城首页（含导航配置）")
     @GetMapping("/home")
@@ -39,5 +45,11 @@ public class DecorateController {
     @GetMapping("/nav")
     public Result<NavConfigVO> nav() {
         return Result.ok(decorateService.navConfig());
+    }
+
+    @Operation(summary = "装修「优惠券」组件的券卡片（按传入 id 顺序返回）")
+    @GetMapping("/coupons")
+    public Result<List<CouponCardVO>> coupons(@RequestParam(required = false) List<Long> ids) {
+        return Result.ok(memberCouponService.cards(ids));
     }
 }
