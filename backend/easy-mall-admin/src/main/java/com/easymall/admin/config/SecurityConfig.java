@@ -37,13 +37,14 @@ import java.util.List;
 @RequiredArgsConstructor
 public class SecurityConfig {
 
-    /** 白名单：登录、接口文档、健康检查 */
+    /** 白名单：登录、接口文档、健康检查、装修扫码预览（真机未登录可看） */
     private static final String[] WHITE_LIST = {
             "/auth/login",
             "/v3/api-docs/**",
             "/swagger-ui/**",
             "/swagger-ui.html",
-            "/actuator/health"
+            "/actuator/health",
+            "/decorate/preview/**"
     };
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
