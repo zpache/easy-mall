@@ -8,6 +8,7 @@ import { IconifyIcon } from '@vben/icons';
 import {
   ElButton,
   ElColorPicker,
+  ElDatePicker,
   ElInput,
   ElInputNumber,
   ElMessage,
@@ -173,6 +174,17 @@ function itemTitle(item: any, index: number) {
       v-model="value"
       show-alpha
       size="small"
+    />
+    <ElDatePicker
+      v-else-if="field.type === 'datetime'"
+      :model-value="value || ''"
+      class="w-full"
+      format="YYYY-MM-DD HH:mm:ss"
+      placeholder="选择日期时间"
+      size="small"
+      type="datetime"
+      value-format="YYYY-MM-DD HH:mm:ss"
+      @update:model-value="(val: any) => (value = val || '')"
     />
     <ElSelect
       v-else-if="field.type === 'select'"
