@@ -15,6 +15,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestClient;
+import tools.jackson.databind.ObjectMapper;
 
 /**
  * 微信小程序登录：code -> openid -> 本地用户（不存在则自动注册）-> JWT。
@@ -27,6 +28,7 @@ public class WxAuthService {
     private final WxProperties wxProperties;
     private final AppUserMapper appUserMapper;
     private final JwtTokenProvider jwtTokenProvider;
+    private final ObjectMapper objectMapper;
     private final RestClient restClient = RestClient.create();
 
     public LoginVO login(String code) {
@@ -62,16 +64,27 @@ public class WxAuthService {
         if (!StringUtils.hasText(wxProperties.getAppId()) || !StringUtils.hasText(wxProperties.getAppSecret())) {
             throw new BusinessException(ResultCode.WX_LOGIN_FAILED, "未配置小程序 appId/appSecret");
         }
-        WxSessionResponse response;
+        // 微信该接口的响应头常见为 text/plain（body 仍是 JSON），
+        // 因此先按 String 取回再自行反序列化，避免按 content-type 匹配转换器失败
+        String body;
         try {
-            response = restClient.get()
+            body = restClient.get()
                     .uri(wxProperties.getSessionUrl()
                                     + "?appid={appid}&secret={secret}&js_code={code}&grant_type=authorization_code",
                             wxProperties.getAppId(), wxProperties.getAppSecret(), code)
                     .retrieve()
-                    .body(WxSessionResponse.class);
+                    .body(String.class);
         } catch (Exception e) {
             log.error("调用微信 jscode2session 失败", e);
+            throw new BusinessException(ResultCode.WX_LOGIN_FAILED);
+        }
+
+        WxSessionResponse response;
+        try {
+            response = objectMapper.readValue(body, WxSessionResponse.class);
+        } catch (Exception e) {
+            // 响应体含 openid/session_key，不落日志明文
+            log.error("解析微信 jscode2session 响应失败，bodyLength={}", body == null ? 0 : body.length(), e);
             throw new BusinessException(ResultCode.WX_LOGIN_FAILED);
         }
         if (response == null || !response.success()) {

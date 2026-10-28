@@ -4,3 +4,11 @@
 spring:
   datasource:
     password: your-local-password
+
+# 微信小程序真实登录：填自己的 appId/appSecret 并保持 mock: false
+# 没有凭证时也可设 WX_MOCK=true 临时联调（伪造 openid，禁止用于生产）
+easy-mall:
+  wx:
+    app-id: your-wx-appid
+    app-secret: your-wx-appsecret
+    mock: false
