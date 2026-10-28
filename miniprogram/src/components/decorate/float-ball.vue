@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { FloatConfig } from '@/types/decorate'
-import { FLOAT_GLYPHS, switchTab } from '@/utils/decorate'
+import { FLOAT_GLYPHS, FLOAT_ICON_NAMES, switchTab } from '@/utils/decorate'
+import { iconSource } from '@/utils/nav-icon-uri'
 
 const props = withDefaults(
   defineProps<{
@@ -20,6 +21,11 @@ const positionStyle = computed(() => ({
   bottom: `${props.bottom}rpx`,
   [props.config.position === 'left' ? 'left' : 'right']: '20rpx'
 }))
+
+/** 图标名转 SVG data URI，图片地址原样使用 */
+function iconSrc(key: string, icon?: string) {
+  return iconSource(icon, '#606266', FLOAT_ICON_NAMES[key] || 'lucide:circle')
+}
 
 function onTap(key: string) {
   const item = props.config.itemList.find((it) => it.key === key)
@@ -45,7 +51,12 @@ function onTap(key: string) {
 <template>
   <view v-if="items.length" class="d-float" :style="positionStyle">
     <view v-for="item in items" :key="item.key" class="d-float__ball" @tap="onTap(item.key)">
-      <image v-if="item.icon" class="d-float__img" :src="item.icon" mode="aspectFit" />
+      <image
+        v-if="iconSrc(item.key, item.icon)"
+        class="d-float__img"
+        :src="iconSrc(item.key, item.icon)"
+        mode="aspectFit"
+      />
       <text v-else class="d-float__glyph">{{ FLOAT_GLYPHS[item.key] || '•' }}</text>
     </view>
   </view>

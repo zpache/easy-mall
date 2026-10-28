@@ -5,7 +5,7 @@ import { computed } from 'vue';
 
 import { IconifyIcon } from '@vben/icons';
 
-import { TAB_ICONS, tabbarBorder } from '../config';
+import { isIconImage, TAB_ICONS, tabbarBorder } from '../config';
 
 defineOptions({ name: 'NavTabbar' });
 
@@ -49,7 +49,7 @@ function imageOf(item: NavApi.TabItem, isActive: boolean) {
       }"
     >
       <img
-        v-if="imageOf(item, active(index))"
+        v-if="isIconImage(imageOf(item, active(index)))"
         :src="imageOf(item, active(index))"
         alt=""
         class="nav-tab-img"
@@ -57,7 +57,7 @@ function imageOf(item: NavApi.TabItem, isActive: boolean) {
       <IconifyIcon
         v-else
         class="nav-tab-icon"
-        :icon="TAB_ICONS[item.key] || 'lucide:circle'"
+        :icon="imageOf(item, active(index)) || TAB_ICONS[item.key] || 'lucide:circle'"
       />
       <span class="nav-tab-name">{{ item.name }}</span>
     </div>

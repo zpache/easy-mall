@@ -5,7 +5,7 @@ import { computed } from 'vue';
 
 import { IconifyIcon } from '@vben/icons';
 
-import { FLOAT_ICONS } from '../config';
+import { FLOAT_ICONS, isIconImage } from '../config';
 
 defineOptions({ name: 'NavFloatBall' });
 
@@ -40,8 +40,11 @@ const items = computed(() =>
       class="nav-ball"
       :title="item.name"
     >
-      <img v-if="item.icon" :src="item.icon" alt="" />
-      <IconifyIcon v-else :icon="FLOAT_ICONS[item.key] || 'lucide:circle'" />
+      <img v-if="isIconImage(item.icon)" :src="item.icon" alt="" />
+      <IconifyIcon
+        v-else
+        :icon="item.icon || FLOAT_ICONS[item.key] || 'lucide:circle'"
+      />
     </div>
   </div>
 </template>

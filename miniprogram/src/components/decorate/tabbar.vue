@@ -1,7 +1,14 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { TabbarConfig } from '@/types/decorate'
-import { isTabActive, resolveTabTarget, switchTab, TAB_GLYPHS } from '@/utils/decorate'
+import {
+  isTabActive,
+  resolveTabTarget,
+  switchTab,
+  TAB_GLYPHS,
+  TAB_ICON_NAMES
+} from '@/utils/decorate'
+import { iconSource } from '@/utils/nav-icon-uri'
 
 const props = withDefaults(
   defineProps<{
@@ -30,6 +37,15 @@ function iconOf(key: string) {
   const item = tabOf(key)
   if (!item) return ''
   return key === activeKey.value ? item.selectedIcon || item.icon : item.icon
+}
+
+/** 图标名转 SVG data URI（选中态用选中色），无法解析返回空串走字形兜底 */
+function iconSrc(key: string) {
+  const color =
+    key === activeKey.value
+      ? props.config.selectedColor || '#1677ff'
+      : props.config.color || '#909399'
+  return iconSource(iconOf(key), color, TAB_ICON_NAMES[key] || 'lucide:circle')
 }
 
 function onTap(key: string) {
@@ -66,9 +82,9 @@ const borderTop = computed(() => {
       @tap="onTap(item.key)"
     >
       <image
-        v-if="iconOf(item.key)"
+        v-if="iconSrc(item.key)"
         class="d-tabbar__img"
-        :src="iconOf(item.key)"
+        :src="iconSrc(item.key)"
         mode="aspectFit"
       />
       <text v-else class="d-tabbar__glyph">{{ TAB_GLYPHS[item.key] || '•' }}</text>
