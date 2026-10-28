@@ -1,5 +1,7 @@
 <script lang="ts" setup>
-import { computed, onMounted, ref } from 'vue';
+import type { NavConfig } from '../nav/config';
+
+import { computed, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
 import { useAccessStore } from '@vben/stores';
@@ -14,6 +16,9 @@ import {
   ElTooltip,
 } from 'element-plus';
 
+import { getDecorateNav } from '#/api/decorate/nav';
+
+import { parseNavConfig } from '../nav/config';
 import { useDecorateEditor } from './use-editor';
 import PhoneCanvas from './components/phone-canvas.vue';
 import PreviewQrcode from './components/preview-qrcode.vue';
@@ -57,6 +62,31 @@ const {
 
 const previewVisible = ref(false);
 const nameEditing = ref(false);
+
+/* ---------------- 导航联动 ---------------- */
+
+const NAV_VISIBLE_KEY = 'easymall:decorate:show-nav';
+
+const navConfig = ref<NavConfig | null>(null);
+const showNav = ref(localStorage.getItem(NAV_VISIBLE_KEY) !== '0');
+
+watch(showNav, (value) => {
+  localStorage.setItem(NAV_VISIBLE_KEY, value ? '1' : '0');
+});
+
+/** 读取后台「导航装修」配置，画布底部按同一份配置渲染 */
+async function loadNav() {
+  try {
+    navConfig.value = parseNavConfig(await getDecorateNav());
+  } catch {
+    // 导航配置读取失败不该阻塞页面装修，退回内置默认值
+    navConfig.value = parseNavConfig(null);
+  }
+}
+
+function openNavSettings() {
+  window.open(router.resolve('/decorate/nav').href, '_blank');
+}
 
 const saveStateText = computed(() => {
   if (saving.value) {
@@ -132,7 +162,7 @@ onMounted(async () => {
     });
     return;
   }
-  await load();
+  await Promise.all([load(), loadNav()]);
 });
 </script>
 
@@ -201,17 +231,21 @@ onMounted(async () => {
         @dragstart="onDragStart"
       />
       <PhoneCanvas
+        :nav="navConfig"
         :schema="schema"
         :selected-id="selectedId"
+        :show-nav="showNav"
         @clear="select(null)"
         @duplicate="duplicateWidget"
         @dragend="endDrag"
         @dragstart="onItemDragStart"
         @drop="onDrop"
         @move="moveBy"
+        @open-nav="openNavSettings"
         @remove="removeWidget"
         @select="select"
         @toggle="toggleVisible"
+        @update:show-nav="showNav = $event"
       />
       <div v-if="loading" class="loading-mask">
         <IconifyIcon icon="lucide:loader-2" class="spin" />

@@ -6,6 +6,7 @@ import com.easymall.admin.common.exception.BusinessException;
 import com.easymall.admin.entity.DecorateNav;
 import com.easymall.admin.mapper.DecorateNavMapper;
 import com.easymall.admin.modules.decorate.dto.NavSaveForm;
+import com.easymall.admin.modules.decorate.vo.NavPreviewVO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -83,6 +84,12 @@ public class DecorateNavService extends ServiceImpl<DecorateNavMapper, DecorateN
         save(init);
         log.info("初始化导航装修默认配置");
         return getById(SINGLETON_ID);
+    }
+
+    /** 免登录预览（扫码预览页）用：只回三段渲染配置。 */
+    public NavPreviewVO previewConfig() {
+        DecorateNav nav = get();
+        return new NavPreviewVO(nav.getTabbarJson(), nav.getNavbarJson(), nav.getFloatJson());
     }
 
     /** 保存配置：三段 JSON 校验通过后整体覆盖。 */

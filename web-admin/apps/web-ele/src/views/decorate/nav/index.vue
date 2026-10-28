@@ -30,12 +30,17 @@ import {
 
 import IconField from './components/icon-field.vue';
 import PhonePreview from './components/phone-preview.vue';
+import {
+  createDefaultNav,
+  FLOAT_ICONS,
+  MAX_FLOAT,
+  MAX_TABS,
+  MIN_TABS,
+  parseNavConfig,
+  tabItem as TabItem,
+} from './config';
 
 defineOptions({ name: 'DecorateNav' });
-
-const MIN_TABS = 3;
-const MAX_TABS = 5;
-const MAX_FLOAT = 5;
 
 const LINK_TYPES = [
   { label: '商城首页', value: 'home' },
@@ -56,68 +61,12 @@ const BACK_BEHAVIORS = [
   { label: '不响应', value: 'none' },
 ];
 
-const FLOAT_PRESETS: NavApi.FloatItem[] = [
-  { enabled: true, icon: '', key: 'service', name: '客服', value: '' },
-  { enabled: true, icon: '', key: 'cart', name: '购物车', value: '' },
-  { enabled: true, icon: '', key: 'top', name: '回到顶部', value: '' },
-];
-
-const FLOAT_ICONS: Record<string, string> = {
-  cart: 'lucide:shopping-cart',
-  service: 'lucide:headset',
-  top: 'lucide:arrow-up',
-};
-
-const DEFAULT_TABBAR: NavApi.Tabbar = {
-  bgColor: '#ffffff',
-  borderStyle: 'black',
-  color: '#909399',
-  enabled: true,
-  items: [
-    TabItem('首页', 'home', 'home'),
-    TabItem('分类', 'category', 'path', '/pages/category/index'),
-    TabItem('购物车', 'cart', 'path', '/pages/cart/index'),
-    TabItem('我的', 'mine', 'path', '/pages/mine/index'),
-  ],
-  selectedColor: '#1677ff',
-};
-
-const DEFAULT_NAVBAR: NavApi.Navbar = {
-  backBehavior: 'back',
-  bgColor: '#ffffff',
-  showBack: true,
-  style: 'normal',
-  textColor: '#333333',
-  title: '易商城',
-};
-
-const DEFAULT_FLOAT: NavApi.FloatBall = {
-  enabled: true,
-  itemList: FLOAT_PRESETS,
-  position: 'right',
-};
-
-function TabItem(
-  name: string,
-  key: string,
-  linkType: NavApi.TabItem['linkType'],
-  linkValue = '',
-): NavApi.TabItem {
-  return {
-    icon: '',
-    key,
-    linkType,
-    linkValue,
-    name,
-    selectedIcon: '',
-    visible: true,
-  };
-}
+const initial = createDefaultNav();
 
 const nav = reactive({
-  floatBall: structuredClone(DEFAULT_FLOAT) as NavApi.FloatBall,
-  navbar: { ...DEFAULT_NAVBAR } as NavApi.Navbar,
-  tabbar: structuredClone(DEFAULT_TABBAR) as NavApi.Tabbar,
+  floatBall: initial.floatBall,
+  navbar: initial.navbar,
+  tabbar: initial.tabbar,
 });
 
 const version = ref<number>();
@@ -132,30 +81,20 @@ function touch() {
   dirty.value = true;
 }
 
-function parsed<T>(json: string | undefined, fallback: T): T {
-  if (!json) {
-    return fallback;
-  }
-  try {
-    return { ...fallback, ...JSON.parse(json) } as T;
-  } catch {
-    return fallback;
-  }
+function applyConfig(config: NavApi.Config) {
+  const parsedNav = parseNavConfig(config);
+  nav.tabbar = parsedNav.tabbar;
+  nav.navbar = parsedNav.navbar;
+  nav.floatBall = parsedNav.floatBall;
+  version.value = config.version;
+  updatedAt.value = config.updatedAt ?? '';
+  dirty.value = false;
 }
 
 async function load() {
   loading.value = true;
   try {
-    const config = await getDecorateNav();
-    nav.tabbar = parsed(config.tabbarJson, structuredClone(DEFAULT_TABBAR));
-    nav.navbar = parsed(config.navbarJson, { ...DEFAULT_NAVBAR });
-    nav.floatBall = parsed(config.floatJson, { ...DEFAULT_FLOAT });
-    nav.floatBall.itemList = nav.floatBall.itemList?.length
-      ? nav.floatBall.itemList
-      : structuredClone(FLOAT_PRESETS);
-    version.value = config.version;
-    updatedAt.value = config.updatedAt ?? '';
-    dirty.value = false;
+    applyConfig(await getDecorateNav());
   } finally {
     loading.value = false;
   }
@@ -288,12 +227,7 @@ async function onReset() {
   );
   loading.value = true;
   try {
-    const result = await resetDecorateNav();
-    nav.tabbar = parsed(result.tabbarJson, structuredClone(DEFAULT_TABBAR));
-    nav.navbar = parsed(result.navbarJson, { ...DEFAULT_NAVBAR });
-    nav.floatBall = parsed(result.floatJson, { ...DEFAULT_FLOAT });
-    version.value = result.version;
-    dirty.value = false;
+    applyConfig(await resetDecorateNav());
     ElMessage.success('已恢复默认配置');
   } finally {
     loading.value = false;

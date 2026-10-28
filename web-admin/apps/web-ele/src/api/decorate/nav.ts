@@ -75,6 +75,13 @@ function getDecorateNav() {
   return requestClient.get<DecorateNavApi.Config>('/decorate/nav');
 }
 
+/** 扫码预览页免登录读取导航配置（只含三段渲染 JSON） */
+function getPreviewDecorateNav() {
+  return requestClient.get<
+    Pick<DecorateNavApi.Config, 'floatJson' | 'navbarJson' | 'tabbarJson'>
+  >('/decorate/preview/nav');
+}
+
 function saveDecorateNav(data: DecorateNavApi.SavePayload) {
   return requestClient.put<DecorateNavApi.Config>('/decorate/nav', data);
 }
@@ -83,4 +90,9 @@ function resetDecorateNav() {
   return requestClient.post<DecorateNavApi.Config>('/decorate/nav/reset');
 }
 
-export { getDecorateNav, resetDecorateNav, saveDecorateNav };
+export {
+  getDecorateNav,
+  getPreviewDecorateNav,
+  resetDecorateNav,
+  saveDecorateNav,
+};

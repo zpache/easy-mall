@@ -1,15 +1,22 @@
 <script lang="ts" setup>
+import type { NavConfig } from '../../nav/config';
 import type { PageSchema } from '../../widgets/types';
 
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 
 import { IconifyIcon } from '@vben/icons';
 
+import { ElSwitch } from 'element-plus';
+
+import NavFloatBall from '../../nav/components/nav-float-ball.vue';
+import NavTabbar from '../../nav/components/nav-tabbar.vue';
 import CanvasItem from './canvas-item.vue';
 
 const props = defineProps<{
+  nav: NavConfig | null;
   schema: PageSchema;
   selectedId: null | string;
+  showNav: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -19,12 +26,24 @@ const emit = defineEmits<{
   dragend: [];
   dragstart: [index: number];
   move: [id: string, offset: number];
+  openNav: [];
   remove: [id: string];
   select: [id: string];
   toggle: [id: string];
+  'update:showNav': [value: boolean];
 }>();
 
 const hoverIndex = ref<null | number>(null);
+
+const navOn = computed({
+  get: () => props.showNav,
+  set: (value: boolean) => emit('update:showNav', value),
+});
+
+/** 底部有 TabBar 时悬浮球要抬起来，避免压住导航 */
+const tabbarHeight = computed(() =>
+  props.nav?.tabbar.enabled ? 52 : 0,
+);
 
 function onDragOver(event: DragEvent, index: number) {
   event.preventDefault();
@@ -42,6 +61,17 @@ function onDrop(index: number) {
 
 <template>
   <div class="canvas-stage" @click="emit('clear')">
+    <!-- 导航联动开关：画布底部按「导航装修」的配置实时渲染 -->
+    <div class="nav-bar" @click.stop>
+      <IconifyIcon class="nav-bar-icon" icon="lucide:panel-bottom" />
+      <span class="nav-bar-text">底部导航</span>
+      <ElSwitch v-model="navOn" size="small" />
+      <span class="nav-bar-link" @click="emit('openNav')">
+        去配置
+        <IconifyIcon icon="lucide:arrow-up-right" />
+      </span>
+    </div>
+
     <div class="phone">
       <div class="status-bar">
         <span class="time">9:41</span>
@@ -105,6 +135,19 @@ function onDrop(index: number) {
           <p class="empty-tip">支持上下插入、拖动排序、点击选中</p>
         </div>
       </div>
+
+      <!-- 悬浮快捷入口（跟随后台「导航装修」配置） -->
+      <div class="nav-float-wrap">
+        <NavFloatBall
+          v-if="showNav && nav"
+          :bottom="tabbarHeight + 12"
+          :float-ball="nav.floatBall"
+        />
+      </div>
+
+      <!-- 底部 TabBar -->
+      <NavTabbar v-if="showNav && nav" :tabbar="nav.tabbar" />
+
       <div class="home-bar" />
     </div>
   </div>
@@ -114,14 +157,51 @@ function onDrop(index: number) {
 .canvas-stage {
   display: flex;
   flex: 1;
-  justify-content: center;
+  flex-direction: column;
+  align-items: center;
   height: 100%;
-  padding: 20px 0;
+  padding: 12px 0 20px;
   overflow-y: auto;
   background: #eef0f3;
 }
-.phone {
+.nav-bar {
   display: flex;
+  flex: none;
+  gap: 8px;
+  align-items: center;
+  height: 28px;
+  padding: 0 12px;
+  margin-bottom: 8px;
+  font-size: 12px;
+  color: #606266;
+  cursor: default;
+  background: #fff;
+  border-radius: 14px;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 8%);
+}
+.nav-bar-icon {
+  font-size: 13px;
+  color: #909399;
+}
+.nav-bar-text {
+  font-weight: 500;
+}
+.nav-bar-link {
+  display: inline-flex;
+  gap: 2px;
+  align-items: center;
+  padding-left: 8px;
+  color: #1677ff;
+  cursor: pointer;
+  border-left: 1px solid #ebeef5;
+}
+.nav-bar-link:hover {
+  opacity: 0.75;
+}
+.phone {
+  position: relative;
+  display: flex;
+  flex: none;
   flex-direction: column;
   width: 375px;
   height: 720px;
@@ -130,6 +210,11 @@ function onDrop(index: number) {
   border: 8px solid #1f2329;
   border-radius: 32px;
   box-shadow: 0 12px 32px rgb(0 0 0 / 18%);
+}
+.nav-float-wrap {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
 }
 .status-bar {
   display: flex;
