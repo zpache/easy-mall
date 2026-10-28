@@ -42,3 +42,6 @@ application-local.yaml
 ### Log ###
 logs/
 *.log
+
+### 本地上传文件（装修素材等）
+uploads/

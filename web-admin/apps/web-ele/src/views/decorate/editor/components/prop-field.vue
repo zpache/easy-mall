@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import type { PropField } from '../../widgets/types';
 
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 
 import { IconifyIcon } from '@vben/icons';
 
@@ -10,10 +10,13 @@ import {
   ElColorPicker,
   ElInput,
   ElInputNumber,
+  ElMessage,
   ElOption,
   ElSelect,
   ElSwitch,
 } from 'element-plus';
+
+import { uploadImageApi } from '#/api/upload';
 
 defineOptions({ name: 'PropField' });
 
@@ -30,6 +33,52 @@ const value = computed({
   get: () => props.modelValue,
   set: (val) => emit('update:modelValue', val),
 });
+
+/** 图片上传：单图上限与后端保持一致 */
+const MAX_IMAGE_SIZE = 5 * 1024 * 1024;
+const fileInput = ref<HTMLInputElement>();
+const uploading = ref(false);
+
+function pickFile() {
+  if (uploading.value) {
+    return;
+  }
+  fileInput.value?.click();
+}
+
+function clearImage() {
+  emit('update:modelValue', '');
+}
+
+async function onFileChange(event: Event) {
+  const input = event.target as HTMLInputElement;
+  const file = input.files?.[0];
+  // 清空以便重复选择同一文件
+  input.value = '';
+  if (!file) {
+    return;
+  }
+  if (!file.type.startsWith('image/')) {
+    ElMessage.warning('请选择图片文件');
+    return;
+  }
+  if (file.size > MAX_IMAGE_SIZE) {
+    ElMessage.warning('图片不能超过 5MB');
+    return;
+  }
+  uploading.value = true;
+  try {
+    const result = await uploadImageApi(file);
+    if (result?.url) {
+      emit('update:modelValue', result.url);
+      ElMessage.success('图片已上传');
+    }
+  } catch {
+    // 错误提示由请求拦截器统一处理
+  } finally {
+    uploading.value = false;
+  }
+}
 
 const items = computed<any[]>(() =>
   Array.isArray(props.modelValue) ? props.modelValue : [],
@@ -132,13 +181,42 @@ function itemTitle(item: any, index: number) {
       />
     </ElSelect>
     <div v-else-if="field.type === 'image'" class="image-field">
-      <div class="image-preview">
+      <div
+        class="image-preview"
+        :class="{ clickable: !uploading }"
+        title="点击选择图片"
+        @click="pickFile"
+      >
         <img v-if="value" :src="value" alt="preview" />
-        <IconifyIcon v-else class="placeholder-icon" icon="lucide:image" />
+        <IconifyIcon v-else class="placeholder-icon" icon="lucide:image-plus" />
+        <div v-if="uploading" class="uploading-mask">
+          <IconifyIcon class="spin" icon="lucide:loader-2" />
+        </div>
       </div>
       <div class="image-input">
         <ElInput v-model="value" placeholder="图片地址 https://…" size="small" />
+        <div class="image-actions">
+          <ElButton
+            :loading="uploading"
+            size="small"
+            text
+            type="primary"
+            @click="pickFile"
+          >
+            上传图片
+          </ElButton>
+          <ElButton v-if="value" size="small" text @click="clearImage">
+            清除
+          </ElButton>
+        </div>
       </div>
+      <input
+        ref="fileInput"
+        accept="image/jpeg,image/png,image/gif,image/webp,image/bmp"
+        class="file-input"
+        type="file"
+        @change="onFileChange"
+      />
     </div>
 
     <!-- 列表类型 -->
@@ -202,9 +280,10 @@ function itemTitle(item: any, index: number) {
 .image-field {
   display: flex;
   gap: 8px;
-  align-items: center;
+  align-items: flex-start;
 }
 .image-preview {
+  position: relative;
   display: flex;
   flex: none;
   align-items: center;
@@ -216,10 +295,34 @@ function itemTitle(item: any, index: number) {
   border: 1px solid #ebeef5;
   border-radius: 4px;
 }
+.image-preview.clickable {
+  cursor: pointer;
+}
+.image-preview.clickable:hover {
+  border-color: #1677ff;
+}
 .image-preview img {
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+.uploading-mask {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  color: #1677ff;
+  background: rgb(255 255 255 / 70%);
+}
+.spin {
+  animation: spin 1s linear infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 .placeholder-icon {
   font-size: 18px;
@@ -228,6 +331,20 @@ function itemTitle(item: any, index: number) {
 .image-input {
   flex: 1;
   min-width: 0;
+}
+.image-actions {
+  display: flex;
+  gap: 2px;
+  align-items: center;
+  margin-top: 2px;
+}
+.image-actions :deep(.el-button) {
+  height: 20px;
+  padding: 0 4px;
+  font-size: 11px;
+}
+.file-input {
+  display: none;
 }
 .items {
   display: flex;

@@ -41,6 +41,11 @@ easy-mall:
     admin-expire: 12h
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:*}
+  upload:
+    # 本地上传目录，默认 ~/easy-mall/uploads；生产环境建议挂载独立数据盘或改接对象存储
+    dir: ${UPLOAD_DIR:${user.home}/easy-mall/uploads}
+    # 对外访问前缀，须与实际 context-path 保持一致
+    url-prefix: ${UPLOAD_URL_PREFIX:/admin/uploads}
 
 springdoc:
   api-docs:
