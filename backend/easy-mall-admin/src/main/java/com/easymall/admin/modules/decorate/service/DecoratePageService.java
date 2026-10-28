@@ -70,6 +70,9 @@ public class DecoratePageService extends ServiceImpl<DecoratePageMapper, Decorat
     }
 
     public DecoratePage create(PageForm form) {
+        if (form.type() != null && form.type() == 1 && existsHomePage()) {
+            throw new BusinessException("商城首页只能有一个，不能再新建首页类型页面");
+        }
         DecoratePage page = new DecoratePage();
         page.setName(form.name());
         page.setType(form.type());
@@ -122,7 +125,7 @@ public class DecoratePageService extends ServiceImpl<DecoratePageMapper, Decorat
         return page;
     }
 
-    /** 复制为草稿，不继承首页身份与发布状态。 */
+    /** 复制为草稿，不继承首页身份与发布状态；首页复制出的副本降级为微页面。 */
     public DecoratePage copy(Long id) {
         DecoratePage source = getById(id);
         if (source == null) {
@@ -130,7 +133,8 @@ public class DecoratePageService extends ServiceImpl<DecoratePageMapper, Decorat
         }
         DecoratePage copy = new DecoratePage();
         copy.setName(source.getName() + " 副本");
-        copy.setType(source.getType());
+        // 首页全局唯一，副本只能以微页面形态存在
+        copy.setType(source.getType() != null && source.getType() == 1 ? 3 : source.getType());
         copy.setRemark(source.getRemark());
         copy.setStatus(0);
         copy.setIsHome(0);
@@ -140,12 +144,15 @@ public class DecoratePageService extends ServiceImpl<DecoratePageMapper, Decorat
         return copy;
     }
 
-    /** 设为商城首页：同类型页面里只保留一个首页标记。 */
+    /** 设为商城首页：仅首页类型页面可设，且全局只保留一个首页标记。 */
     @Transactional
     public DecoratePage setHome(Long id) {
         DecoratePage page = getById(id);
         if (page == null) {
             throw new BusinessException(ResultCode.DATA_NOT_FOUND);
+        }
+        if (page.getType() == null || page.getType() != 1) {
+            throw new BusinessException("只有首页类型的页面才能设为商城首页");
         }
         if (page.getStatus() == null || page.getStatus() != 1) {
             throw new BusinessException("请先发布该页面，再设为首页");
@@ -195,8 +202,12 @@ public class DecoratePageService extends ServiceImpl<DecoratePageMapper, Decorat
         return page;
     }
 
-    private JsonNode validateSchema(String schemaJson) {
-        if (!StringUtils.hasText(schemaJson)) {
+    /** 是否已存在首页类型页面（首页全局唯一，不允许再建）。 */
+    private boolean existsHomePage() {
+        return count(Wrappers.<DecoratePage>lambdaQuery().eq(DecoratePage::getType, 1)) > 0;
+    }
+
+    private JsonNode validateSchema(String schemaJson) {        if (!StringUtils.hasText(schemaJson)) {
             throw new BusinessException("页面结构不能为空");
         }
         if (schemaJson.length() > MAX_SCHEMA_LENGTH) {
