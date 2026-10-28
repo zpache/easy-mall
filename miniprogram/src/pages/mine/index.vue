@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import DecorateTabbar from '@/components/decorate/tabbar.vue'
+import { couponApi } from '@/api/coupon'
 import { useDecorateStore } from '@/store/decorate'
 import { useUserStore } from '@/store/user'
 
@@ -10,6 +11,26 @@ const decorateStore = useDecorateStore()
 
 const nickname = computed(() => userStore.profile?.nickname || '未登录')
 const avatar = computed(() => userStore.profile?.avatar || '')
+
+/** 可用优惠券张数：个人中心入口上的角标文案 */
+const couponAvailable = ref(0)
+const couponText = computed(() => {
+  if (!userStore.isLogin) return '登录后查看可用券'
+  return couponAvailable.value > 0 ? `${couponAvailable.value} 张可用` : '暂无可用券'
+})
+
+async function loadCouponCount() {
+  if (!userStore.isLogin) {
+    couponAvailable.value = 0
+    return
+  }
+  try {
+    const res = await couponApi.mine()
+    couponAvailable.value = res.available
+  } catch {
+    // 券数量属于辅助信息，失败不打断个人中心
+  }
+}
 
 async function ensureLogin() {
   if (!userStore.isLogin) {
@@ -37,6 +58,11 @@ async function toAddress() {
   uni.navigateTo({ url: '/pages/address/list' })
 }
 
+async function toCoupons() {
+  if (!(await ensureLogin())) return
+  uni.navigateTo({ url: '/pages/coupon/index' })
+}
+
 async function logout() {
   const res = await uni.showModal({ title: '提示', content: '确定退出登录吗？' })
   if (res.confirm) {
@@ -48,6 +74,7 @@ async function logout() {
 onShow(() => {
   if (userStore.isLogin) {
     userStore.fetchProfile().catch(() => userStore.logout())
+    loadCouponCount()
   }
   decorateStore.ensureNav()
 })
@@ -88,6 +115,17 @@ onShow(() => {
           <text class="order-entries__icon">✅</text>
           <text class="order-entries__label">已完成</text>
         </view>
+      </view>
+    </view>
+
+    <view class="card card--coupon" @tap="toCoupons">
+      <view class="coupon-entry">
+        <text class="coupon-entry__icon">🎟️</text>
+        <view class="coupon-entry__body">
+          <text class="coupon-entry__title">我的优惠券</text>
+          <text class="coupon-entry__desc">{{ couponText }}</text>
+        </view>
+        <text class="coupon-entry__arrow">›</text>
       </view>
     </view>
 
@@ -184,6 +222,39 @@ onShow(() => {
   &__more {
     font-size: 24rpx;
     color: $text-secondary;
+  }
+}
+
+.coupon-entry {
+  display: flex;
+  align-items: center;
+
+  &__icon {
+    font-size: 40rpx;
+  }
+
+  &__body {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    margin-left: 16rpx;
+  }
+
+  &__title {
+    font-size: 28rpx;
+    font-weight: 600;
+    color: $text-main;
+  }
+
+  &__desc {
+    margin-top: 6rpx;
+    font-size: 22rpx;
+    color: $text-secondary;
+  }
+
+  &__arrow {
+    font-size: 34rpx;
+    color: $text-placeholder;
   }
 }
 
