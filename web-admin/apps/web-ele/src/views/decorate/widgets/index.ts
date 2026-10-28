@@ -323,7 +323,7 @@ export const WIDGETS: WidgetDefinition[] = [
       { key: 'image', label: '商品主图', type: 'image' },
       { key: 'price', label: '秒杀价', type: 'number', min: 0, step: 0.01 },
       { key: 'originPrice', label: '原价', type: 'number', min: 0, step: 0.01 },
-      { key: 'endTime', label: '结束时间', type: 'input', placeholder: '2026-12-31 22:00:00' },
+      { key: 'endTime', label: '结束时间', type: 'datetime' },
       { key: 'bgColor', label: '背景色', type: 'color' },
     ],
     icon: 'lucide:zap',
