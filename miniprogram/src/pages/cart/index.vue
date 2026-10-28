@@ -1,13 +1,16 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
+import DecorateTabbar from '@/components/decorate/tabbar.vue'
 import EmptyState from '@/components/empty-state.vue'
 import { useCartStore } from '@/store/cart'
+import { useDecorateStore } from '@/store/decorate'
 import { useUserStore } from '@/store/user'
 import { formatPrice } from '@/utils/format'
 
 const cartStore = useCartStore()
 const userStore = useUserStore()
+const decorateStore = useDecorateStore()
 
 const canCheckout = computed(() => cartStore.checkedItems.length > 0)
 
@@ -62,6 +65,7 @@ function onCheckout() {
 
 onShow(() => {
   load()
+  decorateStore.ensureNav()
 })
 </script>
 
@@ -123,6 +127,8 @@ onShow(() => {
         </view>
       </template>
     </template>
+
+    <DecorateTabbar :config="decorateStore.nav.tabbar" current="/pages/cart/index" />
   </view>
 </template>
 
@@ -131,7 +137,7 @@ onShow(() => {
 .page {
   min-height: 100vh;
   background-color: $page-bg;
-  padding-bottom: 140rpx;
+  padding-bottom: 260rpx;
 }
 
 .login-tip {
@@ -284,7 +290,8 @@ onShow(() => {
   position: fixed;
   left: 0;
   right: 0;
-  bottom: 0;
+  /* 让开底部自定义 TabBar */
+  bottom: 104rpx;
   height: 112rpx;
   padding: 0 24rpx;
   background-color: #fff;

@@ -3,8 +3,10 @@
     {
       "path": "pages/index/index",
       "style": {
+        "navigationStyle": "custom",
         "navigationBarTitleText": "easy-mall",
-        "enablePullDownRefresh": true
+        "enablePullDownRefresh": true,
+        "backgroundColor": "#f5f6f7"
       }
     },
     {
@@ -23,6 +25,19 @@
       "path": "pages/mine/index",
       "style": {
         "navigationBarTitleText": "我的"
+      }
+    },
+    {
+      "path": "pages/search/index",
+      "style": {
+        "navigationBarTitleText": "搜索"
+      }
+    },
+    {
+      "path": "pages/decorate/index",
+      "style": {
+        "navigationBarTitleText": "页面",
+        "enablePullDownRefresh": true
       }
     },
     {
@@ -63,6 +78,7 @@
     "backgroundColor": "#f6f7f9"
   },
   "tabBar": {
+    "custom": true,
     "color": "#8c8c8c",
     "selectedColor": "#ff5a1f",
     "backgroundColor": "#ffffff",

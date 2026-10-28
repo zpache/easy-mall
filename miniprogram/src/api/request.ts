@@ -44,6 +44,11 @@ function toast(message: string) {
   uni.showToast({ title: message || '请求失败', icon: 'none' })
 }
 
+/** 后端成功码是 0（兼容历史 200） */
+function isSuccess(code: number | undefined) {
+  return code === 0 || code === 200
+}
+
 /**
  * 统一请求封装：
  * 1. 自动拼接 baseURL、注入 Bearer token
@@ -79,7 +84,7 @@ export function request<T>(options: RequestOptions): Promise<T> {
           return
         }
 
-        if (res.statusCode >= 200 && res.statusCode < 300 && body?.code === 200) {
+        if (res.statusCode >= 200 && res.statusCode < 300 && isSuccess(body?.code)) {
           resolve(body.data)
           return
         }

@@ -2,9 +2,13 @@
 import { ref } from 'vue'
 import { onLoad, onUnload } from '@dcloudio/uni-app'
 import GoodsCard from '@/components/goods-card.vue'
+import DecorateTabbar from '@/components/decorate/tabbar.vue'
 import EmptyState from '@/components/empty-state.vue'
 import { goodsApi } from '@/api/goods'
+import { useDecorateStore } from '@/store/decorate'
 import type { Category, Goods } from '@/types/api'
+
+const decorateStore = useDecorateStore()
 
 const categories = ref<Category[]>([])
 const activeId = ref<number>(0)
@@ -41,6 +45,7 @@ function onSelectFromHome(categoryId: number) {
 
 onLoad(async () => {
   uni.$on('category:select', onSelectFromHome)
+  decorateStore.ensureNav()
   await loadCategories()
 })
 
@@ -76,6 +81,8 @@ onUnload(() => {
         />
       </template>
     </scroll-view>
+
+    <DecorateTabbar :config="decorateStore.nav.tabbar" current="/pages/category/index" />
   </view>
 </template>
 
@@ -83,7 +90,9 @@ onUnload(() => {
 
 .category-page {
   display: flex;
+  box-sizing: border-box;
   height: 100vh;
+  padding-bottom: 104rpx;
   background-color: #fff;
 }
 
