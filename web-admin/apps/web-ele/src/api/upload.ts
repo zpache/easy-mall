@@ -136,6 +136,15 @@ export async function uploadImageApi(
       } as any,
       (error: any) => {
         if (error) {
+          // 没有 HTTP 状态码说明请求没到 COS：多为桶未配 CORS 或网络中断
+          if (!error.statusCode) {
+            reject(
+              new Error(
+                '图片直传失败：请求被跨域拦截或网络中断，请检查 COS 桶的 CORS 配置',
+              ),
+            );
+            return;
+          }
           reject(new Error(error.message || '图片上传失败'));
           return;
         }
