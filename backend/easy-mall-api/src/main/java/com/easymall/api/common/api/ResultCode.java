@@ -28,7 +28,13 @@ public enum ResultCode {
     ORDER_STATUS_ERROR(4007, "订单状态不支持该操作"),
     WX_LOGIN_FAILED(4008, "微信登录失败，请重试"),
     USER_DISABLED(4009, "账号已被禁用"),
-    DATA_CONFLICT(4010, "数据已被修改，请刷新后重试");
+    DATA_CONFLICT(4010, "数据已被修改，请刷新后重试"),
+
+    COUPON_NOT_FOUND(4011, "优惠券不存在或已下架"),
+    COUPON_OFFLINE(4012, "优惠券已停止发放"),
+    COUPON_SOLD_OUT(4013, "优惠券已被领完"),
+    COUPON_EXPIRED(4014, "优惠券已过领取时间"),
+    COUPON_LIMIT_REACHED(4015, "已达到每人限领张数");
 
     private final int code;
     private final String message;

@@ -1,42 +1,163 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted, ref } from 'vue'
+import { couponApi } from '@/api/coupon'
+import { decorateApi } from '@/api/decorate'
+import { useUserStore } from '@/store/user'
+import type { CouponCard } from '@/types/coupon'
+
+/** 后端券卡 + 前端「已领张数」标记 */
+type CardItem = CouponCard & { receivedCount?: number }
 
 const props = defineProps<{ config: Record<string, any> }>()
 
-const coupons = computed(() => (Array.isArray(props.config.coupons) ? props.config.coupons : []))
+const userStore = useUserStore()
 
-function onClaim() {
-  // TODO 接入营销中心领券接口后改为真实领取
-  uni.showToast({ title: '优惠券活动暂未开放领取', icon: 'none' })
+const couponIds = computed<number[]>(() =>
+  Array.isArray(props.config.couponIds)
+    ? props.config.couponIds
+        .map((id: any) => Number(id))
+        .filter((id: number) => Number.isFinite(id) && id > 0)
+    : []
+)
+
+/** 改造前的装修数据是手填券，未关联营销中心，仅做兜底展示 */
+const legacyCoupons = computed<any[]>(() =>
+  Array.isArray(props.config.coupons) ? props.config.coupons : []
+)
+
+const cards = ref<CardItem[]>([])
+const claiming = ref(0)
+
+const showLegacy = computed(() => couponIds.value.length === 0 && legacyCoupons.value.length > 0)
+const visible = computed(() => cards.value.length > 0 || showLegacy.value)
+
+async function loadCards() {
+  if (couponIds.value.length === 0) return
+  try {
+    const list = await decorateApi.coupons(couponIds.value)
+    const counts = await fetchReceivedCounts()
+    cards.value = list.map((card) => ({ ...card, receivedCount: counts[card.id] || 0 }))
+  } catch {
+    // 券接口异常时整块不渲染，避免露出无法领取的空卡
+  }
 }
 
-function condOf(item: Record<string, any>) {
+/** 已登录时同步已领张数：未使用 + 已使用的记录都算已领（已过期不占名额） */
+async function fetchReceivedCounts(): Promise<Record<number, number>> {
+  if (!userStore.isLogin) return {}
+  try {
+    const result = await couponApi.mine()
+    const counts: Record<number, number> = {}
+    for (const item of result.list) {
+      if (item.status === 2) continue
+      counts[item.couponId] = (counts[item.couponId] || 0) + 1
+    }
+    return counts
+  } catch {
+    return {}
+  }
+}
+
+/** 已达每人限领张数 */
+function isMaxed(card: CardItem) {
+  return (card.receivedCount || 0) >= (card.perLimit || 1)
+}
+
+async function onClaim(card: CardItem) {
+  if (claiming.value === card.id || isMaxed(card)) return
+  if (card.soldOut) {
+    uni.showToast({ title: '优惠券已被领完', icon: 'none' })
+    return
+  }
+  if (!userStore.isLogin) {
+    uni.navigateTo({ url: '/pages/login/index' })
+    return
+  }
+  claiming.value = card.id
+  try {
+    await couponApi.receive(card.id)
+    card.receivedCount = (card.receivedCount || 0) + 1
+    if (card.remainCount > 0) {
+      card.remainCount -= 1
+      card.soldOut = card.remainCount === 0
+    }
+    uni.showToast({ title: '领取成功', icon: 'success' })
+  } catch {
+    // 业务提示（已领完 / 已达限领 / 已下架）由请求层统一 toast
+  } finally {
+    claiming.value = 0
+  }
+}
+
+/** 历史手填券：未关联真实券，不能发券 */
+function onLegacyClaim() {
+  uni.showToast({ title: '该券未关联营销中心，请在装修后台重新选择', icon: 'none' })
+}
+
+function btnText(card: CardItem) {
+  if (isMaxed(card)) return '已领取'
+  if (card.soldOut) return '已领完'
+  return '领取'
+}
+
+function legacyValue(item: Record<string, any>) {
+  return item.discount ? `${(item.discount / 10).toFixed(1)}折` : `¥${item.amount}`
+}
+
+function legacyRule(item: Record<string, any>) {
   return Number(item.threshold) > 0 ? `满${item.threshold}可用` : '无门槛'
 }
+
+function toCouponList() {
+  if (!userStore.isLogin) {
+    uni.navigateTo({ url: '/pages/login/index' })
+    return
+  }
+  uni.navigateTo({ url: '/pages/coupon/index' })
+}
+
+onMounted(loadCards)
 </script>
 
 <template>
-  <view class="d-coupon" :style="{ background: config.bgColor || '#ffffff' }">
+  <view v-if="visible" class="d-coupon" :style="{ background: config.bgColor || '#ffffff' }">
     <view class="d-coupon__head">
       <text class="d-coupon__title">{{ config.title || '领券中心' }}</text>
-      <text class="d-coupon__more">更多 ›</text>
+      <text class="d-coupon__more" @tap="toCouponList">更多 ›</text>
     </view>
+
     <view class="d-coupon__list">
-      <view v-for="(item, index) in coupons" :key="index" class="d-coupon__card">
+      <!-- 真实优惠券 -->
+      <view v-for="item in cards" :key="item.id" class="d-coupon__card">
         <view class="d-coupon__left">
-          <text v-if="item.discount" class="d-coupon__amount">
-            {{ (item.discount / 10).toFixed(1) }}<text class="d-coupon__unit">折</text>
-          </text>
-          <text v-else class="d-coupon__amount">
-            <text class="d-coupon__unit">¥</text>{{ item.amount }}
-          </text>
-          <text class="d-coupon__cond">{{ condOf(item) }}</text>
+          <text class="d-coupon__amount">{{ item.valueText }}</text>
+          <text class="d-coupon__cond">{{ item.ruleText }}</text>
+        </view>
+        <view class="d-coupon__mid">
+          <text class="d-coupon__name">{{ item.name }}</text>
+          <text class="d-coupon__valid">{{ item.validText }}</text>
+          <text v-if="item.remainCount >= 0" class="d-coupon__stock">剩余 {{ item.remainCount }} 张</text>
+        </view>
+        <text
+          class="d-coupon__btn"
+          :class="{ 'd-coupon__btn--off': isMaxed(item) || item.soldOut }"
+          @tap="onClaim(item)"
+        >
+          {{ btnText(item) }}
+        </text>
+      </view>
+
+      <!-- 历史手填券（未关联营销中心） -->
+      <view v-for="(item, index) in showLegacy ? legacyCoupons : []" :key="index" class="d-coupon__card">
+        <view class="d-coupon__left">
+          <text class="d-coupon__amount">{{ legacyValue(item) }}</text>
+          <text class="d-coupon__cond">{{ legacyRule(item) }}</text>
         </view>
         <view class="d-coupon__mid">
           <text class="d-coupon__name">{{ item.name }}</text>
           <text class="d-coupon__valid">{{ item.validDays }} 天内有效</text>
         </view>
-        <text class="d-coupon__btn" @tap="onClaim">领取</text>
+        <text class="d-coupon__btn" @tap="onLegacyClaim">领取</text>
       </view>
     </view>
   </view>
@@ -93,21 +214,17 @@ function condOf(item: Record<string, any>) {
 }
 
 .d-coupon__amount {
-  font-size: 40rpx;
+  font-size: 36rpx;
   font-weight: 700;
-  line-height: 1;
+  line-height: 1.1;
   color: #e02020;
-}
-
-.d-coupon__unit {
-  font-size: 22rpx;
-  font-weight: 400;
 }
 
 .d-coupon__cond {
   margin-top: 8rpx;
   font-size: 20rpx;
   color: #e02020;
+  text-align: center;
 }
 
 .d-coupon__mid {
@@ -131,6 +248,12 @@ function condOf(item: Record<string, any>) {
   color: #999;
 }
 
+.d-coupon__stock {
+  margin-top: 4rpx;
+  font-size: 20rpx;
+  color: #bbb;
+}
+
 .d-coupon__btn {
   flex: none;
   padding: 8rpx 20rpx;
@@ -138,5 +261,10 @@ function condOf(item: Record<string, any>) {
   color: #fff;
   background-color: #e02020;
   border-radius: 24rpx;
+
+  &--off {
+    color: #fff;
+    background-color: #c8c9cc;
+  }
 }
 </style>

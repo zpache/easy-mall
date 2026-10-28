@@ -41,6 +41,7 @@ export interface PageSchema {
 /** 属性面板字段类型 */
 export type PropFieldType =
   | 'color'
+  | 'coupons'
   | 'datetime'
   | 'image'
   | 'input'

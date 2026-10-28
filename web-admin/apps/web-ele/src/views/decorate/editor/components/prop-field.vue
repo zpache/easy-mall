@@ -19,6 +19,8 @@ import {
 
 import { uploadImageApi } from '#/api/upload';
 
+import CouponPicker from './coupon-picker.vue';
+
 defineOptions({ name: 'PropField' });
 
 const props = defineProps<{
@@ -199,6 +201,12 @@ function itemTitle(item: any, index: number) {
         :value="option.value"
       />
     </ElSelect>
+    <CouponPicker
+      v-else-if="field.type === 'coupons'"
+      :max="field.max"
+      :model-value="value"
+      @update:model-value="(val: any) => (value = val)"
+    />
     <div v-else-if="field.type === 'image'" class="image-field">
       <div
         class="image-preview"
