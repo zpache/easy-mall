@@ -28,7 +28,7 @@ import {
   saveDecorateNav,
 } from '#/api/decorate/nav';
 
-import IconField from './components/icon-field.vue';
+import IconPickerField from './components/icon-picker-field.vue';
 import PhonePreview from './components/phone-preview.vue';
 import {
   createDefaultNav,
@@ -339,7 +339,7 @@ const previewPageName = computed(() => {
                 <div class="tab-card-body">
                   <div class="field-col">
                     <label>未选中图标</label>
-                    <IconField
+                    <IconPickerField
                       v-model="item.icon"
                       placeholder-icon="lucide:circle"
                       @update:model-value="touch"
@@ -347,9 +347,9 @@ const previewPageName = computed(() => {
                   </div>
                   <div class="field-col">
                     <label>选中态图标</label>
-                    <IconField
+                    <IconPickerField
                       v-model="item.selectedIcon"
-                      placeholder-icon="lucide:circle-dot"
+                      :placeholder-icon="item.icon || 'lucide:circle-dot'"
                       @update:model-value="touch"
                     />
                   </div>
@@ -567,7 +567,7 @@ const previewPageName = computed(() => {
                     <IconifyIcon icon="lucide:trash-2" />
                   </ElButton>
                 </div>
-                <IconField
+                <IconPickerField
                   v-model="item.icon"
                   :placeholder-icon="floatIcon(item)"
                   @update:model-value="touch"

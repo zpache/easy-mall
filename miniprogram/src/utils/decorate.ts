@@ -49,7 +49,21 @@ export const DEFAULT_FLOAT: FloatConfig = {
   ]
 }
 
-/** 未配置图标时的兜底字形（正式环境建议在后台传图标） */
+/** 未配置图标时的兜底图标名（与后台 config.ts 的 TAB_ICONS 保持一致） */
+export const TAB_ICON_NAMES: Record<string, string> = {
+  home: 'lucide:house',
+  category: 'lucide:layout-grid',
+  cart: 'lucide:shopping-cart',
+  mine: 'lucide:user'
+}
+
+export const FLOAT_ICON_NAMES: Record<string, string> = {
+  service: 'lucide:headphones',
+  cart: 'lucide:shopping-cart',
+  top: 'lucide:arrow-up'
+}
+
+/** 图标仍无法解析时的最终兜底字形 */
 export const TAB_GLYPHS: Record<string, string> = {
   home: '🏠',
   category: '▦',

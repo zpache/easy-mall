@@ -5,19 +5,27 @@ export const MIN_TABS = 3;
 export const MAX_TABS = 5;
 export const MAX_FLOAT = 5;
 
-/** 图标留空时的内置线性图标兜底 */
+/**
+ * 图标留空时的内置线性图标兜底。
+ * 取值需在小程序端内置图标集（utils/nav-icons.ts）内，保证三端一致。
+ */
 export const TAB_ICONS: Record<string, string> = {
   cart: 'lucide:shopping-cart',
-  category: 'lucide:grid-2x2',
-  home: 'lucide:home',
+  category: 'lucide:layout-grid',
+  home: 'lucide:house',
   mine: 'lucide:user',
 };
 
 export const FLOAT_ICONS: Record<string, string> = {
   cart: 'lucide:shopping-cart',
-  service: 'lucide:headset',
+  service: 'lucide:headphones',
   top: 'lucide:arrow-up',
 };
+
+/** 历史数据里图标字段可能是上传的图片地址 */
+export function isIconImage(value: string | undefined) {
+  return /^(?:https?:)?\/\//.test(value ?? '');
+}
 
 export interface NavConfig {
   floatBall: NavApi.FloatBall;

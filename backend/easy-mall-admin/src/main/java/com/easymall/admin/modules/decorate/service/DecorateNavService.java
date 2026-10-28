@@ -34,6 +34,10 @@ public class DecorateNavService extends ServiceImpl<DecorateNavMapper, DecorateN
 
     private static final JsonMapper JSON = JsonMapper.builder().build();
     private static final Pattern HEX_COLOR = Pattern.compile("^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$");
+    /** 图标名：iconify 形式（如 lucide:house），也兼容小程序端内置图标名 */
+    private static final Pattern ICON_NAME = Pattern.compile("^[a-z0-9]+(?:-[a-z0-9]+)*:[a-z0-9]+(?:-[a-z0-9]+)*$");
+    /** 历史数据里图标可能是上传的图片地址 */
+    private static final Pattern ICON_URL = Pattern.compile("^(?:https?:)?//\\S+$");
 
     private static final Set<String> BORDER_STYLES = Set.of("black", "white", "none");
     /** home 跳商城首页 / page 指定装修页面 / path 自定义路径 / none 不跳转 */
@@ -154,8 +158,8 @@ public class DecorateNavService extends ServiceImpl<DecorateNavMapper, DecorateN
             if (name.length() < MIN_TAB_NAME || name.length() > MAX_TAB_NAME) {
                 throw new BusinessException(prefix + "的文字需为 " + MIN_TAB_NAME + "~" + MAX_TAB_NAME + " 个字符");
             }
-            checkUrl(item, "icon", prefix + "未选中图标");
-            checkUrl(item, "selectedIcon", prefix + "选中图标");
+            checkIcon(item, "icon", prefix + "未选中图标");
+            checkIcon(item, "selectedIcon", prefix + "选中图标");
 
             String linkType = requireText(item, "linkType", prefix + "缺少跳转类型");
             if (!LINK_TYPES.contains(linkType)) {
@@ -213,7 +217,7 @@ public class DecorateNavService extends ServiceImpl<DecorateNavMapper, DecorateN
             if (name.length() > MAX_TAB_NAME) {
                 throw new BusinessException(prefix + "的名称不能超过 " + MAX_TAB_NAME + " 个字符");
             }
-            checkUrl(item, "icon", prefix + "图标");
+            checkIcon(item, "icon", prefix + "图标");
             String value = text(item, "value");
             if (value != null && value.length() > 50) {
                 throw new BusinessException(prefix + "的配置值不能超过 50 个字符");
@@ -256,10 +260,17 @@ public class DecorateNavService extends ServiceImpl<DecorateNavMapper, DecorateN
         }
     }
 
-    private void checkUrl(JsonNode node, String field, String label) {
+    /** 图标只接受「图标名」或「图片地址」，避免前端换实现后写入脏数据。 */
+    private void checkIcon(JsonNode node, String field, String label) {
         String value = text(node, field);
-        if (value != null && value.length() > MAX_URL) {
-            throw new BusinessException(label + "地址过长");
+        if (!StringUtils.hasText(value)) {
+            return;
+        }
+        if (value.length() > MAX_URL) {
+            throw new BusinessException(label + "过长");
+        }
+        if (!ICON_NAME.matcher(value).matches() && !ICON_URL.matcher(value).matches()) {
+            throw new BusinessException(label + "需为图标名（如 lucide:house）或图片地址");
         }
     }
 
