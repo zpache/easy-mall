@@ -1,9 +1,12 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
+import DecorateTabbar from '@/components/decorate/tabbar.vue'
+import { useDecorateStore } from '@/store/decorate'
 import { useUserStore } from '@/store/user'
 
 const userStore = useUserStore()
+const decorateStore = useDecorateStore()
 
 const nickname = computed(() => userStore.profile?.nickname || '未登录')
 const avatar = computed(() => userStore.profile?.avatar || '')
@@ -46,6 +49,7 @@ onShow(() => {
   if (userStore.isLogin) {
     userStore.fetchProfile().catch(() => userStore.logout())
   }
+  decorateStore.ensureNav()
 })
 </script>
 
@@ -101,6 +105,8 @@ onShow(() => {
     </view>
 
     <view v-if="userStore.isLogin" class="logout" @tap="logout">退出登录</view>
+
+    <DecorateTabbar :config="decorateStore.nav.tabbar" current="/pages/mine/index" />
   </view>
 </template>
 
@@ -109,7 +115,7 @@ onShow(() => {
 .page {
   min-height: 100vh;
   background-color: $page-bg;
-  padding-bottom: 60rpx;
+  padding-bottom: 150rpx;
 }
 
 .profile {

@@ -1,264 +1,116 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-import { onLoad, onPullDownRefresh } from '@dcloudio/uni-app'
-import GoodsCard from '@/components/goods-card.vue'
-import EmptyState from '@/components/empty-state.vue'
-import { goodsApi } from '@/api/goods'
-import type { Goods, HomeData } from '@/types/api'
+import { computed, ref } from 'vue'
+import { onLoad, onPullDownRefresh, onShow } from '@dcloudio/uni-app'
+import DecorateFloatBall from '@/components/decorate/float-ball.vue'
+import DecorateNavbar from '@/components/decorate/navbar.vue'
+import DecorateRender from '@/components/decorate/render.vue'
+import DecorateTabbar from '@/components/decorate/tabbar.vue'
+import { decorateApi } from '@/api/decorate'
+import { useDecorateStore } from '@/store/decorate'
+import { parseNav, parseSchema, px, statusBarHeight } from '@/utils/decorate'
+import type { PageSchema } from '@/types/decorate'
 
-const home = ref<HomeData>({ categories: [], hotGoods: [], newGoods: [] })
+const decorateStore = useDecorateStore()
+
+const schema = ref<PageSchema>({
+  page: { title: '商城首页', bgColor: '#f5f6f7', bgImage: '', padding: 0 },
+  components: []
+})
 const loading = ref(true)
-const keyword = ref('')
-const searchResult = ref<Goods[]>([])
-const searching = ref(false)
+const error = ref('')
 
-async function loadHome() {
+const navbarHeight = statusBarHeight() + 44
+const immersive = computed(() => decorateStore.nav.navbar.style === 'immersive')
+
+/** 常规样式下内容让开标题栏；沉浸式则让内容从屏幕顶端开始 */
+const bodyPaddingTop = computed(() => (immersive.value ? '0px' : `${navbarHeight}px`))
+
+async function load() {
+  loading.value = true
+  error.value = ''
   try {
-    home.value = await goodsApi.home()
+    const data = await decorateApi.home()
+    schema.value = parseSchema(data.schemaJson, data.name)
+    decorateStore.setNav(parseNav(data.nav))
+  } catch (e: any) {
+    error.value = e?.message || '首页加载失败'
+    await decorateStore.ensureNav()
   } finally {
     loading.value = false
   }
 }
 
-async function onSearch() {
-  const text = keyword.value.trim()
-  if (!text) {
-    searchResult.value = []
-    searching.value = false
-    return
-  }
-  const page = await goodsApi.list({ keyword: text, pageSize: 20 })
-  searchResult.value = page.records
-  searching.value = true
-}
-
-function clearSearch() {
-  keyword.value = ''
-  searchResult.value = []
-  searching.value = false
-}
-
-function toCategory(categoryId?: number) {
-  uni.switchTab({
-    url: '/pages/category/index',
-    success: () => {
-      if (categoryId) {
-        uni.$emit('category:select', categoryId)
-      }
-    }
-  })
+function toSearch() {
+  uni.navigateTo({ url: '/pages/search/index' })
 }
 
 onLoad(() => {
-  loadHome()
+  load()
+})
+
+onShow(() => {
+  // 从其它 tab 切回时不重复请求，仅补齐导航配置
+  decorateStore.ensureNav()
 })
 
 onPullDownRefresh(async () => {
-  await loadHome()
+  await load()
   uni.stopPullDownRefresh()
 })
 </script>
 
 <template>
-  <view class="page">
-    <view class="hero">
-      <text class="hero__title">easy-mall</text>
-      <text class="hero__desc">精选好物 · 产地直发</text>
+  <view class="home" :style="{ background: schema.page.bgColor || '#f5f6f7' }">
+    <DecorateNavbar :config="decorateStore.nav.navbar" />
+
+    <!-- 页面背景图用 image 承载，小程序不支持 CSS 网络背景图 -->
+    <image
+      v-if="schema.page.bgImage"
+      class="home__bg"
+      :src="schema.page.bgImage"
+      mode="aspectFill"
+    />
+
+    <view
+      class="home__body"
+      :style="{ paddingTop: bodyPaddingTop, paddingBottom: px(schema.page.padding, 0) }"
+    >
+      <view v-if="loading" class="home__state">正在加载首页…</view>
+      <view v-else-if="!schema.components.length" class="home__state">
+        {{ error || '首页还没有内容，请到后台「商城装修」中搭建' }}
+      </view>
+      <DecorateRender v-else :schema="schema" @search="toSearch" />
     </view>
 
-    <view class="search">
-      <input
-        v-model="keyword"
-        class="search__input"
-        type="text"
-        confirm-type="search"
-        placeholder="搜索商品"
-        placeholder-class="search__placeholder"
-        @confirm="onSearch"
-      />
-      <text v-if="searching" class="search__cancel" @tap="clearSearch">取消</text>
-      <text v-else class="search__btn" @tap="onSearch">搜索</text>
-    </view>
-
-    <template v-if="searching">
-      <view class="section">
-        <view class="section__head">
-          <text class="section__title">搜索结果</text>
-        </view>
-        <EmptyState v-if="!searchResult.length" text="没有找到相关商品" />
-        <GoodsCard
-          v-for="item in searchResult"
-          :key="item.id"
-          class="goods-row"
-          :goods="item"
-          horizontal
-        />
-      </view>
-    </template>
-
-    <template v-else>
-      <view class="section">
-        <view class="section__head">
-          <text class="section__title">全部分类</text>
-          <text class="section__more" @tap="toCategory()">查看全部</text>
-        </view>
-        <view class="category-grid">
-          <view
-            v-for="category in home.categories"
-            :key="category.id"
-            class="category-grid__item"
-            @tap="toCategory(category.id)"
-          >
-            <view class="category-grid__icon">{{ category.name.slice(0, 1) }}</view>
-            <text class="category-grid__name">{{ category.name }}</text>
-          </view>
-        </view>
-      </view>
-
-      <view class="section">
-        <view class="section__head">
-          <text class="section__title">热销好物</text>
-        </view>
-        <EmptyState v-if="!loading && !home.hotGoods.length" text="暂无商品" />
-        <GoodsCard
-          v-for="item in home.hotGoods"
-          :key="item.id"
-          class="goods-row"
-          :goods="item"
-          horizontal
-        />
-      </view>
-
-      <view class="section">
-        <view class="section__head">
-          <text class="section__title">新品上架</text>
-        </view>
-        <view class="goods-grid">
-          <GoodsCard v-for="item in home.newGoods" :key="item.id" :goods="item" />
-        </view>
-      </view>
-    </template>
+    <DecorateFloatBall :config="decorateStore.nav.floatBall" :bottom="150" />
+    <DecorateTabbar :config="decorateStore.nav.tabbar" current="/pages/index/index" />
   </view>
 </template>
 
 <style scoped lang="scss">
-
-.page {
+.home {
+  position: relative;
   min-height: 100vh;
-  background-color: $page-bg;
-  padding-bottom: 40rpx;
+  padding-bottom: 130rpx;
 }
 
-.hero {
-  padding: 48rpx 32rpx 64rpx;
-  background: linear-gradient(135deg, #ff8a4c 0%, $primary 100%);
-  color: #fff;
-
-  &__title {
-    display: block;
-    font-size: 44rpx;
-    font-weight: 700;
-  }
-
-  &__desc {
-    display: block;
-    margin-top: 8rpx;
-    font-size: 24rpx;
-    opacity: 0.85;
-  }
+.home__bg {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
 }
 
-.search {
-  display: flex;
-  align-items: center;
-  margin: -36rpx 24rpx 0;
-  padding: 0 24rpx;
-  height: 88rpx;
-  background-color: #fff;
-  border-radius: 44rpx;
-  box-shadow: 0 8rpx 24rpx rgba(0, 0, 0, 0.06);
-
-  &__input {
-    flex: 1;
-    font-size: 28rpx;
-  }
-
-  &__placeholder {
-    color: $text-placeholder;
-  }
-
-  &__btn,
-  &__cancel {
-    margin-left: 16rpx;
-    font-size: 26rpx;
-    color: $primary;
-  }
+.home__body {
+  position: relative;
 }
 
-.section {
-  margin: 32rpx 24rpx 0;
-  padding: 24rpx;
-  background-color: #fff;
-  border-radius: 20rpx;
-
-  &__head {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 16rpx;
-  }
-
-  &__title {
-    font-size: 32rpx;
-    font-weight: 600;
-    color: $text-main;
-  }
-
-  &__more {
-    font-size: 24rpx;
-    color: $text-secondary;
-  }
-}
-
-.category-grid {
-  display: flex;
-  flex-wrap: wrap;
-
-  &__item {
-    width: 20%;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    padding: 12rpx 0;
-  }
-
-  &__icon {
-    width: 84rpx;
-    height: 84rpx;
-    border-radius: 50%;
-    background-color: $primary-light;
-    color: $primary;
-    font-size: 32rpx;
-    font-weight: 600;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  &__name {
-    margin-top: 10rpx;
-    font-size: 22rpx;
-    color: $text-secondary;
-  }
-}
-
-.goods-row + .goods-row {
-  border-top: 1rpx solid $border-color;
-}
-
-.goods-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 16rpx;
+.home__state {
+  padding: 160rpx 40rpx;
+  font-size: 26rpx;
+  color: #999;
+  text-align: center;
 }
 </style>

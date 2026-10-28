@@ -44,6 +44,8 @@ easy-mall:
       - /categories
       - /goods
       - /goods/**
+      - /decorate
+      - /decorate/**
       - /v3/api-docs/**
       - /swagger-ui/**
       - /swagger-ui.html

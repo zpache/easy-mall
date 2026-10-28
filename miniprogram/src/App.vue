@@ -26,4 +26,11 @@ page {
   font-size: 28rpx;
   font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Helvetica, sans-serif;
 }
+
+/* #ifdef H5 */
+/* 底部导航按「导航装修」配置由页面内组件渲染，隐藏 H5 内置 tabBar */
+uni-tabbar {
+  display: none !important;
+}
+/* #endif */
 </style>
