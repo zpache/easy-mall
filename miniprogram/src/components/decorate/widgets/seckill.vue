@@ -3,16 +3,20 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 
 const props = defineProps<{ config: Record<string, any> }>()
 
-const remain = ref({ hours: '00', minutes: '00', seconds: '00' })
+/** 剩余时间：超过 24 小时自动进位到「天」 */
+const remain = ref({ days: 0, hours: 0, minutes: 0, seconds: 0 })
 let timer: any
+
+const pad2 = (n: number) => String(n).padStart(2, '0')
 
 function tick() {
   const end = props.config.endTime ? new Date(String(props.config.endTime).replace(/-/g, '/')).getTime() : 0
   const diff = Math.max(0, end - Date.now())
   remain.value = {
-    hours: String(Math.floor(diff / 3_600_000)).padStart(2, '0'),
-    minutes: String(Math.floor((diff % 3_600_000) / 60_000)).padStart(2, '0'),
-    seconds: String(Math.floor((diff % 60_000) / 1000)).padStart(2, '0')
+    days: Math.floor(diff / 86_400_000),
+    hours: Math.floor((diff % 86_400_000) / 3_600_000),
+    minutes: Math.floor((diff % 3_600_000) / 60_000),
+    seconds: Math.floor((diff % 60_000) / 1000)
   }
 }
 
@@ -25,6 +29,29 @@ onBeforeUnmount(() => clearInterval(timer))
 
 const price = computed(() => Number(props.config.price ?? 0).toFixed(2))
 const originPrice = computed(() => Number(props.config.originPrice ?? 0).toFixed(2))
+
+/**
+ * 倒计时片段：
+ * - 满 24 小时：20天 : 1小时 : 03分 : 04秒
+ * - 不足 24 小时：1541:03:25 的纯数字形式（保持原有观感）
+ */
+const segments = computed(() => {
+  const { days, hours, minutes, seconds } = remain.value
+  if (days > 0) {
+    return [
+      { num: String(days), unit: '天' },
+      { num: String(hours), unit: '小时' },
+      { num: pad2(minutes), unit: '分' },
+      { num: pad2(seconds), unit: '秒' }
+    ]
+  }
+  return [
+    { num: pad2(hours), unit: '' },
+    { num: pad2(minutes), unit: '' },
+    { num: pad2(seconds), unit: '' }
+  ]
+})
+
 </script>
 
 <template>
@@ -36,11 +63,11 @@ const originPrice = computed(() => Number(props.config.originPrice ?? 0).toFixed
         <text v-if="config.subtitle" class="d-seckill__sub">{{ config.subtitle }}</text>
       </view>
       <view class="d-seckill__countdown">
-        <text class="d-seckill__num">{{ remain.hours }}</text>
-        <text class="d-seckill__colon">:</text>
-        <text class="d-seckill__num">{{ remain.minutes }}</text>
-        <text class="d-seckill__colon">:</text>
-        <text class="d-seckill__num">{{ remain.seconds }}</text>
+        <template v-for="(seg, i) in segments" :key="i">
+          <text v-if="i > 0" class="d-seckill__colon">:</text>
+          <text class="d-seckill__num">{{ seg.num }}</text>
+          <text v-if="seg.unit" class="d-seckill__unit">{{ seg.unit }}</text>
+        </template>
       </view>
     </view>
 
@@ -66,6 +93,8 @@ const originPrice = computed(() => Number(props.config.originPrice ?? 0).toFixed
 
 .d-seckill__head {
   display: flex;
+  flex-wrap: wrap;
+  gap: 12rpx;
   align-items: center;
   justify-content: space-between;
   margin-bottom: 20rpx;
@@ -103,8 +132,11 @@ const originPrice = computed(() => Number(props.config.originPrice ?? 0).toFixed
 .d-seckill__countdown {
   display: flex;
   flex: none;
+  flex-wrap: wrap;
   gap: 4rpx;
   align-items: center;
+  justify-content: flex-end;
+  margin-left: auto;
 }
 
 .d-seckill__num {
@@ -116,6 +148,11 @@ const originPrice = computed(() => Number(props.config.originPrice ?? 0).toFixed
 }
 
 .d-seckill__colon {
+  font-size: 20rpx;
+  color: #333;
+}
+
+.d-seckill__unit {
   font-size: 20rpx;
   color: #333;
 }

@@ -3,19 +3,20 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 
 const props = defineProps<{ config: Record<string, any> }>();
 
-const remain = ref({ hours: '00', minutes: '00', seconds: '00' });
+/** 剩余时间：超过 24 小时自动进位到「天」 */
+const remain = ref({ days: 0, hours: 0, minutes: 0, seconds: 0 });
 let timer: any;
+
+const pad2 = (n: number) => String(n).padStart(2, '0');
 
 function tick() {
   const end = props.config.endTime ? new Date(String(props.config.endTime).replace(/-/g, '/')).getTime() : 0;
   const diff = Math.max(0, end - Date.now());
-  const hours = Math.floor(diff / 3_600_000);
-  const minutes = Math.floor((diff % 3_600_000) / 60_000);
-  const seconds = Math.floor((diff % 60_000) / 1000);
   remain.value = {
-    hours: String(hours).padStart(2, '0'),
-    minutes: String(minutes).padStart(2, '0'),
-    seconds: String(seconds).padStart(2, '0'),
+    days: Math.floor(diff / 86_400_000),
+    hours: Math.floor((diff % 86_400_000) / 3_600_000),
+    minutes: Math.floor((diff % 3_600_000) / 60_000),
+    seconds: Math.floor((diff % 60_000) / 1000),
   };
 }
 
@@ -27,6 +28,29 @@ onBeforeUnmount(() => clearInterval(timer));
 
 const price = computed(() => Number(props.config.price ?? 0).toFixed(2));
 const originPrice = computed(() => Number(props.config.originPrice ?? 0).toFixed(2));
+
+/**
+ * 倒计时片段：
+ * - 满 24 小时：20天 : 1小时 : 03分 : 04秒
+ * - 不足 24 小时：1541:03:25 的纯数字形式（保持原有观感）
+ */
+const segments = computed(() => {
+  const { days, hours, minutes, seconds } = remain.value;
+  if (days > 0) {
+    return [
+      { num: String(days), unit: '天' },
+      { num: String(hours), unit: '小时' },
+      { num: pad2(minutes), unit: '分' },
+      { num: pad2(seconds), unit: '秒' },
+    ];
+  }
+  return [
+    { num: pad2(hours), unit: '' },
+    { num: pad2(minutes), unit: '' },
+    { num: pad2(seconds), unit: '' },
+  ];
+});
+
 </script>
 
 <template>
@@ -38,7 +62,11 @@ const originPrice = computed(() => Number(props.config.originPrice ?? 0).toFixed
         <span class="subtitle">{{ config.subtitle }}</span>
       </div>
       <div class="countdown">
-        <span>{{ remain.hours }}</span><i>:</i><span>{{ remain.minutes }}</span><i>:</i><span>{{ remain.seconds }}</span>
+        <template v-for="(seg, i) in segments" :key="i">
+          <i v-if="i > 0" class="colon">:</i>
+          <span>{{ seg.num }}</span>
+          <i v-if="seg.unit" class="unit">{{ seg.unit }}</i>
+        </template>
       </div>
     </div>
     <div class="goods">
@@ -62,6 +90,8 @@ const originPrice = computed(() => Number(props.config.originPrice ?? 0).toFixed
 }
 .header {
   display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
   align-items: center;
   justify-content: space-between;
   margin-bottom: 10px;
@@ -89,8 +119,11 @@ const originPrice = computed(() => Number(props.config.originPrice ?? 0).toFixed
 }
 .countdown {
   display: flex;
+  flex-wrap: wrap;
   gap: 2px;
   align-items: center;
+  justify-content: flex-end;
+  margin-left: auto;
   font-size: 10px;
   color: #fff;
 }
@@ -98,6 +131,11 @@ const originPrice = computed(() => Number(props.config.originPrice ?? 0).toFixed
   padding: 2px 4px;
   background: #333;
   border-radius: 3px;
+}
+.countdown .colon,
+.countdown .unit {
+  font-style: normal;
+  color: #333;
 }
 .goods {
   display: flex;
