@@ -232,6 +232,27 @@ COS 侧需要三项设置，缺一项都会表现为「上传成功但图片不�
 2. **读权限**：桶或 CDN 需公网可读，否则页面里的图片 URL 会 403
 3. **子账号策略**：`sts:GetFederationToken` + 目标桶 `decorate/*` 的 `cos:PutObject`（策略由后端下发，无需手写临时密钥策略）
 
+CORS 要在**主账号**下配置（子账号只授了对象写权限，没有 `PutBucketCORS`，控制台里配不了）。控制台路径：对象存储 → 桶 → 安全管理 → 跨域访问 CORS 设置 → 添加规则，或直接粘贴以下配置：
+
+```xml
+<CORSConfiguration>
+  <CORSRule>
+    <AllowedOrigin>http://localhost:5777</AllowedOrigin>
+    <AllowedOrigin>https://admin.example.com</AllowedOrigin>
+    <AllowedMethod>PUT</AllowedMethod>
+    <AllowedMethod>POST</AllowedMethod>
+    <AllowedMethod>GET</AllowedMethod>
+    <AllowedMethod>HEAD</AllowedMethod>
+    <AllowedHeader>*</AllowedHeader>
+    <ExposeHeader>ETag</ExposeHeader>
+    <ExposeHeader>x-cos-request-id</ExposeHeader>
+    <MaxAgeSeconds>600</MaxAgeSeconds>
+  </CORSRule>
+</CORSConfiguration>
+```
+
+未配 CORS 时的典型现象：浏览器控制台报 `Access to XMLHttpRequest ... has been blocked by CORS policy`，DevTools 网络面板里 `OPTIONS` 预检返回 403 且响应头没有 `Access-Control-Allow-Origin`，前端只看到一句「上传失败」——服务端日志无异常，因为请求根本没到后端。
+
 回执校验：objectKey 必须落在授权前缀内、字符集合法（`[A-Za-z0-9._/-]`）、扩展名在白名单（jpg/png/gif/webp/bmp），重复回传按幂等处理。
 
 ## 接口约定
