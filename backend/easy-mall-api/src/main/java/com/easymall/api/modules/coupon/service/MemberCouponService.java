@@ -14,6 +14,7 @@ import com.easymall.api.modules.coupon.vo.MemberCouponVO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -101,7 +102,7 @@ public class MemberCouponService {
 
         return new MemberCouponVO(
                 record.getId(),
-                coupon.getId(),
+                coupon.getCouponCode(),
                 coupon.getName(),
                 coupon.getType(),
                 coupon.getAmount(),
@@ -163,23 +164,28 @@ public class MemberCouponService {
     /* ========================= 领券中心 ========================= */
 
     /**
-     * 领券中心的券卡片：按装修配置的 id 顺序返回，跳过停用、未开始、已过有效期的券。
+     * 领券中心的券卡片：按装修配置的 code 顺序返回，跳过停用、未开始、已过有效期的券。
      *
-     * @param ids 装修组件里选中的券 id，最多取前 20 个
+     * @param codes 装修组件里选中的券随机码，最多取前 20 个
      */
-    public List<CouponCardVO> cards(List<Long> ids) {
-        if (ids == null || ids.isEmpty()) {
+    public List<CouponCardVO> cards(List<String> codes) {
+        if (codes == null || codes.isEmpty()) {
             return List.of();
         }
-        List<Long> ordered = ids.stream().filter(Objects::nonNull).distinct().limit(20).toList();
+        List<String> ordered = codes.stream()
+                .filter(StringUtils::hasText)
+                .map(String::trim)
+                .distinct()
+                .limit(20)
+                .toList();
         if (ordered.isEmpty()) {
             return List.of();
         }
-        Map<Long, Coupon> couponMap = couponMapper.selectList(Wrappers.<Coupon>lambdaQuery()
-                        .in(Coupon::getId, ordered)
+        Map<String, Coupon> couponMap = couponMapper.selectList(Wrappers.<Coupon>lambdaQuery()
+                        .in(Coupon::getCouponCode, ordered)
                         .eq(Coupon::getStatus, 1))
                 .stream()
-                .collect(Collectors.toMap(Coupon::getId, Function.identity()));
+                .collect(Collectors.toMap(Coupon::getCouponCode, Function.identity()));
 
         LocalDate today = LocalDate.now();
         return ordered.stream()
@@ -195,12 +201,19 @@ public class MemberCouponService {
      * 同一张券的限领校验按“未使用 + 已使用”计数，已过期的记录不占名额。
      */
     @Transactional(rollbackFor = Exception.class)
-    public MemberCouponVO receive(Long couponId) {
+    public MemberCouponVO receive(String couponCode) {
         Long userId = UserContext.userId();
-        Coupon coupon = couponMapper.selectById(couponId);
+        if (!StringUtils.hasText(couponCode)) {
+            throw new BusinessException(ResultCode.COUPON_NOT_FOUND);
+        }
+        // 对外只认随机码，自增主键不出网关
+        Coupon coupon = couponMapper.selectOne(Wrappers.<Coupon>lambdaQuery()
+                .eq(Coupon::getCouponCode, couponCode.trim())
+                .last("limit 1"));
         if (coupon == null) {
             throw new BusinessException(ResultCode.COUPON_NOT_FOUND);
         }
+        Long couponId = coupon.getId();
         if (coupon.getStatus() == null || coupon.getStatus() != 1) {
             throw new BusinessException(ResultCode.COUPON_OFFLINE);
         }
@@ -244,7 +257,7 @@ public class MemberCouponService {
         int remain = total <= 0 ? -1 : Math.max(0, total - sent);
         int perLimit = coupon.getPerLimit() == null || coupon.getPerLimit() <= 0 ? 1 : coupon.getPerLimit();
         return new CouponCardVO(
-                coupon.getId(),
+                coupon.getCouponCode(),
                 coupon.getName(),
                 coupon.getType(),
                 valueText(coupon),

@@ -18,15 +18,19 @@ const emit = defineEmits<{
 
 interface CouponOption {
   label: string;
-  value: number;
+  value: string;
 }
 
 const options = ref<CouponOption[]>([]);
 const loading = ref(false);
 const failed = ref(false);
 
-const value = computed<number[]>({
-  get: () => (Array.isArray(props.modelValue) ? props.modelValue : []),
+/** 存的是券的随机码 couponCode，不用自增主键 */
+const value = computed<string[]>({
+  get: () =>
+    Array.isArray(props.modelValue)
+      ? props.modelValue.map(String)
+      : [],
   set: (val) => emit('update:modelValue', val),
 });
 
@@ -51,10 +55,12 @@ onMounted(async () => {
       pageSize: 200,
       status: 1,
     });
-    options.value = (items || []).map((coupon: any) => ({
-      label: format(coupon),
-      value: coupon.id,
-    }));
+    options.value = (items || [])
+      .filter((coupon: any) => coupon.couponCode)
+      .map((coupon: any) => ({
+        label: format(coupon),
+        value: coupon.couponCode,
+      }));
   } catch {
     failed.value = true;
   } finally {

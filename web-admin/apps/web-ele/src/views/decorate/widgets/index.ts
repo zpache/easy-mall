@@ -335,13 +335,13 @@ export const WIDGETS: WidgetDefinition[] = [
     component: CouponWidget,
     defaultProps: {
       bgColor: '#ffffff',
-      couponIds: [],
+      couponCodes: [],
       title: '领券中心',
     },
     fields: [
       { key: 'title', label: '标题', type: 'input' },
       {
-        key: 'couponIds',
+        key: 'couponCodes',
         label: '优惠券',
         max: 6,
         tip: '来自营销中心，最多 6 张',

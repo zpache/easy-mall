@@ -20,6 +20,9 @@ public class Coupon extends BaseEntity {
     @TableId(type = IdType.AUTO)
     private Long id;
 
+    /** 对外随机码：小程序端唯一标识，自增主键不出网关 */
+    private String couponCode;
+
     private String name;
 
     /** 1 满减券 2 折扣券 3 无门槛券 */

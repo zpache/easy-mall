@@ -47,9 +47,9 @@ public class DecorateController {
         return Result.ok(decorateService.navConfig());
     }
 
-    @Operation(summary = "装修「优惠券」组件的券卡片（按传入 id 顺序返回）")
+    @Operation(summary = "装修「优惠券」组件的券卡片（按传入随机码顺序返回）")
     @GetMapping("/coupons")
-    public Result<List<CouponCardVO>> coupons(@RequestParam(required = false) List<Long> ids) {
-        return Result.ok(memberCouponService.cards(ids));
+    public Result<List<CouponCardVO>> coupons(@RequestParam(required = false) List<String> codes) {
+        return Result.ok(memberCouponService.cards(codes));
     }
 }

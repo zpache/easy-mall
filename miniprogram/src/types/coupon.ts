@@ -2,7 +2,8 @@
 export interface MemberCoupon {
   /** 领券记录 id */
   id: number
-  couponId: number
+  /** 券的对外随机码（后端不再下发自增主键） */
+  couponCode: string
   name: string
   /** 1 满减券 2 折扣券 3 无门槛券 */
   type: number
@@ -30,7 +31,8 @@ export interface MemberCouponResult {
 
 /** 领券中心的券卡片（与后端 CouponCardVO 对应） */
 export interface CouponCard {
-  id: number
+  /** 券的对外随机码，领取时作为路径参数 */
+  code: string
   name: string
   /** 1 满减券 2 折扣券 3 无门槛券 */
   type: number

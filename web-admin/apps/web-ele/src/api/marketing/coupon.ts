@@ -6,6 +6,8 @@ export namespace MarketingCouponApi {
   export interface Coupon {
     [key: string]: any;
     amount?: number;
+    /** 对外随机码：小程序端唯一标识，装修组件保存的就是它 */
+    couponCode: string;
     createdAt?: string;
     discount?: number;
     id: number;

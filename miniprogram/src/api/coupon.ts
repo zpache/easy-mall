@@ -6,9 +6,12 @@ export const couponApi = {
   mine: (status?: number) =>
     request<MemberCouponResult>({ url: `/coupons/mine${buildQuery({ status })}` }),
 
-  /** 领券中心：领取指定优惠券（需登录） */
-  receive: (couponId: number) =>
-    request<MemberCoupon>({ url: `/coupons/${couponId}/receive`, method: 'POST' })
+  /** 领券中心：按券的随机码领取（需登录） */
+  receive: (code: string) =>
+    request<MemberCoupon>({
+      url: `/coupons/${encodeURIComponent(code)}/receive`,
+      method: 'POST'
+    })
 }
 
 export type { CouponCard }
