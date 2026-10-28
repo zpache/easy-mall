@@ -18,6 +18,7 @@ const dynamicRoutes: RouteRecordRaw[] = mergeRouteModules(dynamicRouteFiles);
 /** 外部路由列表，访问这些页面可以不需要Layout，可能用于内嵌在别的系统(不会显示在菜单中) */
 // const externalRoutes: RouteRecordRaw[] = mergeRouteModules(externalRouteFiles);
 // const staticRoutes: RouteRecordRaw[] = mergeRouteModules(staticRouteFiles);
+/** 需要登录、但不进菜单的独立页面：后端路由模式下静态路由不生效，编辑器已改注册到 coreRoutes */
 const staticRoutes: RouteRecordRaw[] = [];
 const externalRoutes: RouteRecordRaw[] = [];
 

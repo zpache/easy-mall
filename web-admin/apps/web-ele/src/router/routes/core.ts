@@ -47,8 +47,7 @@ const coreRoutes: RouteRecordRaw[] = [
     name: 'Authentication',
     path: '/auth',
     redirect: LOGIN_PATH,
-    children: [
-      {
+    children: [      {
         name: 'Login',
         path: 'login',
         component: () => import('#/views/_core/authentication/login.vue'),
@@ -91,6 +90,32 @@ const coreRoutes: RouteRecordRaw[] = [
         },
       },
     ],
+  },
+  {
+    // 装修编辑器：全屏三栏，不带后台侧边栏；后端路由模式下静态路由不生效，故挂在 coreRoutes，
+    // 登录态由编辑器组件自行校验（无 token 跳登录）
+    component: () => import('#/views/decorate/editor/index.vue'),
+    meta: {
+      hideInBreadcrumb: true,
+      hideInMenu: true,
+      hideInTab: true,
+      title: '页面装修',
+    },
+    name: 'DecorateEditor',
+    path: '/decorate/editor/:id',
+  },
+  {
+    // 装修页面的真机扫码预览：免登录、无后台布局，仅渲染页面结构
+    component: () => import('#/views/decorate/preview/index.vue'),
+    meta: {
+      hideInBreadcrumb: true,
+      hideInMenu: true,
+      hideInTab: true,
+      ignoreAccess: true,
+      title: '页面预览',
+    },
+    name: 'DecoratePreview',
+    path: '/decorate/preview/:code',
   },
 ];
 

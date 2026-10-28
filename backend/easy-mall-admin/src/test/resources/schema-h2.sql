@@ -567,3 +567,30 @@ CREATE TABLE mk_reduction
 
 INSERT INTO mk_reduction (id, name, mode, threshold, benefit, start_time, end_time, status)
 VALUES (1, '满 99 减 10', 2, 99.00, 10.00, '2026-10-01 00:00:00', '2026-10-31 23:59:59', 1);
+
+-- ============================================================
+-- 商城装修模块
+-- ============================================================
+CREATE TABLE dc_page
+(
+    id             bigint AUTO_INCREMENT PRIMARY KEY,
+    name           varchar(100) NOT NULL,
+    type           tinyint      NOT NULL DEFAULT 1,
+    status         tinyint      NOT NULL DEFAULT 0,
+    is_home        tinyint      NOT NULL DEFAULT 0,
+    preview_code   varchar(32),
+    schema_json    text,
+    published_json text,
+    published_at   datetime,
+    remark         varchar(255),
+    created_at     datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at     datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_by     bigint,
+    updated_by     bigint,
+    version        int          NOT NULL DEFAULT 0,
+    deleted        tinyint      NOT NULL DEFAULT 0
+);
+
+INSERT INTO dc_page (id, name, type, status, is_home, preview_code, schema_json)
+VALUES (1, '商城首页', 1, 0, 0, 'TESTCODE01',
+        '{"page":{"title":"商城首页","bgColor":"#f5f6f7","bgImage":"","padding":0},"components":[{"id":"c1","type":"search","visible":true,"props":{"placeholder":"搜索商品"}}]}');
