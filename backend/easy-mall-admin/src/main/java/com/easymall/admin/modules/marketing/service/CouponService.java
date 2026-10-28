@@ -14,6 +14,7 @@ import com.easymall.admin.mapper.AppUserMapper;
 import com.easymall.admin.mapper.CouponMapper;
 import com.easymall.admin.mapper.CouponUserMapper;
 import com.easymall.admin.modules.marketing.dto.CouponForm;
+import com.easymall.admin.modules.marketing.support.CouponCodeGenerator;
 import com.easymall.admin.modules.marketing.vo.CouponUserVO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -50,10 +51,25 @@ public class CouponService extends ServiceImpl<CouponMapper, Coupon> {
         validateForm(form);
         Coupon coupon = new Coupon();
         applyForm(coupon, form);
+        coupon.setCouponCode(generateUniqueCode());
         coupon.setSendCount(0);
         coupon.setUsedCount(0);
         save(coupon);
         return coupon;
+    }
+
+    /**
+     * 生成对外随机码并查重；极端碰撞时重试，库表唯一索引 uk_coupon_code 兜底。
+     */
+    private String generateUniqueCode() {
+        for (int i = 0; i < 5; i++) {
+            String code = CouponCodeGenerator.next();
+            boolean exists = count(Wrappers.<Coupon>lambdaQuery().eq(Coupon::getCouponCode, code)) > 0;
+            if (!exists) {
+                return code;
+            }
+        }
+        throw new BusinessException(ResultCode.INTERNAL_ERROR, "券码生成失败，请重试");
     }
 
     public Coupon update(Long id, CouponForm form) {

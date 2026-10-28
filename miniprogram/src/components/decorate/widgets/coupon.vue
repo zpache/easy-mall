@@ -12,11 +12,11 @@ const props = defineProps<{ config: Record<string, any> }>()
 
 const userStore = useUserStore()
 
-const couponIds = computed<number[]>(() =>
-  Array.isArray(props.config.couponIds)
-    ? props.config.couponIds
-        .map((id: any) => Number(id))
-        .filter((id: number) => Number.isFinite(id) && id > 0)
+const couponCodes = computed<string[]>(() =>
+  Array.isArray(props.config.couponCodes)
+    ? props.config.couponCodes
+        .map((code: any) => String(code || '').trim())
+        .filter((code: string) => code.length > 0)
     : []
 )
 
@@ -26,31 +26,31 @@ const legacyCoupons = computed<any[]>(() =>
 )
 
 const cards = ref<CardItem[]>([])
-const claiming = ref(0)
+const claiming = ref('')
 
-const showLegacy = computed(() => couponIds.value.length === 0 && legacyCoupons.value.length > 0)
+const showLegacy = computed(() => couponCodes.value.length === 0 && legacyCoupons.value.length > 0)
 const visible = computed(() => cards.value.length > 0 || showLegacy.value)
 
 async function loadCards() {
-  if (couponIds.value.length === 0) return
+  if (couponCodes.value.length === 0) return
   try {
-    const list = await decorateApi.coupons(couponIds.value)
+    const list = await decorateApi.coupons(couponCodes.value)
     const counts = await fetchReceivedCounts()
-    cards.value = list.map((card) => ({ ...card, receivedCount: counts[card.id] || 0 }))
+    cards.value = list.map((card) => ({ ...card, receivedCount: counts[card.code] || 0 }))
   } catch {
     // 券接口异常时整块不渲染，避免露出无法领取的空卡
   }
 }
 
 /** 已登录时同步已领张数：未使用 + 已使用的记录都算已领（已过期不占名额） */
-async function fetchReceivedCounts(): Promise<Record<number, number>> {
+async function fetchReceivedCounts(): Promise<Record<string, number>> {
   if (!userStore.isLogin) return {}
   try {
     const result = await couponApi.mine()
-    const counts: Record<number, number> = {}
+    const counts: Record<string, number> = {}
     for (const item of result.list) {
       if (item.status === 2) continue
-      counts[item.couponId] = (counts[item.couponId] || 0) + 1
+      counts[item.couponCode] = (counts[item.couponCode] || 0) + 1
     }
     return counts
   } catch {
@@ -64,7 +64,7 @@ function isMaxed(card: CardItem) {
 }
 
 async function onClaim(card: CardItem) {
-  if (claiming.value === card.id || isMaxed(card)) return
+  if (claiming.value === card.code || isMaxed(card)) return
   if (card.soldOut) {
     uni.showToast({ title: '优惠券已被领完', icon: 'none' })
     return
@@ -73,9 +73,9 @@ async function onClaim(card: CardItem) {
     uni.navigateTo({ url: '/pages/login/index' })
     return
   }
-  claiming.value = card.id
+  claiming.value = card.code
   try {
-    await couponApi.receive(card.id)
+    await couponApi.receive(card.code)
     card.receivedCount = (card.receivedCount || 0) + 1
     if (card.remainCount > 0) {
       card.remainCount -= 1
@@ -85,7 +85,7 @@ async function onClaim(card: CardItem) {
   } catch {
     // 业务提示（已领完 / 已达限领 / 已下架）由请求层统一 toast
   } finally {
-    claiming.value = 0
+    claiming.value = ''
   }
 }
 
@@ -128,7 +128,7 @@ onMounted(loadCards)
 
     <view class="d-coupon__list">
       <!-- 真实优惠券 -->
-      <view v-for="item in cards" :key="item.id" class="d-coupon__card">
+      <view v-for="item in cards" :key="item.code" class="d-coupon__card">
         <view class="d-coupon__left">
           <text class="d-coupon__amount">{{ item.valueText }}</text>
           <text class="d-coupon__cond">{{ item.ruleText }}</text>

@@ -36,9 +36,9 @@ public class MemberCouponController {
         return Result.ok(memberCouponService.mine(status));
     }
 
-    @Operation(summary = "领券中心：领取一张优惠券")
-    @PostMapping("/{id}/receive")
-    public Result<MemberCouponVO> receive(@PathVariable Long id) {
-        return Result.ok(memberCouponService.receive(id));
+    @Operation(summary = "领券中心：按随机码领取一张优惠券")
+    @PostMapping("/{code}/receive")
+    public Result<MemberCouponVO> receive(@PathVariable String code) {
+        return Result.ok(memberCouponService.receive(code));
     }
 }

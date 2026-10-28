@@ -442,6 +442,7 @@ VALUES (1, '新鲜水果', 0, 1, 1);
 CREATE TABLE mk_coupon
 (
     id          bigint AUTO_INCREMENT PRIMARY KEY,
+    coupon_code varchar(32)   NOT NULL,
     name        varchar(100)  NOT NULL,
     type        tinyint       NOT NULL DEFAULT 1,
     amount      decimal(10,2),
@@ -465,9 +466,9 @@ CREATE TABLE mk_coupon
     deleted     tinyint       NOT NULL DEFAULT 0
 );
 
-INSERT INTO mk_coupon (id, name, type, amount, discount, threshold, total_count, send_count, used_count, per_limit,
-                       valid_type, valid_start, valid_end, status)
-VALUES (1, '全场满 99 减 15', 1, 15.00, NULL, 99.00, 5000, 100, 30, 2, 1, '2026-10-01', '2026-11-11', 1);
+INSERT INTO mk_coupon (id, coupon_code, name, type, amount, discount, threshold, total_count, send_count, used_count,
+                       per_limit, valid_type, valid_start, valid_end, status)
+VALUES (1, 'C261027E5F807AFBA', '全场满 99 减 15', 1, 15.00, NULL, 99.00, 5000, 100, 30, 2, 1, '2026-10-01', '2026-11-11', 1);
 
 CREATE TABLE mk_coupon_user
 (

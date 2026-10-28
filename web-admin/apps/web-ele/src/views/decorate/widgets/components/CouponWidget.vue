@@ -10,17 +10,20 @@ let poolPromise: null | Promise<any[]> = null;
 
 const pool = ref<any[]>([]);
 
-const ids = computed<number[]>(() =>
-  Array.isArray(props.config.couponIds) ? props.config.couponIds : [],
+/** 配置里存的是券的随机码，不用自增主键 */
+const codes = computed<string[]>(() =>
+  Array.isArray(props.config.couponCodes)
+    ? props.config.couponCodes.map(String)
+    : [],
 );
 
 /** 按配置顺序取券，已被删除/停用的券自动跳过 */
 const coupons = computed(() => {
-  if (ids.value.length === 0) {
+  if (codes.value.length === 0) {
     return [];
   }
-  const map = new Map(pool.value.map((coupon) => [coupon.id, coupon]));
-  return ids.value.map((id) => map.get(id)).filter(Boolean);
+  const map = new Map(pool.value.map((coupon) => [coupon.couponCode, coupon]));
+  return codes.value.map((code) => map.get(code)).filter(Boolean);
 });
 
 function cond(coupon: any) {
@@ -57,7 +60,7 @@ onMounted(async () => {
     </div>
 
     <div v-if="coupons.length > 0" class="list">
-      <div v-for="item in coupons" :key="item.id" class="coupon">
+      <div v-for="item in coupons" :key="item.couponCode" class="coupon">
         <div class="left">
           <span class="amount">
             <template v-if="item.type === 2">
@@ -78,7 +81,7 @@ onMounted(async () => {
     <div v-else class="empty">
       <span class="empty__icon">🎫</span>
       <span class="empty__text">
-        {{ ids.length > 0 ? '所选优惠券已下架' : '请在右侧属性面板选择优惠券' }}
+        {{ codes.length > 0 ? '所选优惠券已下架' : '请在右侧属性面板选择优惠券' }}
       </span>
     </div>
   </div>
