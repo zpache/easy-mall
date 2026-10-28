@@ -34,10 +34,11 @@ const value = computed({
   set: (val) => emit('update:modelValue', val),
 });
 
-/** 图片上传：单图上限与后端保持一致 */
+/** 图片上传：大小与格式由后端凭证下发，前端提前拦截一次 */
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024;
 const fileInput = ref<HTMLInputElement>();
 const uploading = ref(false);
+const progress = ref(0);
 
 function pickFile() {
   if (uploading.value) {
@@ -58,25 +59,31 @@ async function onFileChange(event: Event) {
   if (!file) {
     return;
   }
-  if (!file.type.startsWith('image/')) {
-    ElMessage.warning('请选择图片文件');
-    return;
-  }
   if (file.size > MAX_IMAGE_SIZE) {
     ElMessage.warning('图片不能超过 5MB');
     return;
   }
   uploading.value = true;
+  progress.value = 0;
   try {
-    const result = await uploadImageApi(file);
+    const result = await uploadImageApi(file, {
+      scene: 'decorate',
+      onProgress: (percent) => {
+        progress.value = percent;
+      },
+    });
     if (result?.url) {
       emit('update:modelValue', result.url);
       ElMessage.success('图片已上传');
     }
-  } catch {
-    // 错误提示由请求拦截器统一处理
+  } catch (error: any) {
+    // 接口错误由请求拦截器统一提示，这里只处理本地校验与直传失败
+    if (!error?.response && error?.message) {
+      ElMessage.error(error.message);
+    }
   } finally {
     uploading.value = false;
+    progress.value = 0;
   }
 }
 
@@ -190,7 +197,8 @@ function itemTitle(item: any, index: number) {
         <img v-if="value" :src="value" alt="preview" />
         <IconifyIcon v-else class="placeholder-icon" icon="lucide:image-plus" />
         <div v-if="uploading" class="uploading-mask">
-          <IconifyIcon class="spin" icon="lucide:loader-2" />
+          <IconifyIcon v-if="progress === 0" class="spin" icon="lucide:loader-2" />
+          <span v-else class="percent">{{ progress }}%</span>
         </div>
       </div>
       <div class="image-input">
@@ -315,6 +323,10 @@ function itemTitle(item: any, index: number) {
   font-size: 16px;
   color: #1677ff;
   background: rgb(255 255 255 / 70%);
+}
+.uploading-mask .percent {
+  font-size: 11px;
+  font-weight: 600;
 }
 .spin {
   animation: spin 1s linear infinite;
