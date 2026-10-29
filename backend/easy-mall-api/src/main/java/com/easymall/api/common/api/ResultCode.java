@@ -39,7 +39,9 @@ public enum ResultCode {
     FILE_EMPTY(4016, "请选择要上传的文件"),
     FILE_TOO_LARGE(4017, "图片体积过大，请压缩后重试"),
     FILE_TYPE_NOT_ALLOWED(4018, "仅支持 jpg/png/gif/webp 图片"),
-    FILE_SAVE_FAILED(4019, "文件保存失败，请稍后重试");
+    FILE_SAVE_FAILED(4019, "文件保存失败，请稍后重试"),
+
+    REQUEST_BUSY(4020, "操作过于频繁，请稍后重试");
 
     private final int code;
     private final String message;
