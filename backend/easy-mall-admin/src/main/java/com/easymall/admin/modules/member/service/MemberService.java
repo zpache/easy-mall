@@ -134,6 +134,7 @@ public class MemberService {
         Map<Long, List<MemberVO.TagItem>> tagMap = tagsOf(users);
         return users.stream().map(user -> new MemberVO(
                 user.getId(),
+                user.getOpenid(),
                 user.getNickname(),
                 user.getAvatar(),
                 user.getPhone(),

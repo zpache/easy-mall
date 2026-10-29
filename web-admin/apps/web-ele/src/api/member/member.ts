@@ -19,6 +19,7 @@ export namespace MemberApi {
     levelId: number;
     levelName?: string;
     nickname: string;
+    openid?: string;
     orderCount?: number;
     phone?: string;
     points: number;

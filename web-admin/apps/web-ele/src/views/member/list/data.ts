@@ -105,6 +105,14 @@ export function useColumns<T = MemberApi.Member>(
       title: $t('member.list.nickname'),
     },
     {
+      field: 'openid',
+      minWidth: 200,
+      // 超长省略并悬浮显示全文
+      showOverflow: true,
+      title: $t('member.list.openid'),
+      width: 220,
+    },
+    {
       field: 'phone',
       title: $t('member.list.phone'),
       width: 130,
