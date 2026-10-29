@@ -41,7 +41,8 @@ public class DecorateService {
     /** 微页面：仅已发布可访问 */
     public DecoratePageVO page(Long id) {
         DecoratePage page = pageMapper.selectById(id);
-        if (page == null || page.getStatus() == null || page.getStatus() != 1) {
+        if (page == null || page.getStatus() == null || page.getStatus() != 1
+                || !StringUtils.hasText(page.getPublishedJson())) {
             throw new BusinessException(ResultCode.NOT_FOUND, "页面不存在或未发布");
         }
         return toVO(page);
@@ -51,9 +52,9 @@ public class DecorateService {
         return new DecoratePageVO(page.getId(), page.getName(), page.getType(), content(page), nav());
     }
 
-    /** 小程序只展示已发布内容；未发布（如首次上线前）回退草稿，避免空白 */
+    /** 小程序只展示已发布快照：保存草稿 / 编辑画布不影响线上，发布是唯一生效闸门 */
     private String content(DecoratePage page) {
-        return StringUtils.hasText(page.getPublishedJson()) ? page.getPublishedJson() : page.getSchemaJson();
+        return page.getPublishedJson();
     }
 
     /** 导航配置单独下发，供非首页页面渲染底部 TabBar */
@@ -66,6 +67,8 @@ public class DecorateService {
         if (nav == null) {
             return new NavConfigVO(null, null, null);
         }
-        return new NavConfigVO(nav.getTabbarJson(), nav.getNavbarJson(), nav.getFloatJson());
+        // 只下发已发布快照；未发布过返回 null，小程序端落到内置默认导航
+        return new NavConfigVO(nav.getTabbarPublishedJson(), nav.getNavbarPublishedJson(),
+                nav.getFloatPublishedJson());
     }
 }

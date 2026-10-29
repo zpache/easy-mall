@@ -21,8 +21,9 @@ import java.util.regex.Pattern;
 /**
  * 导航装修：底部 TabBar、顶部导航、快捷入口的单例配置。
  * <p>
- * 保存即生效（无草稿/发布双份），靠乐观锁防并发覆盖；JSON 结构在服务端收口校验，
- * 避免前端换了实现后往库里写脏数据。
+ * 草稿 / 发布双份：保存只写草稿列，点「发布」后快照到 published 列，小程序端只读
+ * published 列——编辑与保存不会影响线上，发布是唯一生效闸门。扫码预览读草稿，
+ * 保持"所见即所改"。JSON 结构在服务端收口校验，避免前端换了实现后往库里写脏数据。
  */
 @Slf4j
 @Service
@@ -96,7 +97,7 @@ public class DecorateNavService extends ServiceImpl<DecorateNavMapper, DecorateN
         return new NavPreviewVO(nav.getTabbarJson(), nav.getNavbarJson(), nav.getFloatJson());
     }
 
-    /** 保存配置：三段 JSON 校验通过后整体覆盖。 */
+    /** 保存草稿：三段 JSON 校验通过后整体覆盖草稿列，不影响线上。 */
     public DecorateNav save(NavSaveForm form) {
         DecorateNav nav = get();
         validateTabbar(form.tabbarJson());
@@ -115,7 +116,25 @@ public class DecorateNavService extends ServiceImpl<DecorateNavMapper, DecorateN
         return getById(SINGLETON_ID);
     }
 
-    /** 恢复默认配置。 */
+    /**
+     * 发布：把当前草稿快照到 published 列，小程序端下次拉取即生效。
+     * 发布前重新校验草稿，防止历史脏数据被直接放出去。
+     */
+    public DecorateNav publish() {
+        DecorateNav nav = get();
+        validateTabbar(nav.getTabbarJson());
+        validateNavbar(nav.getNavbarJson());
+        validateFloat(nav.getFloatJson());
+        nav.setTabbarPublishedJson(nav.getTabbarJson());
+        nav.setNavbarPublishedJson(nav.getNavbarJson());
+        nav.setFloatPublishedJson(nav.getFloatJson());
+        if (!updateById(nav)) {
+            throw new BusinessException(ResultCode.DATA_CONFLICT, "导航配置已在其他地方被修改，请刷新后重试");
+        }
+        return getById(SINGLETON_ID);
+    }
+
+    /** 恢复默认配置（仅草稿，发布前线上不受影响）。 */
     public DecorateNav reset() {
         DecorateNav nav = get();
         nav.setTabbarJson(DEFAULT_TABBAR);
