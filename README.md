@@ -209,7 +209,7 @@ easy-mall:
 ```
 
 - `mock` 默认为 `false`，不再提供免凭证登录；只有临时联调且没有小程序凭证时，才用 `WX_MOCK=true` 伪造 openid（生产环境禁止）。
-- **Redis 为强依赖**：默认连 `127.0.0.1:6379`，可用 `REDIS_HOST/REDIS_PORT/REDIS_PASSWORD/REDIS_DATABASE` 覆盖；登录态 TTL 默认 7 天（`SESSION_TTL`），每次请求自动续期。token 失效时小程序请求层会自动静默重登一次，用户无感。
+- **Redis 为强依赖**：`application.yml` 默认占位 `127.0.0.1:6379`，实际连接写在 `application-local.yml`（已 gitignore，与数据库密码同级管理），也可用 `REDIS_HOST/REDIS_PORT/REDIS_PASSWORD/REDIS_DATABASE` 环境变量覆盖；**注意该文件打包进 jar，修改后需重新 `mvn package` 才生效**。登录态 TTL 默认 7 天（`SESSION_TTL`），每次请求自动续期。token 失效时小程序请求层会自动静默重登一次，用户无感。
 - `app-id` 还要写进 `miniprogram/src/manifest.json` 的 `mp-weixin.appid`，编译产物 `project.config.json` 的 appid 由它生成（否则是 `touristappid`，无法真机预览/上传）。
 - H5 端没有 `wx.login`，关闭 mock 后 H5 的「微信一键登录」会返回 4008，只适合调试免登录页面。
 
