@@ -7,7 +7,8 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 
 /**
- * 导航装修配置（只读）：单例记录 id=1，三段 JSON 描述 TabBar / 顶部导航 / 悬浮球。
+ * 导航装修配置（只读）：单例记录 id=1，只映射已发布的三段 JSON
+ * （TabBar / 顶部导航 / 悬浮球）。草稿列不映射，发布是唯一生效闸门。
  */
 @Data
 @EqualsAndHashCode(callSuper = true)
@@ -17,11 +18,11 @@ public class DecorateNav extends BaseEntity {
     @TableId(type = IdType.AUTO)
     private Long id;
 
-    private String tabbarJson;
+    private String tabbarPublishedJson;
 
-    private String navbarJson;
+    private String navbarPublishedJson;
 
-    private String floatJson;
+    private String floatPublishedJson;
 
     private String remark;
 }

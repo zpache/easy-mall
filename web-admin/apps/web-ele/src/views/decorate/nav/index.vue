@@ -21,12 +21,13 @@ import {
   ElTag,
 } from 'element-plus';
 
-import { getDecoratePages } from '#/api/decorate/page';
 import {
   getDecorateNav,
+  publishDecorateNav,
   resetDecorateNav,
   saveDecorateNav,
 } from '#/api/decorate/nav';
+import { getDecoratePages } from '#/api/decorate/page';
 
 import IconPickerField from './components/icon-picker-field.vue';
 import PhonePreview from './components/phone-preview.vue';
@@ -213,7 +214,21 @@ async function onSave() {
     version.value = result.version;
     updatedAt.value = result.updatedAt ?? '';
     dirty.value = false;
-    ElMessage.success('导航配置已保存，小程序下次启动即生效');
+    ElMessage.success('草稿已保存，点「发布」后才会下发到小程序');
+  } finally {
+    saving.value = false;
+  }
+}
+
+/** 发布：先保存草稿再快照生效，发布是唯一影响小程序的闸门 */
+async function onPublish() {
+  saving.value = true;
+  try {
+    await onSave();
+    const result = await publishDecorateNav();
+    version.value = result.version;
+    updatedAt.value = result.updatedAt ?? '';
+    ElMessage.success('导航配置已发布，小程序端即刻生效');
   } finally {
     saving.value = false;
   }
@@ -251,7 +266,7 @@ const previewPageName = computed(() => {
           <div class="head-left">
             <h2>导航装修</h2>
             <p>
-              配置小程序全局的底部 TabBar、顶部标题栏与悬浮快捷入口；改动即时预览，保存后下发到小程序。
+              配置小程序全局的底部 TabBar、顶部标题栏与悬浮快捷入口；改动即时预览，保存仅存草稿，发布后才下发到小程序。
             </p>
           </div>
           <div class="head-right">
@@ -261,7 +276,8 @@ const previewPageName = computed(() => {
             </ElTag>
             <ElButton :loading="loading" @click="load">重新加载</ElButton>
             <ElButton :disabled="saving" @click="onReset">恢复默认</ElButton>
-            <ElButton :loading="saving" type="primary" @click="onSave">保存配置</ElButton>
+            <ElButton :loading="saving" @click="onSave">保存草稿</ElButton>
+            <ElButton :loading="saving" type="primary" @click="onPublish">发 布</ElButton>
           </div>
         </div>
 
@@ -324,7 +340,7 @@ const previewPageName = computed(() => {
                     style="width: 180px"
                     @input="touch"
                   />
-                  <span class="spacer" />
+                  <span class="spacer"></span>
                   <ElButton size="small" text @click="moveTab(index, -1)">
                     <IconifyIcon icon="lucide:chevron-up" />
                   </ElButton>
@@ -555,7 +571,7 @@ const previewPageName = computed(() => {
                     size="small"
                     style="width: 160px"
                   />
-                  <span class="spacer" />
+                  <span class="spacer"></span>
                   <ElSwitch v-model="item.enabled" size="small" @change="touch" />
                   <ElButton size="small" text @click="moveFloatItem(index, -1)">
                     <IconifyIcon icon="lucide:chevron-up" />

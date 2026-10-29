@@ -32,10 +32,16 @@ public class DecorateNavController {
         return Result.ok(navService.get());
     }
 
-    @Operation(summary = "保存导航配置")
+    @Operation(summary = "保存导航配置（草稿，发布前不影响小程序）")
     @PutMapping
     public Result<DecorateNav> save(@Valid @RequestBody NavSaveForm form) {
         return Result.ok(navService.save(form));
+    }
+
+    @Operation(summary = "发布导航配置（草稿快照生效到小程序）")
+    @PostMapping("/publish")
+    public Result<DecorateNav> publish() {
+        return Result.ok(navService.publish());
     }
 
     @Operation(summary = "恢复默认导航配置")

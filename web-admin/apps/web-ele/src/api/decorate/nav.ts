@@ -86,6 +86,11 @@ function saveDecorateNav(data: DecorateNavApi.SavePayload) {
   return requestClient.put<DecorateNavApi.Config>('/decorate/nav', data);
 }
 
+/** 发布：把当前草稿快照生效到小程序 */
+function publishDecorateNav() {
+  return requestClient.post<DecorateNavApi.Config>('/decorate/nav/publish');
+}
+
 function resetDecorateNav() {
   return requestClient.post<DecorateNavApi.Config>('/decorate/nav/reset');
 }
@@ -93,6 +98,7 @@ function resetDecorateNav() {
 export {
   getDecorateNav,
   getPreviewDecorateNav,
+  publishDecorateNav,
   resetDecorateNav,
   saveDecorateNav,
 };
