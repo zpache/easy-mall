@@ -178,12 +178,12 @@ onMounted(loadCards)
 .d-coupon__title {
   font-size: 28rpx;
   font-weight: 600;
-  color: #333;
+  color: var(--d-text, #333);
 }
 
 .d-coupon__more {
   font-size: 22rpx;
-  color: #999;
+  color: var(--d-sub-text, #999);
 }
 
 .d-coupon__list {
@@ -217,13 +217,13 @@ onMounted(loadCards)
   font-size: 36rpx;
   font-weight: 700;
   line-height: 1.1;
-  color: #e02020;
+  color: var(--d-price, #e02020);
 }
 
 .d-coupon__cond {
   margin-top: 8rpx;
   font-size: 20rpx;
-  color: #e02020;
+  color: var(--d-price, #e02020);
   text-align: center;
 }
 
@@ -237,7 +237,7 @@ onMounted(loadCards)
 .d-coupon__name {
   overflow: hidden;
   font-size: 24rpx;
-  color: #333;
+  color: var(--d-text, #333);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -245,7 +245,7 @@ onMounted(loadCards)
 .d-coupon__valid {
   margin-top: 8rpx;
   font-size: 20rpx;
-  color: #999;
+  color: var(--d-sub-text, #999);
 }
 
 .d-coupon__stock {
@@ -259,7 +259,7 @@ onMounted(loadCards)
   padding: 8rpx 20rpx;
   font-size: 22rpx;
   color: #fff;
-  background-color: #e02020;
+  background-color: var(--d-price, #e02020);
   border-radius: 24rpx;
 
   &--off {

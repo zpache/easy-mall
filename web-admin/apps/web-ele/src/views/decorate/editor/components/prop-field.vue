@@ -21,6 +21,7 @@ import { uploadImageApi } from '#/api/upload';
 
 import CouponPicker from './coupon-picker.vue';
 import GoodsPicker from './goods-picker.vue';
+import MaterialPicker from './material-picker.vue';
 
 defineOptions({ name: 'PropField' });
 
@@ -43,6 +44,7 @@ const MAX_IMAGE_SIZE = 5 * 1024 * 1024;
 const fileInput = ref<HTMLInputElement>();
 const uploading = ref(false);
 const progress = ref(0);
+const materialPickerVisible = ref(false);
 
 function pickFile() {
   if (uploading.value) {
@@ -241,11 +243,18 @@ function itemTitle(item: any, index: number) {
           >
             上传图片
           </ElButton>
+          <ElButton size="small" text type="primary" @click="materialPickerVisible = true">
+            素材库
+          </ElButton>
           <ElButton v-if="value" size="small" text @click="clearImage">
             清除
           </ElButton>
         </div>
       </div>
+      <MaterialPicker
+        v-model="materialPickerVisible"
+        @select="(url: string) => (value = url)"
+      />
       <input
         ref="fileInput"
         accept="image/jpeg,image/png,image/gif,image/webp,image/bmp"

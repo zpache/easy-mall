@@ -2,6 +2,8 @@ package com.easymall.admin.modules.file.service;
 
 import com.easymall.admin.common.exception.BusinessException;
 import com.easymall.admin.config.UploadProperties;
+import com.easymall.admin.entity.SysFile;
+import com.easymall.admin.mapper.SysFileMapper;
 import com.easymall.admin.modules.file.vo.ImageUploadVO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -17,6 +19,8 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.UUID;
 
+import org.springframework.util.StringUtils;
+
 /**
  * 图片上传落盘。
  * 安全要点：不信任客户端文件名与 Content-Type，按文件头判定真实类型；
@@ -31,6 +35,7 @@ public class FileStorageService {
     private static final DateTimeFormatter MONTH_PATH = DateTimeFormatter.ofPattern("yyyy/MM");
 
     private final UploadProperties uploadProperties;
+    private final SysFileMapper sysFileMapper;
 
     public ImageUploadVO storeImage(MultipartFile file) {
         if (file == null || file.isEmpty()) {
@@ -72,6 +77,20 @@ public class FileStorageService {
         }
 
         String url = "%s/%s/%s".formatted(uploadProperties.normalizedUrlPrefix(), monthPath, fileName);
+
+        // 本地模式同样登记素材库，与 COS 直传口径一致
+        SysFile record = new SysFile();
+        record.setObjectKey(monthPath + "/" + fileName);
+        record.setName(StringUtils.hasText(file.getOriginalFilename())
+                ? file.getOriginalFilename() : fileName);
+        record.setBucket("local");
+        record.setRegion("local");
+        record.setUrl(url);
+        record.setSize(file.getSize());
+        record.setMime(file.getContentType());
+        record.setScene("decorate");
+        sysFileMapper.insert(record);
+
         return new ImageUploadVO(url, fileName, file.getSize());
     }
 

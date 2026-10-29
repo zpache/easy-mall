@@ -22,6 +22,9 @@ public class SysFile extends BaseEntity {
     /** COS 对象键，如 decorate/2026/10/xxx.png */
     private String objectKey;
 
+    /** 素材名称，默认取原文件名，可重命名 */
+    private String name;
+
     private String bucket;
 
     private String region;

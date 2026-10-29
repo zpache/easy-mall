@@ -5,10 +5,13 @@ import com.easymall.api.common.api.ResultCode;
 import com.easymall.api.common.exception.BusinessException;
 import com.easymall.api.entity.DecorateNav;
 import com.easymall.api.entity.DecoratePage;
+import com.easymall.api.entity.DecorateTheme;
 import com.easymall.api.mapper.DecorateNavMapper;
 import com.easymall.api.mapper.DecoratePageMapper;
+import com.easymall.api.mapper.DecorateThemeMapper;
 import com.easymall.api.modules.decorate.vo.DecoratePageVO;
 import com.easymall.api.modules.decorate.vo.NavConfigVO;
+import com.easymall.api.modules.decorate.vo.ThemeConfigVO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -25,6 +28,7 @@ public class DecorateService {
 
     private final DecoratePageMapper pageMapper;
     private final DecorateNavMapper navMapper;
+    private final DecorateThemeMapper themeMapper;
 
     /** 商城首页：is_home=1 且已发布 */
     public DecoratePageVO home() {
@@ -60,6 +64,17 @@ public class DecorateService {
     /** 导航配置单独下发，供非首页页面渲染底部 TabBar */
     public NavConfigVO navConfig() {
         return nav();
+    }
+
+    /** 线上主题：已启用主题的发布快照；无启用主题时 themeJson 为 null，小程序端回退默认配色 */
+    public ThemeConfigVO themeConfig() {
+        DecorateTheme theme = themeMapper.selectOne(Wrappers.<DecorateTheme>lambdaQuery()
+                .eq(DecorateTheme::getIsActive, 1)
+                .last("limit 1"));
+        if (theme == null || !StringUtils.hasText(theme.getPublishedJson())) {
+            return new ThemeConfigVO(null, null);
+        }
+        return new ThemeConfigVO(theme.getName(), theme.getPublishedJson());
     }
 
     private NavConfigVO nav() {

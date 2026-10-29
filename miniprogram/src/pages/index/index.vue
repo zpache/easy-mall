@@ -25,9 +25,21 @@ const immersive = computed(() => decorateStore.nav.navbar.style === 'immersive')
 /** 常规样式下内容让开标题栏；沉浸式则让内容从屏幕顶端开始 */
 const bodyPaddingTop = computed(() => (immersive.value ? '0px' : `${navbarHeight}px`))
 
+/**
+ * 页面背景：装修页单独设置过背景色（非默认值）则优先，
+ * 否则跟随线上主题的背景色（换肤）。
+ */
+const DEFAULT_PAGE_BG = '#f5f6f7'
+const pageBg = computed(() => {
+  const pageColor = schema.value.page.bgColor
+  if (pageColor && pageColor !== DEFAULT_PAGE_BG) return pageColor
+  return decorateStore.theme.pageBgColor || DEFAULT_PAGE_BG
+})
+
 async function load() {
   loading.value = true
   error.value = ''
+  decorateStore.ensureTheme()
   try {
     const data = await decorateApi.home()
     schema.value = parseSchema(data.schemaJson, data.name)
@@ -60,7 +72,7 @@ onPullDownRefresh(async () => {
 </script>
 
 <template>
-  <view class="home" :style="{ background: schema.page.bgColor || '#f5f6f7' }">
+  <view class="home" :style="{ background: pageBg }">
     <DecorateNavbar :config="decorateStore.nav.navbar" />
 
     <!-- 页面背景图用 image 承载，小程序不支持 CSS 网络背景图 -->
