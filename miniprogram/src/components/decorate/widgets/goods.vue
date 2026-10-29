@@ -80,7 +80,7 @@ function toDetail(id: number | string) {
   overflow: hidden;
   font-size: 24rpx;
   line-height: 1.35;
-  color: #333;
+  color: var(--d-text, #333);
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
 }
@@ -99,7 +99,7 @@ function toDetail(id: number | string) {
 .d-goods__price {
   font-size: 30rpx;
   font-weight: 600;
-  color: #e02020;
+  color: var(--d-price, #e02020);
 }
 
 .d-goods__yuan {
@@ -108,7 +108,7 @@ function toDetail(id: number | string) {
 
 .d-goods__sales {
   font-size: 20rpx;
-  color: #999;
+  color: var(--d-sub-text, #999);
 }
 
 .d-goods__list {

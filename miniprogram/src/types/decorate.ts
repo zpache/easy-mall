@@ -58,6 +58,20 @@ export interface PageConfig {
   padding?: number
 }
 
+/** 线上主题配置（换肤）：与后台「主题换肤」的固定键位一致 */
+export interface ThemeConfig {
+  /** 主色：按钮、强调、选中态 */
+  primaryColor: string
+  /** 页面背景色 */
+  pageBgColor: string
+  /** 价格强调色 */
+  priceColor: string
+  /** 标题与主要文字色 */
+  textColor: string
+  /** 次要文字色 */
+  subTextColor: string
+}
+
 export interface DecorateComponent {
   id: string
   type: string

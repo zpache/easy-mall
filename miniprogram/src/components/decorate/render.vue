@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import type { PageSchema } from '@/types/decorate'
 import { openLink, px } from '@/utils/decorate'
+import { useDecorateStore } from '@/store/decorate'
 import BannerWidget from './widgets/banner.vue'
 import CouponWidget from './widgets/coupon.vue'
 import GoodsWidget from './widgets/goods.vue'
@@ -12,11 +13,22 @@ import ShopInfoWidget from './widgets/shop-info.vue'
 const props = defineProps<{ schema: PageSchema }>()
 const emit = defineEmits<{ (e: 'search'): void }>()
 
+const decorateStore = useDecorateStore()
+
 const components = computed(() => props.schema.components)
+
+/** 主题 CSS 变量挂在渲染根节点，各装修组件通过 var(--d-*, 默认值) 消费 */
+const themeVars = computed(() => ({
+  '--d-page-bg': decorateStore.theme.pageBgColor,
+  '--d-price': decorateStore.theme.priceColor,
+  '--d-primary': decorateStore.theme.primaryColor,
+  '--d-sub-text': decorateStore.theme.subTextColor,
+  '--d-text': decorateStore.theme.textColor
+}))
 </script>
 
 <template>
-  <view class="d-render">
+  <view class="d-render" :style="themeVars">
     <template v-for="item in components" :key="item.id">
       <!-- 搜索框 -->
       <view v-if="item.type === 'search'" class="d-search" :style="{ padding: `${px(item.props.margin, 10)} 24rpx` }">
@@ -91,7 +103,7 @@ const components = computed(() => props.schema.components)
               class="d-title__text"
               :style="{
                 fontSize: px(item.props.size, 16),
-                color: item.props.color || '#333333',
+                color: item.props.color || 'var(--d-text, #333333)',
                 fontWeight: item.props.bold ? 600 : 400
               }"
             >{{ item.props.text || '标题' }}</text>
@@ -144,13 +156,13 @@ const components = computed(() => props.schema.components)
 
 .d-search__icon {
   font-size: 26rpx;
-  color: #999;
+  color: var(--d-sub-text, #999);
 }
 
 .d-search__ph {
   overflow: hidden;
   font-size: 24rpx;
-  color: #999;
+  color: var(--d-sub-text, #999);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -216,13 +228,13 @@ const components = computed(() => props.schema.components)
 
 .d-title__sub {
   font-size: 22rpx;
-  color: #999;
+  color: var(--d-sub-text, #999);
 }
 
 .d-title__more {
   flex: none;
   font-size: 22rpx;
-  color: #999;
+  color: var(--d-sub-text, #999);
 }
 
 .d-richtext {

@@ -158,20 +158,20 @@ const segments = computed(() => {
   padding: 2rpx 12rpx;
   font-size: 20rpx;
   color: #fff;
-  background-color: #e02020;
+  background-color: var(--d-price, #e02020);
   border-radius: 6rpx;
 }
 
 .d-seckill__title {
   font-size: 28rpx;
   font-weight: 600;
-  color: #333;
+  color: var(--d-text, #333);
 }
 
 .d-seckill__sub {
   overflow: hidden;
   font-size: 20rpx;
-  color: #999;
+  color: var(--d-sub-text, #999);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -196,12 +196,12 @@ const segments = computed(() => {
 
 .d-seckill__colon {
   font-size: 20rpx;
-  color: #333;
+  color: var(--d-text, #333);
 }
 
 .d-seckill__unit {
   font-size: 20rpx;
-  color: #333;
+  color: var(--d-text, #333);
 }
 
 .d-seckill__scroll {
@@ -244,7 +244,7 @@ const segments = computed(() => {
   display: -webkit-box;
   overflow: hidden;
   font-size: 26rpx;
-  color: #333;
+  color: var(--d-text, #333);
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
 }
@@ -259,7 +259,7 @@ const segments = computed(() => {
 .d-seckill__price {
   font-size: 36rpx;
   font-weight: 700;
-  color: #e02020;
+  color: var(--d-price, #e02020);
 }
 
 .d-seckill__yuan {
@@ -268,7 +268,7 @@ const segments = computed(() => {
 
 .d-seckill__origin {
   font-size: 22rpx;
-  color: #999;
+  color: var(--d-sub-text, #999);
   text-decoration: line-through;
 }
 
@@ -278,7 +278,7 @@ const segments = computed(() => {
   margin-top: 12rpx;
   font-size: 22rpx;
   color: #fff;
-  background: linear-gradient(90deg, #ff6b00, #e02020);
+  background: var(--d-primary, #ff6b00);
   border-radius: 24rpx;
 }
 </style>

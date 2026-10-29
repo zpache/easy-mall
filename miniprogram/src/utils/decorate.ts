@@ -5,7 +5,8 @@ import type {
   NavTabItem,
   NavbarConfig,
   PageSchema,
-  TabbarConfig
+  TabbarConfig,
+  ThemeConfig
 } from '@/types/decorate'
 
 /** 小程序内已注册的 tab 页（与 pages.json tabBar.list 对应） */
@@ -47,6 +48,38 @@ export const DEFAULT_FLOAT: FloatConfig = {
     { key: 'cart', name: '购物车', icon: '', value: '', enabled: true },
     { key: 'top', name: '回到顶部', icon: '', value: '', enabled: true }
   ]
+}
+
+/** 默认主题（与后台「活力橙」预设一致）：主题接口异常或未启用主题时兜底 */
+export const DEFAULT_THEME: ThemeConfig = {
+  primaryColor: '#ff6b00',
+  pageBgColor: '#f5f6f7',
+  priceColor: '#ff4d1f',
+  textColor: '#1f1f1f',
+  subTextColor: '#999999'
+}
+
+/** 十六进制颜色校验：#RGB 或 #RRGGBB */
+function isHexColor(value: unknown): value is string {
+  return typeof value === 'string' && /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(value)
+}
+
+/** 后端下发的线上主题 JSON → 渲染用配置：逐键校验，非法值回退默认 */
+export function parseTheme(data: { themeJson?: string } | null | undefined): ThemeConfig {
+  if (!data?.themeJson) return { ...DEFAULT_THEME }
+  try {
+    const raw = JSON.parse(data.themeJson)
+    const pick = (key: keyof ThemeConfig) => (isHexColor(raw?.[key]) ? raw[key] : DEFAULT_THEME[key])
+    return {
+      pageBgColor: pick('pageBgColor'),
+      priceColor: pick('priceColor'),
+      primaryColor: pick('primaryColor'),
+      subTextColor: pick('subTextColor'),
+      textColor: pick('textColor')
+    }
+  } catch {
+    return { ...DEFAULT_THEME }
+  }
 }
 
 /** 未配置图标时的兜底图标名（与后台 config.ts 的 TAB_ICONS 保持一致） */

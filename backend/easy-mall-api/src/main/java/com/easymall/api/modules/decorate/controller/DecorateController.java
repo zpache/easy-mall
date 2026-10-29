@@ -6,6 +6,7 @@ import com.easymall.api.modules.coupon.vo.CouponCardVO;
 import com.easymall.api.modules.decorate.service.DecorateService;
 import com.easymall.api.modules.decorate.vo.DecoratePageVO;
 import com.easymall.api.modules.decorate.vo.NavConfigVO;
+import com.easymall.api.modules.decorate.vo.ThemeConfigVO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -45,6 +46,12 @@ public class DecorateController {
     @GetMapping("/nav")
     public Result<NavConfigVO> nav() {
         return Result.ok(decorateService.navConfig());
+    }
+
+    @Operation(summary = "线上主题配置（换肤，无启用主题时为空）")
+    @GetMapping("/theme")
+    public Result<ThemeConfigVO> theme() {
+        return Result.ok(decorateService.themeConfig());
     }
 
     @Operation(summary = "装修「优惠券」组件的券卡片（按传入随机码顺序返回）")

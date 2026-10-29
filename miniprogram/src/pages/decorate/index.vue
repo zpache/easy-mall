@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { onLoad, onPullDownRefresh } from '@dcloudio/uni-app'
 import DecorateFloatBall from '@/components/decorate/float-ball.vue'
 import DecorateRender from '@/components/decorate/render.vue'
@@ -23,6 +23,17 @@ const schema = ref<PageSchema>({
 const loading = ref(true)
 const error = ref('')
 
+/**
+ * 页面背景：装修页单独设置过背景色（非默认值）则优先，
+ * 否则跟随线上主题的背景色（换肤）。
+ */
+const DEFAULT_PAGE_BG = '#f5f6f7'
+const pageBg = computed(() => {
+  const pageColor = schema.value.page.bgColor
+  if (pageColor && pageColor !== DEFAULT_PAGE_BG) return pageColor
+  return decorateStore.theme.pageBgColor || DEFAULT_PAGE_BG
+})
+
 async function load() {
   if (!pageId.value) {
     error.value = '缺少页面参数'
@@ -31,6 +42,7 @@ async function load() {
   }
   loading.value = true
   error.value = ''
+  decorateStore.ensureTheme()
   try {
     const data = await decorateApi.page(pageId.value)
     schema.value = parseSchema(data.schemaJson, data.name)
@@ -60,7 +72,7 @@ onPullDownRefresh(async () => {
 </script>
 
 <template>
-  <view class="dpage" :style="{ background: schema.page.bgColor || '#f5f6f7' }">
+  <view class="dpage" :style="{ background: pageBg }">
     <image
       v-if="schema.page.bgImage"
       class="dpage__bg"
