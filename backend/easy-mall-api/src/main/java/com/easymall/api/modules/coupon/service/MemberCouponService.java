@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.easymall.api.common.api.ResultCode;
 import com.easymall.api.common.context.UserContext;
 import com.easymall.api.common.exception.BusinessException;
+import com.easymall.api.common.lock.DistributedLockService;
 import com.easymall.api.entity.Coupon;
 import com.easymall.api.entity.CouponUser;
 import com.easymall.api.mapper.CouponMapper;
@@ -13,10 +14,11 @@ import com.easymall.api.modules.coupon.vo.MemberCouponResult;
 import com.easymall.api.modules.coupon.vo.MemberCouponVO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -40,6 +42,8 @@ public class MemberCouponService {
 
     private final CouponUserMapper couponUserMapper;
     private final CouponMapper couponMapper;
+    private final DistributedLockService distributedLockService;
+    private final TransactionTemplate transactionTemplate;
 
     /**
      * @param status 可选过滤：0 可用 / 1 已使用 / 2 已过期；null 返回全部
@@ -199,16 +203,29 @@ public class MemberCouponService {
     /**
      * 领取一张券：库存用 SQL 原子占用，避免并发超发。
      * 同一张券的限领校验按“未使用 + 已使用”计数，已过期的记录不占名额。
+     *
+     * <p>限领校验是「先查后插」，并发请求会在彼此提交前都通过校验导致重复领取，
+     * 因此用分布式锁把同一用户对同一张券的领取串行化：锁在事务外层，
+     * 前一个事务提交、锁释放后，下一个请求进来才能复查到最新领取数。</p>
      */
-    @Transactional(rollbackFor = Exception.class)
     public MemberCouponVO receive(String couponCode) {
         Long userId = UserContext.userId();
         if (!StringUtils.hasText(couponCode)) {
             throw new BusinessException(ResultCode.COUPON_NOT_FOUND);
         }
+        String code = couponCode.trim();
+        return distributedLockService.execute(
+                "coupon:receive:" + userId + ":" + code,
+                Duration.ofSeconds(10),
+                Duration.ofSeconds(3),
+                () -> transactionTemplate.execute(status -> doReceive(code)));
+    }
+
+    private MemberCouponVO doReceive(String code) {
+        Long userId = UserContext.userId();
         // 对外只认随机码，自增主键不出网关
         Coupon coupon = couponMapper.selectOne(Wrappers.<Coupon>lambdaQuery()
-                .eq(Coupon::getCouponCode, couponCode.trim())
+                .eq(Coupon::getCouponCode, code)
                 .last("limit 1"));
         if (coupon == null) {
             throw new BusinessException(ResultCode.COUPON_NOT_FOUND);
