@@ -43,6 +43,7 @@ export type PropFieldType =
   | 'color'
   | 'coupons'
   | 'datetime'
+  | 'goods'
   | 'image'
   | 'input'
   | 'items'

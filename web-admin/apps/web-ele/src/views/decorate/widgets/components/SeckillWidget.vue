@@ -10,7 +10,7 @@ let timer: any;
 const pad2 = (n: number) => String(n).padStart(2, '0');
 
 function tick() {
-  const end = props.config.endTime ? new Date(String(props.config.endTime).replace(/-/g, '/')).getTime() : 0;
+  const end = props.config.endTime ? new Date(String(props.config.endTime).replaceAll('-', '/')).getTime() : 0;
   const diff = Math.max(0, end - Date.now());
   remain.value = {
     days: Math.floor(diff / 86_400_000),
@@ -26,8 +26,38 @@ onMounted(() => {
 });
 onBeforeUnmount(() => clearInterval(timer));
 
-const price = computed(() => Number(props.config.price ?? 0).toFixed(2));
-const originPrice = computed(() => Number(props.config.originPrice ?? 0).toFixed(2));
+/**
+ * 秒杀商品列表：新版为 goods 选择器快照数组（含 seckillPrice）；
+ * 旧版手填单商品字段做兼容展示。
+ */
+const goodsList = computed<any[]>(() => {
+  if (Array.isArray(props.config.goods) && props.config.goods.length > 0) {
+    return props.config.goods;
+  }
+  const { goodsName, image, price, originPrice } = props.config;
+  if (goodsName || image) {
+    return [
+      {
+        image: image || '',
+        name: goodsName || '秒杀商品',
+        price: Number(originPrice ?? 0),
+        seckillPrice: Number(price ?? 0),
+      },
+    ];
+  }
+  return [];
+});
+
+function priceOf(item: any) {
+  return Number(item.seckillPrice ?? item.price ?? 0).toFixed(2);
+}
+
+function originOf(item: any) {
+  const origin = Number(item.price ?? 0);
+  const seckill = Number(item.seckillPrice ?? 0);
+  // 没填秒杀价或与原价相同就不显示划线原价
+  return seckill > 0 && origin > seckill ? origin.toFixed(2) : '';
+}
 
 /**
  * 倒计时片段：
@@ -50,7 +80,6 @@ const segments = computed(() => {
     { num: pad2(seconds), unit: '' },
   ];
 });
-
 </script>
 
 <template>
@@ -69,17 +98,20 @@ const segments = computed(() => {
         </template>
       </div>
     </div>
-    <div class="goods">
-      <img v-if="config.image" class="cover" :src="config.image" alt="seckill" />
-      <div v-else class="cover placeholder" />
-      <div class="info">
-        <p class="name">{{ config.goodsName || '秒杀商品' }}</p>
-        <div class="price-row">
-          <span class="price"><i>¥</i>{{ price }}</span>
-          <span class="origin">¥{{ originPrice }}</span>
+    <div class="goods-scroll">
+      <div v-for="(item, index) in goodsList" :key="item.id ?? index" class="goods">
+        <img v-if="item.image" class="cover" :src="item.image" alt="seckill" />
+        <div v-else class="cover placeholder"></div>
+        <div class="info">
+          <p class="name">{{ item.name || '秒杀商品' }}</p>
+          <div class="price-row">
+            <span class="price"><i>¥</i>{{ priceOf(item) }}</span>
+            <span v-if="originOf(item)" class="origin">¥{{ originOf(item) }}</span>
+          </div>
+          <span class="btn">立即抢购</span>
         </div>
-        <span class="btn">立即抢购</span>
       </div>
+      <div v-if="goodsList.length === 0" class="empty">请选择秒杀商品</div>
     </div>
   </div>
 </template>
@@ -137,16 +169,25 @@ const segments = computed(() => {
   font-style: normal;
   color: #333;
 }
+.goods-scroll {
+  display: flex;
+  gap: 8px;
+  padding: 2px;
+  overflow-x: auto;
+}
 .goods {
   display: flex;
-  gap: 10px;
+  flex: none;
+  gap: 8px;
+  width: 240px;
   padding: 8px;
   background: #fff;
   border-radius: 8px;
 }
 .cover {
-  width: 96px;
-  height: 96px;
+  flex: none;
+  width: 76px;
+  height: 76px;
   object-fit: cover;
   border-radius: 6px;
 }
@@ -157,12 +198,13 @@ const segments = computed(() => {
   display: flex;
   flex: 1;
   flex-direction: column;
+  min-width: 0;
 }
 .name {
   display: -webkit-box;
   margin: 0;
   overflow: hidden;
-  font-size: 13px;
+  font-size: 12px;
   color: #333;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
@@ -174,26 +216,32 @@ const segments = computed(() => {
   margin-top: auto;
 }
 .price {
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 700;
   color: #e02020;
 }
 .price i {
-  font-size: 11px;
+  font-size: 10px;
   font-style: normal;
 }
 .origin {
-  font-size: 11px;
+  font-size: 10px;
   color: #999;
   text-decoration: line-through;
 }
 .btn {
   align-self: flex-start;
-  padding: 4px 12px;
-  margin-top: 6px;
-  font-size: 11px;
+  padding: 2px 10px;
+  margin-top: 4px;
+  font-size: 10px;
   color: #fff;
   background: linear-gradient(90deg, #ff6b00, #e02020);
-  border-radius: 12px;
+  border-radius: 10px;
+}
+.empty {
+  padding: 16px 0;
+  font-size: 12px;
+  color: #bbb;
+  text-align: center;
 }
 </style>
