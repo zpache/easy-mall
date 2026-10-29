@@ -9,7 +9,7 @@ import com.easymall.api.mapper.AppUserMapper;
 import com.easymall.api.modules.auth.config.WxProperties;
 import com.easymall.api.modules.auth.dto.WxSessionResponse;
 import com.easymall.api.modules.auth.vo.LoginVO;
-import com.easymall.api.security.JwtTokenProvider;
+import com.easymall.api.security.LoginSessionService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -27,7 +27,7 @@ public class WxAuthService {
 
     private final WxProperties wxProperties;
     private final AppUserMapper appUserMapper;
-    private final JwtTokenProvider jwtTokenProvider;
+    private final LoginSessionService loginSessionService;
     private final ObjectMapper objectMapper;
     private final RestClient restClient = RestClient.create();
 
@@ -49,11 +49,9 @@ public class WxAuthService {
         }
 
         LoginUser loginUser = new LoginUser(user.getId(), user.getOpenid(), user.getNickname());
-        return new LoginVO(
-                jwtTokenProvider.createToken(loginUser),
-                "Bearer",
-                jwtTokenProvider.getExpireSeconds(),
-                loginUser);
+        // 生成服务端可控的自定义登录态（Redis 会话），替代自包含 JWT
+        String token = loginSessionService.create(loginUser);
+        return new LoginVO(token, "Bearer", loginSessionService.getExpireSeconds(), loginUser);
     }
 
     private String resolveOpenid(String code) {
