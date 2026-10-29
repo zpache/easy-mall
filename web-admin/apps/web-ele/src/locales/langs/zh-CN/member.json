@@ -28,6 +28,7 @@
     "level": "会员等级",
     "list": "会员列表",
     "nickname": "昵称",
+    "openid": "OpenID",
     "operation": "操作",
     "orderCount": "订单数",
     "phone": "手机号",

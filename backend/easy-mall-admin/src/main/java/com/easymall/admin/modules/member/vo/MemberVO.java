@@ -9,6 +9,7 @@ import java.util.List;
  */
 public record MemberVO(
         Long id,
+        String openid,
         String nickname,
         String avatar,
         String phone,
