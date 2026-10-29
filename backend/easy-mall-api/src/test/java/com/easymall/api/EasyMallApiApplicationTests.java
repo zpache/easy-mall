@@ -16,7 +16,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
- * 框架冒烟测试：上下文加载、免登录白名单、模拟微信登录、JWT 拦截。
+ * 框架冒烟测试：上下文加载、免登录白名单、模拟微信登录、自定义登录态（Redis 会话）拦截。
  */
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -65,5 +65,42 @@ class EasyMallApiApplicationTests {
         mockMvc.perform(get("/cart").header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(0));
+    }
+
+    private String login(String code) throws Exception {
+        MvcResult result = mockMvc.perform(post("/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"code\":\"" + code + "\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0))
+                .andReturn();
+        return com.jayway.jsonpath.JsonPath.read(
+                result.getResponse().getContentAsString(), "$.data.accessToken");
+    }
+
+    @Test
+    @DisplayName("退出登录后服务端销毁登录态，原 token 失效")
+    void logoutInvalidatesToken() throws Exception {
+        String token = login("logout-case");
+        mockMvc.perform(post("/auth/logout").header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0));
+        mockMvc.perform(get("/cart").header("Authorization", "Bearer " + token))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value(401));
+    }
+
+    @Test
+    @DisplayName("单设备登录：同一用户再次登录后旧 token 被挤下线")
+    void singleDeviceKicksPreviousToken() throws Exception {
+        String first = login("kick-case");
+        mockMvc.perform(get("/cart").header("Authorization", "Bearer " + first))
+                .andExpect(status().isOk());
+        String second = login("kick-case");
+        mockMvc.perform(get("/cart").header("Authorization", "Bearer " + second))
+                .andExpect(status().isOk());
+        mockMvc.perform(get("/cart").header("Authorization", "Bearer " + first))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value(401));
     }
 }

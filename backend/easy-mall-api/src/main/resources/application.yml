@@ -9,6 +9,13 @@ server:
 spring:
   application:
     name: easy-mall-api
+  data:
+    redis:
+      host: ${REDIS_HOST:127.0.0.1}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      database: ${REDIS_DATABASE:0}
+      timeout: 3s
   profiles:
     # local 存放本机私有配置（数据库密码等），已被 gitignore，缺失时不影响启动
     active: dev,local
@@ -34,11 +41,11 @@ mybatis-plus:
   mapper-locations: classpath*:/mapper/**/*.xml
 
 easy-mall:
-  jwt:
-    # 与 admin 使用不同密钥，两端的 token 不能互相通用
-    secret: ${JWT_SECRET:easy-mall-api-dev-only-secret-key-0123456789abcdef}
-    issuer: easy-mall-api
-    expire: 7d
+  # 小程序自定义登录态（Redis 会话）：code 换 openid 后签发不透明 token，
+  # 有效期 / 续期 / 踢下线均由服务端控制，替代自包含 JWT
+  session:
+    ttl: ${SESSION_TTL:7d}
+    single-device: ${SESSION_SINGLE_DEVICE:true}
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:*}
   security:

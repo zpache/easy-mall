@@ -38,13 +38,33 @@ export const useUserStore = defineStore('user', () => {
     return !avatar || !nickname || nickname === '微信用户'
   })
 
-  function logout() {
+  async function logout() {
+    // 先通知服务端销毁登录态（Redis 会话），本地无论成败都清空
+    await authApi.logout().catch(() => undefined)
     token.value = ''
     profile.value = null
     clearToken()
   }
 
-  return { token, profile, isLogin, profileIncomplete, login, fetchProfile, setProfile, logout }
+  let relogining = false
+  /**
+   * 静默重登：wx.login 不需要用户确认，token 失效（服务端会话过期/被踢）时无感换新。
+   * 返回 true 表示已拿到新 token。
+   */
+  async function silentRelogin(): Promise<boolean> {
+    if (relogining) return false
+    relogining = true
+    try {
+      await login()
+      return true
+    } catch {
+      return false
+    } finally {
+      relogining = false
+    }
+  }
+
+  return { token, profile, isLogin, profileIncomplete, login, fetchProfile, setProfile, silentRelogin, logout }
 })
 
 /**

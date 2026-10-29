@@ -198,7 +198,7 @@ pnpm dev:mp-weixin     # 微信开发者工具导入 miniprogram/dist/dev/mp-wei
 小程序需要配置的变量在 `.env.development`：`VITE_API_BASE_URL=http://127.0.0.1:8082/api`。
 本地调试请在微信开发者工具中勾选「不校验合法域名」；真机预览要把 `VITE_API_BASE_URL` 换成电脑的局域网地址（如 `http://192.168.1.10:8082/api`），手机与电脑需在同一网络。
 
-登录走真实微信链路：`wx.login` 取 code → 后端 `jscode2session` 换 openid（不存在则自动注册）→ 签发 JWT。凭证写在 `application-local.yml`（已 gitignore）：
+登录走微信官方推荐的「自定义登录态」模式：小程序启动即静默 `wx.login` 取 code → 后端 `jscode2session` 换 openid（不存在则自动注册）→ 生成随机不透明 token，**会话数据存 Redis**（`easy-mall:api:session:*`），token 下发给客户端。后续请求带 `Authorization: Bearer <token>`，拦截器查 Redis 校验并**滑动续期**；`POST /api/auth/logout` 由服务端销毁登录态；默认开启单设备登录（`easy-mall.session.single-device`），同一用户再次登录会挤掉旧 token。相比自包含 JWT：可随时作废、可续期、可踢下线，且 token 不携带任何用户信息。凭证写在 `application-local.yml`（已 gitignore）：
 
 ```yaml
 easy-mall:
@@ -209,6 +209,7 @@ easy-mall:
 ```
 
 - `mock` 默认为 `false`，不再提供免凭证登录；只有临时联调且没有小程序凭证时，才用 `WX_MOCK=true` 伪造 openid（生产环境禁止）。
+- **Redis 为强依赖**：默认连 `127.0.0.1:6379`，可用 `REDIS_HOST/REDIS_PORT/REDIS_PASSWORD/REDIS_DATABASE` 覆盖；登录态 TTL 默认 7 天（`SESSION_TTL`），每次请求自动续期。token 失效时小程序请求层会自动静默重登一次，用户无感。
 - `app-id` 还要写进 `miniprogram/src/manifest.json` 的 `mp-weixin.appid`，编译产物 `project.config.json` 的 appid 由它生成（否则是 `touristappid`，无法真机预览/上传）。
 - H5 端没有 `wx.login`，关闭 mock 后 H5 的「微信一键登录」会返回 4008，只适合调试免登录页面。
 
@@ -450,7 +451,7 @@ admin 使用 Spring Security 无状态鉴权（token 12 小时），api 使用 M
 
 1. 商品多规格 SKU、优惠券与营销活动
 2. 微信支付（统一下单 + 回调）、订单超时自动关闭
-3. Redis 缓存热点商品、token 黑名单（强制下线）
+3. Redis 缓存热点商品
 4. 文件上传（对象存储）、商品图片管理
-5. 服务端权限闭环：`/system/*` 等读接口补 `@PreAuthorize`，按钮权限码纳入 JWT authorities
+5. 服务端权限闭环：`/system/*` 等读接口补 `@PreAuthorize`，按钮权限码纳入权限 authorities
 6. 小程序 tabBar 图标替换为正式设计稿、真实微信支付接入

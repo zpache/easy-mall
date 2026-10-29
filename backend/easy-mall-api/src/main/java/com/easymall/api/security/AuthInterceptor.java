@@ -13,7 +13,7 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.servlet.HandlerInterceptor;
 
 /**
- * 小程序端登录拦截器：校验 JWT 并写入 {@link UserContext}。
+ * 小程序端登录拦截器：校验自定义登录态（Redis 会话）并写入 {@link UserContext}。
  * 免登录路径由 easy-mall.security.ignore-urls 配置。
  */
 @Component
@@ -22,7 +22,7 @@ public class AuthInterceptor implements HandlerInterceptor {
 
     private static final String BEARER_PREFIX = "Bearer ";
 
-    private final JwtTokenProvider tokenProvider;
+    private final LoginSessionService sessionService;
 
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
@@ -33,7 +33,7 @@ public class AuthInterceptor implements HandlerInterceptor {
         if (!StringUtils.hasText(token)) {
             throw new BusinessException(ResultCode.UNAUTHORIZED);
         }
-        LoginUser loginUser = tokenProvider.parseToken(token)
+        LoginUser loginUser = sessionService.resolve(token)
                 .orElseThrow(() -> new BusinessException(ResultCode.UNAUTHORIZED));
         UserContext.set(loginUser);
         return true;

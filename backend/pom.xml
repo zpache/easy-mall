@@ -30,9 +30,10 @@
 
         <mybatis-plus.version>3.5.18</mybatis-plus.version>
         <springdoc.version>3.2.0</springdoc.version>
-        <jjwt.version>0.13.0</jjwt.version>
         <!-- 腾讯云 STS：签发前端直传 COS 的临时密钥 -->
         <tencentcloud-sdk.version>3.2.6</tencentcloud-sdk.version>
+        <!-- admin 管理端自包含 JWT 仍在用；小程序端已改为 Redis 自定义登录态 -->
+        <jjwt.version>0.13.0</jjwt.version>
     </properties>
 
     <dependencyManagement>
@@ -54,6 +55,11 @@
                 <version>${springdoc.version}</version>
             </dependency>
             <dependency>
+                <groupId>com.tencentcloudapi</groupId>
+                <artifactId>tencentcloud-sdk-java-sts</artifactId>
+                <version>${tencentcloud-sdk.version}</version>
+            </dependency>
+            <dependency>
                 <groupId>io.jsonwebtoken</groupId>
                 <artifactId>jjwt-api</artifactId>
                 <version>${jjwt.version}</version>
@@ -67,11 +73,6 @@
                 <groupId>io.jsonwebtoken</groupId>
                 <artifactId>jjwt-jackson</artifactId>
                 <version>${jjwt.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>com.tencentcloudapi</groupId>
-                <artifactId>tencentcloud-sdk-java-sts</artifactId>
-                <version>${tencentcloud-sdk.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>

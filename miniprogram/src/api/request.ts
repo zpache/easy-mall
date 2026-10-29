@@ -27,6 +27,17 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * 401 时的自动重新登录钩子（App 启动时注册为静默 wx.login）。
+ * 返回 true 表示已拿到新 token，请求可安全重试一次。
+ */
+type UnauthorizedHandler = () => Promise<boolean>
+let unauthorizedHandler: UnauthorizedHandler | null = null
+
+export function setUnauthorizedHandler(handler: UnauthorizedHandler | null) {
+  unauthorizedHandler = handler
+}
+
 let redirecting = false
 
 function redirectToLogin() {
@@ -58,7 +69,12 @@ function isSuccess(code: number | undefined) {
  * 2. 统一处理 HTTP 401 与业务 code
  * 3. 直接返回 data，页面不用关心外层包装
  */
-export function request<T>(options: RequestOptions): Promise<T> {
+export interface RequestOptionsEx extends RequestOptions {
+  /** 内部标记：已因 401 静默重登重试过，避免循环 */
+  __retried?: boolean
+}
+
+export async function request<T>(options: RequestOptionsEx): Promise<T> {
   const { url, method = 'GET', data, loading = false, redirectOnUnauthorized = true } = options
   const token = getToken()
 
@@ -66,47 +82,58 @@ export function request<T>(options: RequestOptions): Promise<T> {
     uni.showLoading({ title: '加载中', mask: true })
   }
 
-  return new Promise<T>((resolve, reject) => {
-    uni.request({
-      url: BASE_URL + url,
-      method,
-      data,
-      timeout: 15000,
-      header: {
-        'Content-Type': 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {})
-      },
-      success: (res) => {
-        const body = res.data as ApiResult<T>
+  const result = await new Promise<{ ok: boolean; body?: ApiResult<T>; statusCode: number; errMsg?: string }>(
+    (resolve) => {
+      uni.request({
+        url: BASE_URL + url,
+        method,
+        data,
+        timeout: 15000,
+        header: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
+        success: (res) =>
+          resolve({ ok: true, body: res.data as ApiResult<T>, statusCode: res.statusCode }),
+        fail: (err) => resolve({ ok: false, statusCode: -1, errMsg: err.errMsg })
+      })
+    }
+  )
 
-        if (res.statusCode === 401 || body?.code === 401) {
-          if (redirectOnUnauthorized) {
-            redirectToLogin()
-          }
-          reject(new ApiError(401, body?.message || '登录已失效'))
-          return
-        }
+  if (loading) {
+    uni.hideLoading()
+  }
 
-        if (res.statusCode >= 200 && res.statusCode < 300 && isSuccess(body?.code)) {
-          resolve(body.data)
-          return
-        }
+  if (!result.ok) {
+    toast('网络异常，请检查网络后重试')
+    throw new ApiError(-1, result.errMsg || '网络异常')
+  }
 
-        const message = body?.message || `请求失败(${res.statusCode})`
-        toast(message)
-        reject(new ApiError(body?.code ?? res.statusCode, message))
-      },
-      fail: (err) => {
-        toast('网络异常，请检查网络后重试')
-        reject(new ApiError(-1, err.errMsg || '网络异常'))
-      },
-      complete: () => {
-        if (loading) {
-          uni.hideLoading()
-        }
+  const body = result.body
+  const unauthorized = result.statusCode === 401 || body?.code === 401
+
+  if (unauthorized) {
+    // 自定义登录态失效：尝试静默重登（wx.login 对用户无感）后重试一次
+    if (redirectOnUnauthorized && !options.__retried && unauthorizedHandler) {
+      clearToken()
+      const relogin = await unauthorizedHandler().catch(() => false)
+      if (relogin && getToken()) {
+        return request<T>({ ...options, __retried: true, redirectOnUnauthorized: false })
       }
-    })
-  })
+    }
+    if (redirectOnUnauthorized) {
+      redirectToLogin()
+    }
+    throw new ApiError(401, body?.message || '登录已失效')
+  }
+
+  if (result.statusCode >= 200 && result.statusCode < 300 && isSuccess(body?.code)) {
+    return body!.data as T
+  }
+
+  const message = body?.message || `请求失败(${result.statusCode})`
+  toast(message)
+  throw new ApiError(body?.code ?? result.statusCode, message)
 }
 
 /** 拼装 query string，过滤空值 */
