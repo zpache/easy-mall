@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { openLink } from '@/utils/decorate'
 
 const props = defineProps<{ config: Record<string, any> }>()
 
@@ -71,7 +72,7 @@ const segments = computed(() => {
       </view>
     </view>
 
-    <view class="d-seckill__goods">
+    <view class="d-seckill__goods" @tap="openLink(config.link)">
       <image v-if="config.image" class="d-seckill__cover" :src="config.image" mode="aspectFill" />
       <view v-else class="d-seckill__cover d-seckill__cover--empty" />
       <view class="d-seckill__info">
