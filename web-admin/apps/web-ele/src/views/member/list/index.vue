@@ -9,14 +9,14 @@ import { onMounted } from 'vue';
 
 import { Page, useVbenDrawer } from '@vben/common-ui';
 
+import { ElAvatar } from 'element-plus';
+
 import { useVbenVxeGrid } from '#/adapter/vxe-table';
 import { getLevelOptions } from '#/api/member/level';
 import { getMemberList } from '#/api/member/member';
 import { getTagOptions } from '#/api/member/tag';
 import { $t } from '#/locales';
 
-import PointsDrawer from './modules/points.vue';
-import TagsDrawer from './modules/tags.vue';
 import {
   levelOptionList,
   setLevelOptions,
@@ -25,6 +25,8 @@ import {
   useColumns,
   useGridFormSchema,
 } from './data';
+import PointsDrawer from './modules/points.vue';
+import TagsDrawer from './modules/tags.vue';
 
 const [PointsAdjustDrawer, pointsDrawerApi] = useVbenDrawer({
   connectedComponent: PointsDrawer,
@@ -108,6 +110,12 @@ onMounted(() => {
   <Page auto-content-height>
     <PointsAdjustDrawer @success="gridApi.query()" />
     <MemberTagsDrawer @success="gridApi.query()" />
-    <Grid :table-title="$t('member.list.title')" />
+    <Grid :table-title="$t('member.list.title')">
+      <template #avatar="{ row }">
+        <ElAvatar :size="36" shape="circle" :src="row.avatar || undefined">
+          {{ (row.nickname || '·').slice(0, 1) }}
+        </ElAvatar>
+      </template>
+    </Grid>
   </Page>
 </template>

@@ -92,6 +92,14 @@ export function useColumns<T = MemberApi.Member>(
 ): VxeTableGridColumns {
   return [
     {
+      field: 'avatar',
+      minWidth: 80,
+      // 头像用插槽渲染：微信头像可能是任意域名，加载失败时回退昵称首字
+      slots: { default: 'avatar' },
+      title: $t('member.list.avatar'),
+      width: 80,
+    },
+    {
       field: 'nickname',
       minWidth: 140,
       title: $t('member.list.nickname'),
