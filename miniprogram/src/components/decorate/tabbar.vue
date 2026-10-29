@@ -103,7 +103,9 @@ const borderTop = computed(() => {
   display: flex;
   align-items: center;
   justify-content: space-around;
-  height: 104rpx;
+  /* 不写死容器高度：全局 view 是 border-box，height + 安全区 padding 会把
+     内容区压到放不下图标（iOS 真机挤压重叠、安卓 inset 为 0 表现正常）。
+     高度交给 item 的 104rpx + 底部安全区 padding 自然撑开 */
   padding-bottom: constant(safe-area-inset-bottom);
   padding-bottom: env(safe-area-inset-bottom);
 }
