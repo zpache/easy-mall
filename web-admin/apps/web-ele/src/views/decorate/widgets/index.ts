@@ -287,6 +287,7 @@ export const WIDGETS: WidgetDefinition[] = [
       { key: 'showSales', label: '显示销量', type: 'switch' },
       {
         itemFields: [
+          { key: 'id', label: '商品ID', type: 'number', min: 1, tip: '点击商品跳转详情所需' },
           { key: 'image', label: '主图', type: 'image' },
           { key: 'name', label: '名称', type: 'input' },
           { key: 'price', label: '价格', type: 'number', min: 0, step: 0.01 },
@@ -311,6 +312,7 @@ export const WIDGETS: WidgetDefinition[] = [
       endTime: '2026-12-31 22:00:00',
       goodsName: '当季赣南脐橙 5 斤装',
       image: 'https://picsum.photos/seed/seckill-a/300/300',
+      link: '',
       originPrice: 29.9,
       price: 19.9,
       subtitle: '每天 10 点开抢',
@@ -321,6 +323,7 @@ export const WIDGETS: WidgetDefinition[] = [
       { key: 'subtitle', label: '副标题', type: 'input' },
       { key: 'goodsName', label: '商品名称', type: 'input' },
       { key: 'image', label: '商品主图', type: 'image' },
+      { key: 'link', label: '跳转链接', type: 'input', placeholder: '/goods/1' },
       { key: 'price', label: '秒杀价', type: 'number', min: 0, step: 0.01 },
       { key: 'originPrice', label: '原价', type: 'number', min: 0, step: 0.01 },
       { key: 'endTime', label: '结束时间', type: 'datetime' },
