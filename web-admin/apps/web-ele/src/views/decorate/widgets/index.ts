@@ -25,37 +25,6 @@ const alignOptions = [
   { label: '居中', value: 'center' },
 ];
 
-const demoGoods = [
-  {
-    id: 1,
-    image: 'https://picsum.photos/seed/goods-1/400/400',
-    name: '当季赣南脐橙 5 斤装',
-    price: 29.9,
-    sales: 1280,
-  },
-  {
-    id: 2,
-    image: 'https://picsum.photos/seed/goods-2/400/400',
-    name: '智利车厘子 JJ 级 2 斤',
-    price: 89,
-    sales: 642,
-  },
-  {
-    id: 3,
-    image: 'https://picsum.photos/seed/goods-3/400/400',
-    name: '每日坚果混合装 30 包',
-    price: 59.9,
-    sales: 2310,
-  },
-  {
-    id: 4,
-    image: 'https://picsum.photos/seed/goods-4/400/400',
-    name: '低温鲜牛乳 950ml x 6',
-    price: 69,
-    sales: 876,
-  },
-];
-
 export const WIDGETS: WidgetDefinition[] = [
   {
     category: 'base',
@@ -258,11 +227,8 @@ export const WIDGETS: WidgetDefinition[] = [
     component: GoodsWidget,
     defaultProps: {
       columns: 2,
-      count: 4,
-      goods: demoGoods,
+      goods: [],
       layout: 'grid',
-      showName: true,
-      showPrice: true,
       showSales: true,
     },
     fields: [
@@ -286,18 +252,11 @@ export const WIDGETS: WidgetDefinition[] = [
       },
       { key: 'showSales', label: '显示销量', type: 'switch' },
       {
-        itemFields: [
-          { key: 'id', label: '商品ID', type: 'number', min: 1, tip: '点击商品跳转详情所需' },
-          { key: 'image', label: '主图', type: 'image' },
-          { key: 'name', label: '名称', type: 'input' },
-          { key: 'price', label: '价格', type: 'number', min: 0, step: 0.01 },
-          { key: 'sales', label: '销量', type: 'number', min: 0 },
-        ],
-        itemLabelKey: 'name',
         key: 'goods',
-        label: '商品',
+        label: '选择商品',
         maxItems: 12,
-        type: 'items',
+        tip: '展示数据为选择时的商品快照',
+        type: 'goods',
       },
     ],
     icon: 'lucide:package',
@@ -310,22 +269,23 @@ export const WIDGETS: WidgetDefinition[] = [
     defaultProps: {
       bgColor: '#fff1f0',
       endTime: '2026-12-31 22:00:00',
-      goodsName: '当季赣南脐橙 5 斤装',
-      image: 'https://picsum.photos/seed/seckill-a/300/300',
-      link: '',
-      originPrice: 29.9,
-      price: 19.9,
+      goods: [],
       subtitle: '每天 10 点开抢',
       title: '限时秒杀',
     },
     fields: [
       { key: 'title', label: '标题', type: 'input' },
       { key: 'subtitle', label: '副标题', type: 'input' },
-      { key: 'goodsName', label: '商品名称', type: 'input' },
-      { key: 'image', label: '商品主图', type: 'image' },
-      { key: 'link', label: '跳转链接', type: 'input', placeholder: '/goods/1' },
-      { key: 'price', label: '秒杀价', type: 'number', min: 0, step: 0.01 },
-      { key: 'originPrice', label: '原价', type: 'number', min: 0, step: 0.01 },
+      {
+        itemFields: [
+          { key: 'seckillPrice', label: '秒杀价（元）', min: 0, step: 0.01, type: 'number' },
+        ],
+        key: 'goods',
+        label: '秒杀商品',
+        maxItems: 10,
+        tip: '为每个商品单独填写秒杀价',
+        type: 'goods',
+      },
       { key: 'endTime', label: '结束时间', type: 'datetime' },
       { key: 'bgColor', label: '背景色', type: 'color' },
     ],

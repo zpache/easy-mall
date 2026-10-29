@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+
 import { openLink } from '@/utils/decorate'
 
 const props = defineProps<{ config: Record<string, any> }>()
@@ -28,8 +29,46 @@ onMounted(() => {
 
 onBeforeUnmount(() => clearInterval(timer))
 
-const price = computed(() => Number(props.config.price ?? 0).toFixed(2))
-const originPrice = computed(() => Number(props.config.originPrice ?? 0).toFixed(2))
+/**
+ * 秒杀商品列表：新版为装修后台商品选择器的快照数组（含 seckillPrice 与真实商品 id）；
+ * 旧版手填单商品字段做兼容展示。
+ */
+const goodsList = computed<any[]>(() => {
+  if (Array.isArray(props.config.goods) && props.config.goods.length > 0) {
+    return props.config.goods
+  }
+  const { goodsName, image, price, originPrice } = props.config
+  if (goodsName || image) {
+    return [
+      {
+        image: image || '',
+        name: goodsName || '秒杀商品',
+        price: Number(originPrice ?? 0),
+        seckillPrice: Number(price ?? 0)
+      }
+    ]
+  }
+  return []
+})
+
+function priceOf(item: any) {
+  return Number(item.seckillPrice ?? item.price ?? 0).toFixed(2)
+}
+
+function originOf(item: any) {
+  const origin = Number(item.price ?? 0)
+  const seckill = Number(item.seckillPrice ?? 0)
+  return seckill > 0 && origin > seckill ? origin.toFixed(2) : ''
+}
+
+function toDetail(item: any) {
+  // 新数据有真实商品 id；旧手填数据走历史 link 字段兜底
+  if (item.id) {
+    uni.navigateTo({ url: `/pages/goods/detail?id=${item.id}` })
+    return
+  }
+  openLink(props.config.link)
+}
 
 /**
  * 倒计时片段：
@@ -72,18 +111,25 @@ const segments = computed(() => {
       </view>
     </view>
 
-    <view class="d-seckill__goods" @tap="openLink(config.link)">
-      <image v-if="config.image" class="d-seckill__cover" :src="config.image" mode="aspectFill" />
-      <view v-else class="d-seckill__cover d-seckill__cover--empty" />
-      <view class="d-seckill__info">
-        <text class="d-seckill__name">{{ config.goodsName || '秒杀商品' }}</text>
-        <view class="d-seckill__prices">
-          <text class="d-seckill__price"><text class="d-seckill__yuan">¥</text>{{ price }}</text>
-          <text class="d-seckill__origin">¥{{ originPrice }}</text>
+    <scroll-view v-if="goodsList.length > 0" class="d-seckill__scroll" scroll-x>
+      <view
+        v-for="(item, index) in goodsList"
+        :key="item.id ?? index"
+        class="d-seckill__goods"
+        @tap="toDetail(item)"
+      >
+        <image v-if="item.image" class="d-seckill__cover" :src="item.image" mode="aspectFill" />
+        <view v-else class="d-seckill__cover d-seckill__cover--empty" />
+        <view class="d-seckill__info">
+          <text class="d-seckill__name">{{ item.name || '秒杀商品' }}</text>
+          <view class="d-seckill__prices">
+            <text class="d-seckill__price"><text class="d-seckill__yuan">¥</text>{{ priceOf(item) }}</text>
+            <text v-if="originOf(item)" class="d-seckill__origin">¥{{ originOf(item) }}</text>
+          </view>
+          <text class="d-seckill__btn">立即抢购</text>
         </view>
-        <text class="d-seckill__btn">立即抢购</text>
       </view>
-    </view>
+    </scroll-view>
   </view>
 </template>
 
@@ -158,18 +204,28 @@ const segments = computed(() => {
   color: #333;
 }
 
+.d-seckill__scroll {
+  width: 100%;
+  white-space: nowrap;
+}
+
 .d-seckill__goods {
-  display: flex;
+  display: inline-flex;
   gap: 20rpx;
+  width: 480rpx;
   padding: 16rpx;
+  margin-right: 16rpx;
+  overflow: hidden;
   background-color: #fff;
   border-radius: 16rpx;
+  vertical-align: top;
+  white-space: normal;
 }
 
 .d-seckill__cover {
   flex: none;
-  width: 192rpx;
-  height: 192rpx;
+  width: 168rpx;
+  height: 168rpx;
   border-radius: 12rpx;
 }
 

@@ -20,6 +20,7 @@ import {
 import { uploadImageApi } from '#/api/upload';
 
 import CouponPicker from './coupon-picker.vue';
+import GoodsPicker from './goods-picker.vue';
 
 defineOptions({ name: 'PropField' });
 
@@ -204,6 +205,13 @@ function itemTitle(item: any, index: number) {
     <CouponPicker
       v-else-if="field.type === 'coupons'"
       :max="field.max"
+      :model-value="value"
+      @update:model-value="(val: any) => (value = val)"
+    />
+    <GoodsPicker
+      v-else-if="field.type === 'goods'"
+      :field="field"
+      :max-items="field.maxItems"
       :model-value="value"
       @update:model-value="(val: any) => (value = val)"
     />
