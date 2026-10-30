@@ -100,13 +100,13 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
     }
 
     /**
-     * 关闭订单：仅未支付的（待付款）或已支付未发货且无进行中售后的订单可关闭。
+     * 关闭订单：仅「待付款」且未收到支付的订单可关闭。
      *
      * <p>关闭时回滚库存与销量、退回优惠券，与小程序端取消/超时关单口径保持一致，
      * 避免后台关单造成库存永久少扣。</p>
      *
-     * <p>已支付订单不再允许直接关闭：钱已经收了，必须走售后退款，否则会出现
-     * 「订单已关闭但款项未退」的黑洞。</p>
+     * <p>已支付订单一律不允许直接关闭：钱已经收了，必须走售后退款（退款确认时回滚会员权益），
+     * 否则会出现「订单已关闭但款项未退」的黑洞。</p>
      */
     @Transactional(rollbackFor = Exception.class)
     public void close(Long id, String reason) {
@@ -114,9 +114,8 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
         if (order == null) {
             throw new BusinessException(ResultCode.DATA_NOT_FOUND);
         }
-        if (!Objects.equals(order.getStatus(), Order.STATUS_UNPAID)
-                && !Objects.equals(order.getStatus(), Order.STATUS_UNDELIVERED)) {
-            throw new BusinessException(ResultCode.DATA_CONFLICT, "订单已发货或已完成，不能关闭");
+        if (!Objects.equals(order.getStatus(), Order.STATUS_UNPAID)) {
+            throw new BusinessException(ResultCode.DATA_CONFLICT, "订单已支付或已发货，不能直接关闭");
         }
         if (order.getPayTime() != null) {
             throw new BusinessException(ResultCode.DATA_CONFLICT, "订单已支付，请通过「售后退款」处理，不能直接关闭");
@@ -124,13 +123,20 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
         if (Objects.equals(order.getRefundStatus(), Order.REFUND_PROCESSING)) {
             throw new BusinessException(ResultCode.DATA_CONFLICT, "该订单有进行中的退款申请，请先在售后退款中处理");
         }
+        // pay_time is null 必须进条件：上面的检查与这里的更新之间可能恰好收到支付回调，
+        // 只带 status 条件会把刚支付成功的订单关掉（钱收了、库存券都退了且没有退款标记）
         int affected = baseMapper.update(null, Wrappers.<Order>lambdaUpdate()
                 .eq(Order::getId, id)
-                .in(Order::getStatus, Order.STATUS_UNPAID, Order.STATUS_UNDELIVERED)
+                .isNull(Order::getPayTime)
+                .eq(Order::getStatus, Order.STATUS_UNPAID)
                 .set(Order::getStatus, Order.STATUS_CANCELLED)
                 .set(Order::getCancelTime, LocalDateTime.now())
                 .set(Order::getCancelReason, StringUtils.hasText(reason) ? reason : "管理员关闭订单"));
         if (affected == 0) {
+            Order latest = getById(id);
+            if (latest != null && latest.getPayTime() != null) {
+                throw new BusinessException(ResultCode.DATA_CONFLICT, "订单刚刚完成支付，请通过「售后退款」处理");
+            }
             throw new BusinessException(ResultCode.DATA_CONFLICT, "订单已被其他人处理，请刷新后重试");
         }
         rollbackStockAndCoupon(order);
@@ -149,7 +155,9 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
                     .setSql("stock = stock + " + item.getQuantity())
                     .setSql("sales = GREATEST(sales - " + item.getQuantity() + ", 0)"));
         }
-        if (order.getCouponAmount() == null || order.getCouponAmount().compareTo(BigDecimal.ZERO) <= 0) {
+        // 按 couponId 判断是否用过券：折扣型券（或极小金额订单）实际抵扣可能算出来是 0.00，
+        // 用金额判断会把这些券永久卡在「已使用」状态，用户既用不了也退不回
+        if (order.getCouponId() == null || order.getOrderNo() == null) {
             return;
         }
         List<CouponUser> records = couponUserMapper.selectList(Wrappers.<CouponUser>lambdaQuery()

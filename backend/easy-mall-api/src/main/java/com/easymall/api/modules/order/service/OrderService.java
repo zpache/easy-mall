@@ -495,8 +495,9 @@ public class OrderService {
 
     /** 取消订单时回滚优惠券：置回未使用并清空核销信息，券模板核销数 -1（展示层会把已过有效期的券归一为已过期） */
     private void rollbackCoupon(MallOrder order) {
-        if (order.getCouponId() == null || order.getCouponAmount() == null
-                || order.getCouponAmount().compareTo(BigDecimal.ZERO) <= 0) {
+        // 按 couponId 判断是否用过券：折扣型券（或极小金额订单）实际抵扣可能算出来是 0.00，
+        // 用金额判断会把这些券永久卡在「已使用」状态，用户既用不了也退不回
+        if (order.getCouponId() == null || order.getOrderNo() == null) {
             return;
         }
         int affected = couponUserMapper.update(null, Wrappers.<CouponUser>lambdaUpdate()
