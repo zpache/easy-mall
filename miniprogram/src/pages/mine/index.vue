@@ -141,22 +141,22 @@ onShow(() => {
         <text class="card__more" @tap="toOrders()">全部订单 ›</text>
       </view>
       <view class="order-entries">
-        <view class="order-entries__item" @tap="toOrders(0)">
-          <text class="order-entries__icon">💰</text>
-          <text class="order-entries__label">待付款</text>
-        </view>
-        <view class="order-entries__item" @tap="toOrders(1)">
-          <text class="order-entries__icon">📦</text>
-          <text class="order-entries__label">待发货</text>
-        </view>
-        <view class="order-entries__item" @tap="toOrders(2)">
-          <text class="order-entries__icon">🚚</text>
-          <text class="order-entries__label">待收货</text>
-        </view>
-        <view class="order-entries__item" @tap="toOrders(3)">
-          <text class="order-entries__icon">✅</text>
-          <text class="order-entries__label">已完成</text>
-        </view>
+      <view class="order-entries__item" @tap="toOrders(0)">
+        <text class="order-entries__icon">💰</text>
+        <text class="order-entries__label">待付款</text>
+      </view>
+      <view class="order-entries__item" @tap="toOrders(10)">
+        <text class="order-entries__icon">🚚</text>
+        <text class="order-entries__label">待收货</text>
+      </view>
+      <view class="order-entries__item" @tap="toOrders(11)">
+        <text class="order-entries__icon">⭐</text>
+        <text class="order-entries__label">待评价</text>
+      </view>
+      <view class="order-entries__item" @tap="toOrders(3)">
+        <text class="order-entries__icon">✅</text>
+        <text class="order-entries__label">已完成</text>
+      </view>
       </view>
     </view>
 
