@@ -175,13 +175,6 @@ onShow(() => {
       <view class="cell cell-arrow" @tap="toAddress">
         <text>收货地址</text>
       </view>
-      <view class="cell cell-arrow" @tap="toOrders(0)">
-        <text>待付款订单</text>
-      </view>
-      <view class="cell">
-        <text>关于 easy-mall</text>
-        <text class="text-24rpx text-light">v1.0.0</text>
-      </view>
     </view>
 
     <view v-if="userStore.isLogin" class="logout" @tap="logout">退出登录</view>
