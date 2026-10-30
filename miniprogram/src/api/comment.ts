@@ -14,9 +14,11 @@ export const commentApi = {
   /**
    * 商品评价列表与评分概览。
    * 免登录可看已通过审核的评价；带登录态时额外返回自己的待审核 / 已拒绝评价。
+   * 评价是商品详情的附属内容：未登录 / 登录态过期时静默降级为游客视角，不打断商品浏览也不跳登录。
    */
   goodsComments: (goodsId: number, pageNum = 1, pageSize = 10) =>
     request<GoodsCommentPage>({
-      url: `/comments/goods/${goodsId}${buildQuery({ pageNum, pageSize })}`
+      url: `/comments/goods/${goodsId}${buildQuery({ pageNum, pageSize })}`,
+      redirectOnUnauthorized: false
     })
 }
