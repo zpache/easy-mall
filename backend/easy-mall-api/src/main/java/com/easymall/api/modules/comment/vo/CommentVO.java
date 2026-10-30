@@ -9,6 +9,9 @@ import java.util.List;
 
 /**
  * 评价展示视图：昵称做脱敏，晒图拆成数组方便前端遍历。
+ *
+ * @param auditStatus 审核状态：0 待审核，1 已通过，2 已拒绝；非 1 的评价只在本人视角出现
+ * @param auditRemark 审核备注（拒绝原因），仅本人视角可见
  */
 public record CommentVO(
         Long id,
@@ -21,7 +24,9 @@ public record CommentVO(
         List<String> images,
         String reply,
         LocalDateTime repliedAt,
-        LocalDateTime commentedAt
+        LocalDateTime commentedAt,
+        Integer auditStatus,
+        String auditRemark
 ) {
 
     public static CommentVO of(OrderComment comment) {
@@ -36,7 +41,9 @@ public record CommentVO(
                 splitImages(comment.getImages()),
                 comment.getReply(),
                 comment.getRepliedAt(),
-                comment.getCommentedAt());
+                comment.getCommentedAt(),
+                comment.getAuditStatus(),
+                comment.getAuditRemark());
     }
 
     public static List<String> splitImages(String images) {

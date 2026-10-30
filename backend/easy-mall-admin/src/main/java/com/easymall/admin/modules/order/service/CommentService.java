@@ -17,14 +17,14 @@ import org.springframework.util.StringUtils;
 import java.time.LocalDateTime;
 
 /**
- * 评价服务：列表、显示 / 隐藏、回复、删除。
+ * 评价服务：列表、审核、显示 / 隐藏、回复、删除。
  */
 @Service
 @RequiredArgsConstructor
 public class CommentService extends ServiceImpl<OrderCommentMapper, OrderComment> {
 
     public PageResult<CommentVO> pageQuery(long pageNum, long pageSize, String keyword,
-                                           Integer score, Integer isShow) {
+                                           Integer score, Integer isShow, Integer auditStatus) {
         LambdaQueryWrapper<OrderComment> wrapper = Wrappers.<OrderComment>lambdaQuery()
                 .and(StringUtils.hasText(keyword), w -> w
                         .like(OrderComment::getGoodsName, keyword)
@@ -33,6 +33,7 @@ public class CommentService extends ServiceImpl<OrderCommentMapper, OrderComment
                         .or().like(OrderComment::getUserNickname, keyword))
                 .eq(score != null, OrderComment::getScore, score)
                 .eq(isShow != null, OrderComment::getIsShow, isShow)
+                .eq(auditStatus != null, OrderComment::getAuditStatus, auditStatus)
                 .orderByDesc(OrderComment::getCommentedAt)
                 .orderByDesc(OrderComment::getId);
         Page<OrderComment> page = page(Page.of(pageNum, pageSize), wrapper);
@@ -40,7 +41,41 @@ public class CommentService extends ServiceImpl<OrderCommentMapper, OrderComment
     }
 
     /**
+     * 待审核数量：列表页提示用。
+     */
+    public long pendingCount() {
+        return count(Wrappers.<OrderComment>lambdaQuery()
+                .eq(OrderComment::getAuditStatus, OrderComment.AUDIT_PENDING));
+    }
+
+    /**
+     * 审核评价：通过后小程序端其他用户可见，拒绝则只有评价本人能看到。
+     * 允许对已审核的评价改判（如先拒绝后通过）。
+     */
+    public void audit(Long id, Integer status, String remark) {
+        if (status == null
+                || (status != OrderComment.AUDIT_PASSED && status != OrderComment.AUDIT_REJECTED)) {
+            throw new BusinessException("审核结果只能为 1（通过）或 2（拒绝）");
+        }
+        OrderComment comment = getById(id);
+        if (comment == null) {
+            throw new BusinessException(ResultCode.DATA_NOT_FOUND);
+        }
+        comment.setAuditStatus(status);
+        comment.setAuditRemark(StringUtils.hasText(remark) ? remark.trim() : null);
+        comment.setAuditAt(LocalDateTime.now());
+        if (status == OrderComment.AUDIT_REJECTED) {
+            // 拒绝同时下架，避免残留展示
+            comment.setIsShow(0);
+        }
+        if (!updateById(comment)) {
+            throw new BusinessException(ResultCode.DATA_CONFLICT, "数据已被其他人修改，请刷新后重试");
+        }
+    }
+
+    /**
      * 显示 / 隐藏评价：隐藏后小程序端不再展示，但数据保留。
+     * 只有审核通过的评价才有展示资格，未审核的先审核。
      */
     public void updateVisible(Long id, Integer isShow) {
         if (isShow == null || (isShow != 0 && isShow != 1)) {
@@ -49,6 +84,9 @@ public class CommentService extends ServiceImpl<OrderCommentMapper, OrderComment
         OrderComment comment = getById(id);
         if (comment == null) {
             throw new BusinessException(ResultCode.DATA_NOT_FOUND);
+        }
+        if (comment.getAuditStatus() == null || comment.getAuditStatus() != OrderComment.AUDIT_PASSED) {
+            throw new BusinessException("评价尚未审核通过，请先审核再设置显示状态");
         }
         comment.setIsShow(isShow);
         if (!updateById(comment)) {

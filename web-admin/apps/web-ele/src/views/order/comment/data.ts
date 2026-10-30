@@ -11,6 +11,17 @@ function scoreLabel(score: number) {
   return `${'★'.repeat(value)}${'☆'.repeat(5 - value)}`;
 }
 
+/**
+ * 审核状态标签配置
+ */
+export function useAuditStatusOptions() {
+  return [
+    { color: 'warning', label: $t('order.comment.auditPending'), value: 0 },
+    { color: 'success', label: $t('order.comment.auditPassed'), value: 1 },
+    { color: 'error', label: $t('order.comment.auditRejected'), value: 2 },
+  ];
+}
+
 export function useGridFormSchema(): VbenFormSchema[] {
   return [
     {
@@ -20,6 +31,18 @@ export function useGridFormSchema(): VbenFormSchema[] {
       },
       fieldName: 'keyword',
       label: $t('order.comment.keyword'),
+    },
+    {
+      component: 'Select',
+      componentProps: {
+        allowClear: true,
+        options: useAuditStatusOptions().map(({ label, value }) => ({
+          label,
+          value,
+        })),
+      },
+      fieldName: 'auditStatus',
+      label: $t('order.comment.auditStatus'),
     },
     {
       component: 'Select',
@@ -66,6 +89,15 @@ export function useColumns<T = OrderCommentApi.Comment>(
       field: 'goodsName',
       minWidth: 180,
       title: $t('order.comment.goods'),
+    },
+    {
+      cellRender: {
+        name: 'CellTag',
+        options: useAuditStatusOptions(),
+      },
+      field: 'auditStatus',
+      title: $t('order.comment.auditStatus'),
+      width: 110,
     },
     {
       field: 'score',
@@ -122,6 +154,7 @@ export function useColumns<T = OrderCommentApi.Comment>(
         },
         name: 'CellOperation',
         options: [
+          { code: 'audit', text: $t('order.comment.auditAction') },
           { code: 'reply', text: $t('order.comment.replyAction') },
           { code: 'delete', text: $t('order.comment.delete') },
         ],
@@ -129,7 +162,7 @@ export function useColumns<T = OrderCommentApi.Comment>(
       field: 'operation',
       fixed: 'right',
       title: $t('order.comment.operation'),
-      width: 150,
+      width: 200,
     },
   ];
 }

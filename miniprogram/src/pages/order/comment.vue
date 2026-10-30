@@ -136,12 +136,12 @@ async function submit() {
         images: draft.images
       }))
     )
-    uni.showToast({ title: '评价成功', icon: 'success' })
+    uni.showToast({ title: '评价已提交，审核通过后展示', icon: 'none' })
     // 通知订单列表/详情刷新，回到上一页即可看到已评价状态
     uni.$emit('order:refresh', { orderId: orderId.value })
     setTimeout(() => {
       uni.navigateBack()
-    }, 800)
+    }, 1200)
   } catch (e) {
     const message = (e as Error)?.message
     if (message) toast(message)
@@ -166,7 +166,7 @@ async function submit() {
     />
 
     <template v-else>
-      <view v-if="order" class="tip">订单 {{ order.orderNo }} · 评价后可帮助其他买家</view>
+      <view v-if="order" class="tip">订单 {{ order.orderNo }} · 评价提交后需审核，通过后才会展示给其他买家</view>
 
       <view v-for="(draft, index) in drafts" :key="draft.goodsId" class="card">
         <view class="goods">

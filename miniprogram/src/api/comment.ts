@@ -11,7 +11,10 @@ export const commentApi = {
       loading: true
     }),
 
-  /** 商品评价列表与评分概览（免登录，游客也能看） */
+  /**
+   * 商品评价列表与评分概览。
+   * 免登录可看已通过审核的评价；带登录态时额外返回自己的待审核 / 已拒绝评价。
+   */
   goodsComments: (goodsId: number, pageNum = 1, pageSize = 10) =>
     request<GoodsCommentPage>({
       url: `/comments/goods/${goodsId}${buildQuery({ pageNum, pageSize })}`

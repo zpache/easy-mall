@@ -7,7 +7,7 @@ import { useCartStore } from '@/store/cart'
 import { useUserStore } from '@/store/user'
 import { formatPrice } from '@/utils/format'
 import { navIconUri } from '@/utils/nav-icon-uri'
-import type { Goods, GoodsCommentPage } from '@/types/api'
+import type { Goods, GoodsComment } from '@/types/api'
 import { useTheme } from '@/composables/useTheme'
 
 const { theme, themePageStyle } = useTheme()
@@ -16,11 +16,21 @@ const goods = ref<Goods | null>(null)
 const goodsId = ref<number>(0)
 const current = ref(0)
 
-/** 评价数据：评分概览 + 前 3 条，空对象表示还没拿到 */
-const comments = ref<GoodsCommentPage | null>(null)
-const commentPreview = computed(() => comments.value?.page.records ?? [])
-const commentCount = computed(() => Number(comments.value?.commentCount ?? 0))
-const avgScoreText = computed(() => Number(comments.value?.avgScore ?? 0).toFixed(1))
+/** 页签：商品详情 / 商品评价 */
+const tab = ref<'comment' | 'detail'>('detail')
+
+/** 评价只在「评价」页签内展示，进入页面先拉第一页，用于页签上的条数 */
+const COMMENT_PAGE_SIZE = 10
+const commentList = ref<GoodsComment[]>([])
+const commentCount = ref(0)
+const commentAvg = ref(0)
+const commentPage = ref(0)
+const commentFinished = ref(false)
+const commentLoading = ref(false)
+
+const avgScoreText = computed(() => Number(commentAvg.value ?? 0).toFixed(1))
+/** 页签上的数字只算已通过审核的条数，不含自己的待审核评价 */
+const tabCount = computed(() => (commentCount.value > 99 ? '99+' : String(commentCount.value)))
 
 const cartStore = useCartStore()
 const userStore = useUserStore()
@@ -44,17 +54,40 @@ async function load() {
   uni.setNavigationBarTitle({ title: goods.value.name })
 }
 
-/** 评价加载失败不打断商品浏览，卡片保持「暂无评价」 */
-async function loadComments() {
+/**
+ * 加载评价：reset=true 重新从第一页拉，否则加载下一页。
+ * 失败不打断商品浏览，页签保持「暂无评价」。
+ */
+async function loadComments(reset = false) {
+  if (commentLoading.value) return
+  if (!reset && commentFinished.value) return
+  commentLoading.value = true
+  const nextPage = reset ? 1 : commentPage.value + 1
   try {
-    comments.value = await commentApi.goodsComments(goodsId.value, 1, 3)
+    const res = await commentApi.goodsComments(goodsId.value, nextPage, COMMENT_PAGE_SIZE)
+    commentAvg.value = Number(res.avgScore ?? 0)
+    commentCount.value = Number(res.commentCount ?? 0)
+    commentList.value = reset ? res.page.records : [...commentList.value, ...res.page.records]
+    commentPage.value = nextPage
+    commentFinished.value = res.page.pages <= nextPage || res.page.records.length < COMMENT_PAGE_SIZE
   } catch {
-    comments.value = null
+    if (reset) {
+      commentList.value = []
+    }
+  } finally {
+    commentLoading.value = false
   }
 }
 
 function previewImage(urls: string[], index: number) {
   uni.previewImage({ urls, current: urls[index] })
+}
+
+/** 待审核 / 已拒绝的评价只有本人可见，给个角标说明原因 */
+function auditLabel(item: GoodsComment) {
+  if (item.auditStatus === 0) return '审核中，仅自己可见'
+  if (item.auditStatus === 2) return '未通过审核，仅自己可见'
+  return ''
 }
 
 async function requireLogin(): Promise<boolean> {
@@ -92,7 +125,7 @@ onLoad((options) => {
   if (goodsId.value) {
     load()
     // 评价与商品详情并行拉取，互不阻塞
-    loadComments()
+    loadComments(true)
   }
   // 已登录时同步一次购物车数量，底部角标才有值（失败不打断页面）
   if (userStore.isLogin) {
@@ -128,7 +161,22 @@ onLoad((options) => {
       </view>
     </view>
 
-    <view class="comments">
+    <view class="tabs">
+      <view class="tabs__item" :class="{ 'tabs__item--on': tab === 'detail' }" @tap="tab = 'detail'">
+        商品详情
+      </view>
+      <view class="tabs__item" :class="{ 'tabs__item--on': tab === 'comment' }" @tap="tab = 'comment'">
+        评价
+        <text v-if="commentCount > 0" class="tabs__count">{{ tabCount }}</text>
+      </view>
+    </view>
+
+    <view v-if="tab === 'detail'" class="detail">
+      <rich-text v-if="goods.detail" class="detail__content" :nodes="goods.detail" />
+      <text v-else class="detail__empty">暂无详情</text>
+    </view>
+
+    <view v-else class="comments">
       <view class="comments__head">
         <text class="comments__title">商品评价（{{ commentCount }}）</text>
         <view v-if="commentCount > 0" class="comments__score">
@@ -137,9 +185,9 @@ onLoad((options) => {
         </view>
       </view>
 
-      <view v-if="!commentPreview.length" class="comments__empty">暂无评价，期待你的分享</view>
+      <view v-if="!commentList.length" class="comments__empty">暂无评价，期待你的分享</view>
 
-      <view v-for="item in commentPreview" :key="item.id" class="comment">
+      <view v-for="item in commentList" :key="item.id" class="comment">
         <view class="comment__head">
           <text class="comment__user">{{ item.nickname }}</text>
           <view class="comment__stars">
@@ -168,17 +216,29 @@ onLoad((options) => {
           />
         </view>
 
+        <view v-if="auditLabel(item)" class="comment__badge">{{ auditLabel(item) }}</view>
+        <view v-if="item.auditStatus === 2 && item.auditRemark" class="comment__audit">
+          拒绝原因：{{ item.auditRemark }}
+        </view>
+
         <view v-if="item.reply" class="comment__reply">
           <text class="comment__reply-label">商家回复：</text>
           <text class="comment__reply-text">{{ item.reply }}</text>
         </view>
       </view>
-    </view>
 
-    <view class="detail">
-      <text class="detail__title">商品详情</text>
-      <rich-text v-if="goods.detail" class="detail__content" :nodes="goods.detail" />
-      <text v-else class="detail__empty">暂无详情</text>
+      <view v-if="commentList.length" class="comments__more">
+        <view
+          v-if="!commentFinished"
+          class="comments__more-btn"
+          hover-class="comments__more-btn--hover"
+          :hover-stay-time="80"
+          @tap="loadComments()"
+        >
+          {{ commentLoading ? '加载中…' : '加载更多' }}
+        </view>
+        <text v-else class="comments__more-end">没有更多评价了</text>
+      </view>
     </view>
 
     <view class="bar">
@@ -261,8 +321,49 @@ onLoad((options) => {
   }
 }
 
-.comments {
+/* 详情 / 评价页签：吸顶，切换内容区不整页重排 */
+.tabs {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
   margin-top: 20rpx;
+  background-color: #fff;
+
+  &__item {
+    position: relative;
+    flex: 1;
+    padding: 26rpx 0;
+    font-size: 28rpx;
+    color: $text-secondary;
+    text-align: center;
+
+    &--on {
+      font-weight: 600;
+      color: $primary;
+
+      &::after {
+        position: absolute;
+        bottom: 0;
+        left: 50%;
+        width: 56rpx;
+        height: 4rpx;
+        margin-left: -28rpx;
+        border-radius: 2rpx;
+        background-color: $primary;
+        content: '';
+      }
+    }
+  }
+
+  &__count {
+    margin-left: 6rpx;
+    font-size: 24rpx;
+    color: inherit;
+  }
+}
+
+.comments {
   padding: 24rpx;
   background-color: #fff;
 
@@ -298,6 +399,30 @@ onLoad((options) => {
     display: block;
     margin-top: 20rpx;
     font-size: 26rpx;
+    color: $text-placeholder;
+  }
+
+  &__more {
+    display: flex;
+    justify-content: center;
+    padding-top: 24rpx;
+  }
+
+  &__more-btn {
+    padding: 14rpx 44rpx;
+    border: 1rpx solid $border-color;
+    border-radius: 32rpx;
+    font-size: 26rpx;
+    color: $text-secondary;
+
+    &--hover {
+      opacity: 0.6;
+    }
+  }
+
+  &__more-end {
+    padding: 8rpx 0;
+    font-size: 24rpx;
     color: $text-placeholder;
   }
 }
@@ -360,6 +485,26 @@ onLoad((options) => {
     background-color: #f2f2f2;
   }
 
+  /* 待审核 / 已拒绝：只有本人能看到这条评价，用角标说明避免误解 */
+  &__badge {
+    display: inline-block;
+    margin-top: 12rpx;
+    padding: 4rpx 12rpx;
+    border-radius: 8rpx;
+    font-size: 22rpx;
+    color: #b7791f;
+    background-color: #fdf6e3;
+  }
+
+  &__audit {
+    margin-top: 12rpx;
+    padding: 12rpx 16rpx;
+    border-radius: 12rpx;
+    font-size: 24rpx;
+    color: #b7791f;
+    background-color: #fdf6e3;
+  }
+
   &__reply {
     margin-top: 12rpx;
     padding: 12rpx 16rpx;
@@ -379,7 +524,6 @@ onLoad((options) => {
 }
 
 .detail {
-  margin-top: 20rpx;
   padding: 24rpx;
   background-color: #fff;
 
@@ -390,7 +534,6 @@ onLoad((options) => {
 
   &__content {
     display: block;
-    margin-top: 20rpx;
     font-size: 28rpx;
     line-height: 44rpx;
     color: #434343;
@@ -398,7 +541,6 @@ onLoad((options) => {
 
   &__empty {
     display: block;
-    margin-top: 20rpx;
     font-size: 26rpx;
     color: $text-placeholder;
   }

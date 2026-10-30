@@ -131,6 +131,21 @@
     "keyword": "Keyword",
     "searchPlaceholder": "Product / content / order no. / customer",
     "operation": "Operation",
-    "allScore": "All ratings"
+    "allScore": "All ratings",
+    "auditStatus": "Moderation",
+    "auditPending": "Pending",
+    "auditPassed": "Approved",
+    "auditRejected": "Rejected",
+    "auditAction": "Moderate",
+    "auditTitle": "Moderate Review",
+    "auditResult": "Result",
+    "auditPass": "Approve (visible to all)",
+    "auditReject": "Reject (author only)",
+    "auditRemark": "Moderation Note",
+    "auditRemarkPlaceholder": "Required when rejecting; the author can see it in the app",
+    "auditRejectRemarkRequired": "A note is required when rejecting",
+    "auditSuccess": "Moderation saved",
+    "pendingTip": "review(s) pending",
+    "auditFirst": "Approve this review before changing its visibility"
   }
 }
