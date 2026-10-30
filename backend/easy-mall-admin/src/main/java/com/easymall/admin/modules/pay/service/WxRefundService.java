@@ -51,6 +51,16 @@ public class WxRefundService {
     public String refund(Order order, OrderRefund refund) {
         boolean wxpayEnabled = "true".equalsIgnoreCase(cfg("wxpayEnabled", "false"));
         boolean mockEnabled = "true".equalsIgnoreCase(cfg("mockPayEnabled", "true"));
+        // 按订单实际支付方式路由退款通道；存量订单 payType 为 null，按当前配置兼容处理
+        if (order.getPayType() != null && order.getPayType() == Order.PAY_TYPE_MOCK) {
+            log.info("模拟支付订单按模拟退款处理: orderNo={}, refundNo={}, 金额={}",
+                    order.getOrderNo(), refund.getRefundNo(), refund.getAmount());
+            return null;
+        }
+        if (order.getPayType() != null && order.getPayType() == Order.PAY_TYPE_WXPAY && !wxpayEnabled) {
+            // 钱是从微信收的，不能用「模拟退款」糊弄过去
+            throw new BusinessException("该订单通过微信支付收款，请先在支付配置中开启微信支付后再退款");
+        }
         if (!wxpayEnabled) {
             if (mockEnabled) {
                 log.info("模拟退款：orderNo={}, refundNo={}, 金额={}", order.getOrderNo(), refund.getRefundNo(), refund.getAmount());

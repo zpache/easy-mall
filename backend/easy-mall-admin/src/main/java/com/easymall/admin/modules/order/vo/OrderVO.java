@@ -22,6 +22,10 @@ public record OrderVO(
         BigDecimal memberDiscount,
         String memberLevelName,
         BigDecimal payAmount,
+        /** 支付方式：0 模拟支付 / 1 微信支付 / 2 支付宝（预留）；存量已支付订单为 null */
+        Integer payType,
+        /** 渠道交易号（微信 transaction_id 等），模拟支付为空 */
+        String payChannelNo,
         BigDecimal refundedAmount,
         Integer status,
         Integer refundStatus,
@@ -61,6 +65,8 @@ public record OrderVO(
                 order.getMemberDiscount(),
                 order.getMemberLevelName(),
                 order.getPayAmount(),
+                order.getPayType(),
+                order.getPayChannelNo(),
                 order.getRefundedAmount(),
                 order.getStatus(),
                 order.getRefundStatus(),

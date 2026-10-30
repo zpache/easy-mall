@@ -56,7 +56,12 @@
     "receiverInfo": "Shipping Info",
     "deliveryInfo": "Logistics",
     "emptyItems": "No items",
-    "buyerEmpty": "Anonymous"
+    "buyerEmpty": "Anonymous",
+    "payType": "Payment Method",
+    "payTypeMock": "Mock",
+    "payTypeWxpay": "WeChat Pay",
+    "payTypeAlipay": "Alipay",
+    "payTypeUnknown": "Unknown (legacy)"
   },
   "delivery": {
     "list": "Orders To Ship",

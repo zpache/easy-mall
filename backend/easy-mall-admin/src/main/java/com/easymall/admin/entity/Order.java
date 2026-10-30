@@ -64,6 +64,15 @@ public class Order extends BaseEntity {
     /** 应付金额 */
     private BigDecimal payAmount;
 
+    /**
+     * 支付方式：0 模拟支付，1 微信支付，2 支付宝（预留）。
+     * 退款按此路由渠道；存量已支付订单为 null，按当前支付配置兼容处理。
+     */
+    private Integer payType;
+
+    /** 渠道交易号（微信 transaction_id 等），模拟支付为空 */
+    private String payChannelNo;
+
     /** 已退款金额累计（支持部分退款多次累加） */
     private BigDecimal refundedAmount;
 
@@ -81,6 +90,11 @@ public class Order extends BaseEntity {
 
     /** 0 无售后 / 1 退款中 / 2 已退款 / 3 售后被拒 */
     private Integer refundStatus;
+
+    /** 支付方式：0 模拟支付 / 1 微信支付 / 2 支付宝（预留） */
+    public static final int PAY_TYPE_MOCK = 0;
+    public static final int PAY_TYPE_WXPAY = 1;
+    public static final int PAY_TYPE_ALIPAY = 2;
 
     private String receiverName;
 

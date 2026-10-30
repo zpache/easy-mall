@@ -293,7 +293,8 @@ public class OrderService {
                 .eq(MallOrder::getId, order.getId())
                 .eq(MallOrder::getStatus, MallOrder.STATUS_UNPAID)
                 .set(MallOrder::getStatus, MallOrder.STATUS_UNDELIVERED)
-                .set(MallOrder::getPayTime, LocalDateTime.now()));
+                .set(MallOrder::getPayTime, LocalDateTime.now())
+                .set(MallOrder::getPayType, MallOrder.PAY_TYPE_MOCK));
         if (affected == 0) {
             throw new BusinessException(ResultCode.ORDER_STATUS_ERROR, "当前订单状态不支持支付");
         }
@@ -336,7 +337,9 @@ public class OrderService {
                 .eq(MallOrder::getId, order.getId())
                 .eq(MallOrder::getStatus, MallOrder.STATUS_UNPAID)
                 .set(MallOrder::getStatus, MallOrder.STATUS_UNDELIVERED)
-                .set(MallOrder::getPayTime, LocalDateTime.now()));
+                .set(MallOrder::getPayTime, LocalDateTime.now())
+                .set(MallOrder::getPayType, MallOrder.PAY_TYPE_WXPAY)
+                .set(MallOrder::getPayChannelNo, transactionId));
         if (affected == 0) {
             MallOrder latest = orderMapper.selectById(order.getId());
             if (latest != null && latest.getStatus() == MallOrder.STATUS_CANCELLED) {

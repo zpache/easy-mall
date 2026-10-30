@@ -55,6 +55,19 @@ function refundOption(value?: number) {
   return useRefundStatusOptions().find((item) => item.value === value);
 }
 
+/** 支付方式文案；null 为存量已支付订单（未记录渠道），显示未知 */
+function payTypeLabel(value?: null | number) {
+  if (value === null || value === undefined) {
+    return formatTime(order.value?.payTime) ? $t('order.order.payTypeUnknown') : '-';
+  }
+  const labels: Record<number, string> = {
+    0: $t('order.order.payTypeMock'),
+    1: $t('order.order.payTypeWxpay'),
+    2: $t('order.order.payTypeAlipay'),
+  };
+  return labels[value] ?? '-';
+}
+
 const tagTypeMap: Record<string, any> = {
   default: 'info',
   error: 'danger',
@@ -106,6 +119,9 @@ const tagTypeMap: Record<string, any> = {
           </ElDescriptionsItem>
           <ElDescriptionsItem :label="$t('order.order.payTime')">
             {{ formatTime(order.payTime) || '-' }}
+          </ElDescriptionsItem>
+          <ElDescriptionsItem :label="$t('order.order.payType')">
+            {{ payTypeLabel(order.payType) }}
           </ElDescriptionsItem>
           <ElDescriptionsItem :label="$t('order.order.deliveryTime')">
             {{ formatTime(order.deliveryTime) || '-' }}

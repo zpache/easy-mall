@@ -29,7 +29,10 @@ export namespace OrderApi {
     items: OrderItem[];
     orderNo: string;
     payAmount: number;
+    /** 支付方式：0 模拟支付 / 1 微信支付 / 2 支付宝（预留）；存量已支付订单为 null */
+    payChannelNo?: null | string;
     payTime?: string;
+    payType?: 0 | 1 | 2 | null;
     receiverAddress: string;
     receiverName: string;
     receiverPhone: string;

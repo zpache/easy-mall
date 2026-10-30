@@ -24,6 +24,11 @@ public class MallOrder extends BaseEntity {
     public static final int STATUS_FINISHED = 3;
     public static final int STATUS_CANCELLED = 4;
 
+    /** 支付方式：模拟支付（mock）/ 微信支付 / 支付宝（预留） */
+    public static final int PAY_TYPE_MOCK = 0;
+    public static final int PAY_TYPE_WXPAY = 1;
+    public static final int PAY_TYPE_ALIPAY = 2;
+
     @TableId(type = IdType.AUTO)
     private Long id;
 
@@ -48,6 +53,15 @@ public class MallOrder extends BaseEntity {
     private String memberLevelName;
 
     private BigDecimal payAmount;
+
+    /**
+     * 支付方式：0 模拟支付，1 微信支付，2 支付宝（预留）。
+     * 支付成功时落库，退款按此路由渠道；存量已支付订单为 null，退款按当前配置兼容处理。
+     */
+    private Integer payType;
+
+    /** 渠道交易号（微信 transaction_id 等），模拟支付为空 */
+    private String payChannelNo;
 
     /** 已退款金额累计（支持部分退款多次累加） */
     private BigDecimal refundedAmount;

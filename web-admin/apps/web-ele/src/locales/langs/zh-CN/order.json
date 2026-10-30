@@ -56,7 +56,12 @@
     "receiverInfo": "收货信息",
     "deliveryInfo": "物流信息",
     "emptyItems": "暂无商品明细",
-    "buyerEmpty": "匿名买家"
+    "buyerEmpty": "匿名买家",
+    "payType": "支付方式",
+    "payTypeMock": "模拟支付",
+    "payTypeWxpay": "微信支付",
+    "payTypeAlipay": "支付宝",
+    "payTypeUnknown": "未知（历史订单）"
   },
   "delivery": {
     "list": "待发货订单",
