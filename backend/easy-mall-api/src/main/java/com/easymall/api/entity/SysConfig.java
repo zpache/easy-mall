@@ -17,6 +17,9 @@ public class SysConfig extends BaseEntity {
     /** 支付分组 */
     public static final String GROUP_PAYMENT = "payment";
 
+    /** 物流分组（快递100） */
+    public static final String GROUP_LOGISTICS = "logistics";
+
     @TableId(type = IdType.AUTO)
     private Long id;
 

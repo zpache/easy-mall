@@ -877,6 +877,13 @@ public class OrderService {
         return order;
     }
 
+    /**
+     * 按主键取本人订单实体，供物流查询等旁路功能使用。
+     */
+    public MallOrder requireOwnEntity(Long userId, Long id) {
+        return requireOwnOrder(userId, id);
+    }
+
     private String generateOrderNo() {
         return LocalDateTime.now().format(ORDER_NO_FORMATTER)
                 + String.format("%04d", ThreadLocalRandom.current().nextInt(10000));

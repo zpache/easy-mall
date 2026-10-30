@@ -5,7 +5,7 @@ import EmptyState from '@/components/empty-state.vue'
 import { orderApi } from '@/api/order'
 import { formatCountdown, formatPrice, formatTime } from '@/utils/format'
 import { payOrder } from '@/utils/pay'
-import type { Order } from '@/types/api'
+import type { LogisticsTrace, Order } from '@/types/api'
 import { useTheme } from '@/composables/useTheme'
 
 const { themePageStyle } = useTheme()
@@ -146,6 +146,31 @@ function copyDeliveryNo() {
   uni.setClipboardData({ data: order.value.deliveryNo })
 }
 
+/* ---------------- 物流轨迹 ---------------- */
+
+/** undefined 未加载过 / null 加载失败 */
+const trace = ref<LogisticsTrace | null | undefined>(undefined)
+const traceLoading = ref(false)
+const traceVisible = ref(false)
+
+/** 查看物流：按需加载，每次展开实时查询一次（消耗快递100 额度），失败收起 */
+async function toggleTrace() {
+  if (traceVisible.value) {
+    traceVisible.value = false
+    return
+  }
+  traceVisible.value = true
+  if (trace.value !== undefined) return
+  traceLoading.value = true
+  try {
+    trace.value = await orderApi.logistics(orderId.value)
+  } catch {
+    trace.value = null
+  } finally {
+    traceLoading.value = false
+  }
+}
+
 /** 确认收货：待收货 → 已完成，服务端带状态条件更新，重复点击不会出错 */
 async function confirmReceive() {
   const res = await uni.showModal({
@@ -261,12 +286,40 @@ onUnload(stopTicking)
       <view v-if="order.deliveryNo" class="card logistics">
         <view class="logistics__head">
           <text class="logistics__title">{{ order.deliveryCompany || '快递发货' }}</text>
-          <text class="logistics__copy" @tap.stop="copyDeliveryNo">复制单号</text>
+          <view class="logistics__actions">
+            <text class="logistics__copy" @tap.stop="copyDeliveryNo">复制单号</text>
+            <text class="logistics__copy" @tap.stop="toggleTrace">
+              {{ traceVisible ? '收起物流' : '查看物流' }}
+            </text>
+          </view>
         </view>
         <text class="logistics__no">{{ order.deliveryNo }}</text>
         <text v-if="order.deliveryTime" class="logistics__time">
           {{ formatTime(order.deliveryTime) }} 已发货
         </text>
+
+        <!-- 轨迹：按需加载，已签收的最近一条高亮 -->
+        <view v-if="traceVisible" class="logistics__trace">
+          <view v-if="traceLoading" class="logistics__trace-tip">物流查询中…</view>
+          <view v-else-if="trace === null" class="logistics__trace-tip">物流查询失败，请稍后重试</view>
+          <view v-else-if="!trace?.traces?.length" class="logistics__trace-tip">暂无物流轨迹（可能尚未揽收）</view>
+          <view v-else class="trace">
+            <view
+              v-for="(node, index) in trace.traces"
+              :key="`${node.time}-${index}`"
+              class="trace__item"
+              :class="{ 'trace__item--latest': index === 0 }"
+            >
+              <view class="trace__dot" />
+              <view class="trace__body">
+                <text class="trace__context">{{ node.context }}</text>
+                <text class="trace__time">
+                  {{ node.ftime || node.time }}{{ node.location ? ` · ${node.location}` : '' }}
+                </text>
+              </view>
+            </view>
+          </view>
+        </view>
       </view>
 
       <view class="card">
@@ -484,6 +537,84 @@ onUnload(stopTicking)
     display: block;
     margin-top: 8rpx;
     font-size: 24rpx;
+    color: $text-placeholder;
+  }
+
+  &__actions {
+    display: flex;
+    gap: 16rpx;
+  }
+
+  &__trace {
+    margin-top: 20rpx;
+    padding-top: 20rpx;
+    border-top: 1rpx solid $border-color;
+  }
+
+  &__trace-tip {
+    font-size: 24rpx;
+    color: $text-placeholder;
+  }
+}
+
+.trace {
+  &__item {
+    display: flex;
+    gap: 16rpx;
+    padding-bottom: 24rpx;
+    padding-left: 8rpx;
+
+    /* 左侧竖线，串起各节点；最后一个节点不画 */
+    position: relative;
+
+    &::before {
+      position: absolute;
+      top: 18rpx;
+      bottom: 0;
+      left: 12rpx;
+      width: 1rpx;
+      background-color: $border-color;
+      content: '';
+    }
+
+    &:last-child {
+      padding-bottom: 0;
+
+      &::before {
+        display: none;
+      }
+    }
+  }
+
+  &__dot {
+    z-index: 1;
+    flex-shrink: 0;
+    width: 14rpx;
+    height: 14rpx;
+    margin-top: 10rpx;
+    background-color: $text-placeholder;
+    border-radius: 50%;
+  }
+
+  &__item--latest &__dot {
+    background-color: $primary;
+  }
+
+  &__context {
+    display: block;
+    font-size: 26rpx;
+    color: $text-secondary;
+  }
+
+  &__item--latest &__context {
+    font-weight: 600;
+    color: $text-main;
+  }
+
+  &__time {
+    display: block;
+    margin-top: 6rpx;
+    font-size: 22rpx;
     color: $text-placeholder;
   }
 }

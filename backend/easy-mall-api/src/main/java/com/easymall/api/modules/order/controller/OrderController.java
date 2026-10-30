@@ -5,7 +5,9 @@ import com.easymall.api.common.api.Result;
 import com.easymall.api.common.context.UserContext;
 import com.easymall.api.modules.order.dto.BuyNowRequest;
 import com.easymall.api.modules.order.dto.OrderCreateRequest;
+import com.easymall.api.modules.order.service.LogisticsService;
 import com.easymall.api.modules.order.service.OrderService;
+import com.easymall.api.modules.order.vo.LogisticsTraceVO;
 import com.easymall.api.modules.order.vo.OrderVO;
 import com.easymall.api.modules.order.vo.ReductionPreviewVO;
 import com.easymall.api.modules.order.vo.UsableCouponVO;
@@ -27,6 +29,7 @@ import java.util.List;
 public class OrderController {
 
     private final OrderService orderService;
+    private final LogisticsService logisticsService;
 
     @Operation(summary = "提交订单（购物车已勾选商品）")
     @PostMapping
@@ -66,6 +69,13 @@ public class OrderController {
     @GetMapping("/{id}")
     public Result<OrderVO> detail(@PathVariable Long id) {
         return Result.ok(orderService.detail(UserContext.userId(), id));
+    }
+
+    @Operation(summary = "物流轨迹（快递100 实时查询）")
+    @GetMapping("/{id}/logistics")
+    public Result<LogisticsTraceVO> logistics(@PathVariable Long id) {
+        return Result.ok(logisticsService.trace(UserContext.userId(),
+                orderService.requireOwnEntity(UserContext.userId(), id)));
     }
 
     @Operation(summary = "模拟支付")

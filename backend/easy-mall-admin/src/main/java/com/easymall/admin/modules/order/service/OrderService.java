@@ -81,6 +81,17 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
     }
 
     /**
+     * 按主键取订单实体，供物流查询等旁路功能使用。
+     */
+    public Order requireEntity(Long id) {
+        Order order = getById(id);
+        if (order == null) {
+            throw new BusinessException(ResultCode.DATA_NOT_FOUND);
+        }
+        return order;
+    }
+
+    /**
      * 发货：仅「待发货」订单可操作，发货后进入「待收货」。
      */
     @Transactional(rollbackFor = Exception.class)

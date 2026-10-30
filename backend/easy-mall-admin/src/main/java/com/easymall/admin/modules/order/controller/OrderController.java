@@ -3,7 +3,9 @@ package com.easymall.admin.modules.order.controller;
 import com.easymall.admin.common.api.PageResult;
 import com.easymall.admin.common.api.Result;
 import com.easymall.admin.modules.order.dto.DeliverForm;
+import com.easymall.admin.modules.order.service.LogisticsService;
 import com.easymall.admin.modules.order.service.OrderService;
+import com.easymall.admin.modules.order.vo.LogisticsTraceVO;
 import com.easymall.admin.modules.order.vo.OrderVO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -30,6 +32,7 @@ import java.time.LocalDate;
 public class OrderController {
 
     private final OrderService orderService;
+    private final LogisticsService logisticsService;
 
     @Operation(summary = "分页查询订单")
     @GetMapping
@@ -50,6 +53,12 @@ public class OrderController {
     @GetMapping("/{id}")
     public Result<OrderVO> detail(@PathVariable Long id) {
         return Result.ok(orderService.detail(id));
+    }
+
+    @Operation(summary = "订单物流轨迹（快递100 实时查询）")
+    @GetMapping("/{id}/logistics")
+    public Result<LogisticsTraceVO> logistics(@PathVariable Long id) {
+        return Result.ok(logisticsService.trace(orderService.requireEntity(id)));
     }
 
     @Operation(summary = "订单发货")

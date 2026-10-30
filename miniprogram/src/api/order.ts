@@ -1,5 +1,5 @@
 import { buildQuery, request } from './request'
-import type { FreightPreview, Order, PageResult, PrepayResult, PromotionPreview, RefundApplyResult } from '@/types/api'
+import type { FreightPreview, LogisticsTrace, Order, PageResult, PrepayResult, PromotionPreview, RefundApplyResult } from '@/types/api'
 import type { UsableCoupon } from '@/types/coupon'
 
 export const orderApi = {
@@ -32,6 +32,9 @@ export const orderApi = {
     request<PageResult<Order>>({ url: `/orders${buildQuery({ status, pageNum, pageSize })}` }),
 
   detail: (id: number) => request<Order>({ url: `/orders/${id}` }),
+
+  /** 物流轨迹（快递100 实时查询，消耗查询额度，按需调用） */
+  logistics: (id: number) => request<LogisticsTrace>({ url: `/orders/${id}/logistics` }),
 
   /** 模拟支付，真实项目替换为微信支付 */
   pay: (id: number) => request<void>({ url: `/orders/${id}/pay`, method: 'PUT', loading: true }),
