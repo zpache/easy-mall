@@ -2,6 +2,7 @@ package com.easymall.admin.modules.order.controller;
 
 import com.easymall.admin.common.api.PageResult;
 import com.easymall.admin.common.api.Result;
+import com.easymall.admin.modules.order.dto.CommentAuditForm;
 import com.easymall.admin.modules.order.dto.CommentReplyForm;
 import com.easymall.admin.modules.order.service.CommentService;
 import com.easymall.admin.modules.order.vo.CommentVO;
@@ -35,11 +36,25 @@ public class CommentController {
                                               @RequestParam(defaultValue = "10") long pageSize,
                                               @RequestParam(required = false) String keyword,
                                               @RequestParam(required = false) Integer score,
-                                              @RequestParam(required = false) Integer isShow) {
-        return Result.ok(commentService.pageQuery(pageNum, pageSize, keyword, score, isShow));
+                                              @RequestParam(required = false) Integer isShow,
+                                              @RequestParam(required = false) Integer auditStatus) {
+        return Result.ok(commentService.pageQuery(pageNum, pageSize, keyword, score, isShow, auditStatus));
     }
 
-    @Operation(summary = "显示 / 隐藏评价")
+    @Operation(summary = "待审核评价数量")
+    @GetMapping("/pending-count")
+    public Result<Long> pendingCount() {
+        return Result.ok(commentService.pendingCount());
+    }
+
+    @Operation(summary = "审核评价（1 通过，2 拒绝）")
+    @PutMapping("/{id}/audit")
+    public Result<Void> audit(@PathVariable Long id, @Valid @RequestBody CommentAuditForm form) {
+        commentService.audit(id, form.status(), form.remark());
+        return Result.ok();
+    }
+
+    @Operation(summary = "显示 / 隐藏评价（仅已通过审核的评价）")
     @PutMapping("/{id}/visible")
     public Result<Void> updateVisible(@PathVariable Long id, @RequestParam Integer isShow) {
         commentService.updateVisible(id, isShow);

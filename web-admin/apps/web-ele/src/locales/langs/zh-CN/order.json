@@ -131,6 +131,21 @@
     "keyword": "关键词",
     "searchPlaceholder": "商品 / 内容 / 订单号 / 用户",
     "operation": "操作",
-    "allScore": "全部评分"
+    "allScore": "全部评分",
+    "auditStatus": "审核状态",
+    "auditPending": "待审核",
+    "auditPassed": "已通过",
+    "auditRejected": "已拒绝",
+    "auditAction": "审核",
+    "auditTitle": "审核评价",
+    "auditResult": "审核结果",
+    "auditPass": "通过（展示给所有用户）",
+    "auditReject": "拒绝（仅本人可见）",
+    "auditRemark": "审核备注",
+    "auditRemarkPlaceholder": "拒绝时请填写原因，评价人可在小程序看到",
+    "auditRejectRemarkRequired": "拒绝评价时必须填写审核备注",
+    "auditSuccess": "审核完成",
+    "pendingTip": "条评价待审核",
+    "auditFirst": "该评价还未审核通过，请先审核"
   }
 }

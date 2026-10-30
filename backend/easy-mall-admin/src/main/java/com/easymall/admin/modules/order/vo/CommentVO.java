@@ -22,6 +22,9 @@ public record CommentVO(
         String reply,
         LocalDateTime repliedAt,
         Integer isShow,
+        Integer auditStatus,
+        String auditRemark,
+        LocalDateTime auditAt,
         LocalDateTime commentedAt
 ) {
 
@@ -41,6 +44,9 @@ public record CommentVO(
                 comment.getReply(),
                 comment.getRepliedAt(),
                 comment.getIsShow(),
+                comment.getAuditStatus(),
+                comment.getAuditRemark(),
+                comment.getAuditAt(),
                 comment.getCommentedAt());
     }
 }

@@ -3,8 +3,14 @@ import type { Recordable } from '@vben/types';
 import { requestClient } from '#/api/request';
 
 export namespace OrderCommentApi {
+  /** 审核状态：0 待审核，1 已通过，2 已拒绝 */
+  export type AuditStatus = 0 | 1 | 2;
+
   export interface Comment {
     [key: string]: any;
+    auditAt?: string;
+    auditRemark?: string;
+    auditStatus: AuditStatus;
     commentedAt: string;
     content?: string;
     goodsId: number;
@@ -42,6 +48,24 @@ async function getCommentList(params: Recordable<any>) {
 }
 
 /**
+ * 待审核评价数量
+ */
+async function getPendingCommentCount() {
+  return requestClient.get<number>('/comments/pending-count');
+}
+
+/**
+ * 审核评价
+ */
+async function auditComment(
+  id: number,
+  status: OrderCommentApi.AuditStatus,
+  remark?: string,
+) {
+  return requestClient.put(`/comments/${id}/audit`, { remark, status });
+}
+
+/**
  * 显示 / 隐藏评价
  */
 async function changeCommentVisible(id: number, isShow: number) {
@@ -65,8 +89,10 @@ async function deleteComment(id: number) {
 }
 
 export {
+  auditComment,
   changeCommentVisible,
   deleteComment,
   getCommentList,
+  getPendingCommentCount,
   replyComment,
 };

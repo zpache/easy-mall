@@ -111,6 +111,8 @@ public class CommentService {
             comment.setContent(StringUtils.hasText(item.content()) ? item.content().trim() : null);
             comment.setImages(images.isEmpty() ? null : String.join(",", images));
             comment.setIsShow(1);
+            // 新提交一律进待审核：只有管理端审核通过后才对其他用户展示
+            comment.setAuditStatus(OrderComment.AUDIT_PENDING);
             comment.setCommentedAt(LocalDateTime.now());
             try {
                 commentMapper.insert(comment);
@@ -124,13 +126,28 @@ public class CommentService {
     }
 
     /**
-     * 商品评价列表（仅展示 is_show=1），附带评分概览。
+     * 商品评价列表，附带评分概览。
+     *
+     * <p>可见性：审核通过（audit_status=1 且 is_show=1）的评价对所有人展示；
+     * 登录用户额外能看到自己的待审核 / 已拒绝评价，便于确认提交结果。</p>
+     *
+     * @param viewerId 当前登录用户，游客为 null
      */
-    public GoodsCommentVO goodsComments(Long goodsId, long pageNum, long pageSize) {
+    public GoodsCommentVO goodsComments(Long goodsId, long pageNum, long pageSize, Long viewerId) {
         IPage<OrderComment> page = commentMapper.selectPage(Page.of(pageNum, pageSize),
                 Wrappers.<OrderComment>lambdaQuery()
                         .eq(OrderComment::getGoodsId, goodsId)
-                        .eq(OrderComment::getIsShow, 1)
+                        .and(w -> {
+                            w.nested(n -> n
+                                    .eq(OrderComment::getAuditStatus, OrderComment.AUDIT_PASSED)
+                                    .eq(OrderComment::getIsShow, 1));
+                            if (viewerId != null) {
+                                // 自己的评价：待审核 / 已拒绝未通过时也能看到，通过后又隐藏的仍按隐藏处理
+                                w.or(o -> o
+                                        .eq(OrderComment::getUserId, viewerId)
+                                        .ne(OrderComment::getAuditStatus, OrderComment.AUDIT_PASSED));
+                            }
+                        })
                         .orderByDesc(OrderComment::getCommentedAt)
                         .orderByDesc(OrderComment::getId));
 

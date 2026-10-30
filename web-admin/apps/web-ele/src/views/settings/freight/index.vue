@@ -35,7 +35,8 @@ import {
 
 const configForm = reactive({
   defaultFee: 0,
-  freeAmount: undefined as null | number,
+  /** 空值表示不设包邮门槛；提交时统一转成 null 给后端 */
+  freeAmount: undefined as number | undefined,
 });
 const configVersion = ref<number | undefined>();
 const configSaving = ref(false);
@@ -55,7 +56,8 @@ const ruleForm = reactive({
   regionCode: '',
   deliverable: 1 as 0 | 1,
   fee: 0,
-  freeAmount: undefined as null | number,
+  /** 空值表示不设包邮门槛；提交时统一转成 null 给后端 */
+  freeAmount: undefined as number | undefined,
 });
 const ruleVersion = ref<number | undefined>();
 

@@ -213,13 +213,17 @@ export interface GoodsComment {
   reply?: null | string
   repliedAt?: null | string
   commentedAt: string
+  /** 审核状态：0 待审核 1 已通过 2 已拒绝；非 1 的评价只有本人能看到 */
+  auditStatus: number
+  /** 审核备注（拒绝原因），仅本人可见 */
+  auditRemark?: null | string
 }
 
 /** 商品评价数据：评分概览 + 分页列表 */
 export interface GoodsCommentPage {
   /** 平均分，无评价为 0 */
   avgScore: number
-  /** 显示中的评价条数 */
+  /** 已通过审核的评价条数（其他人的可见数量） */
   commentCount: number
   page: PageResult<GoodsComment>
 }
