@@ -66,6 +66,11 @@ export function useColumns(
 ): VxeTableGridColumns<GoodsCategoryApi.Category> {
   return [
     {
+      field: 'id',
+      title: 'ID',
+      width: 80,
+    },
+    {
       align: 'left',
       field: 'name',
       fixed: 'left',
