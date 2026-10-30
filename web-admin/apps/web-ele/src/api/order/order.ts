@@ -51,6 +51,25 @@ export namespace OrderApi {
     deliveryNo: string;
   }
 
+  export interface LogisticsTrace {
+    company?: string;
+    companyCode?: string;
+    isChecked?: boolean;
+    message?: string;
+    /** 快递100 状态：200 正常返回 */
+    status?: string;
+    state?: string;
+    traces: LogisticsTraceNode[];
+    trackingNo?: string;
+  }
+
+  export interface LogisticsTraceNode {
+    context: string;
+    ftime: string;
+    location?: string;
+    time?: string;
+  }
+
   export interface PageResult<T> {
     pageNum: number;
     pageSize: number;
@@ -78,6 +97,13 @@ async function getOrderDetail(id: number) {
 }
 
 /**
+ * 订单物流轨迹（快递100 实时查询）
+ */
+async function getOrderLogistics(id: number) {
+  return requestClient.get<OrderApi.LogisticsTrace>(`/orders/${id}/logistics`);
+}
+
+/**
  * 订单发货
  */
 async function deliverOrder(id: number, data: OrderApi.DeliverPayload) {
@@ -93,4 +119,10 @@ async function closeOrder(id: number, reason?: string) {
   });
 }
 
-export { closeOrder, deliverOrder, getOrderDetail, getOrderList };
+export {
+  closeOrder,
+  deliverOrder,
+  getOrderDetail,
+  getOrderList,
+  getOrderLogistics,
+};

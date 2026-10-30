@@ -163,6 +163,28 @@ export interface Order {
   pendingCommentCount?: number
 }
 
+/** 物流轨迹节点（快递100 实时查询） */
+export interface LogisticsTraceNode {
+  context: string
+  /** 格式化时间（如 2026-10-31 12:30:00） */
+  ftime?: string
+  location?: string
+  time?: string
+}
+
+/** 物流轨迹查询结果 */
+export interface LogisticsTrace {
+  company?: string
+  companyCode?: string
+  /** 轨迹是否已签收 */
+  isChecked?: boolean
+  /** 快递100 状态：200 正常返回 */
+  status?: string
+  state?: string
+  traces: LogisticsTraceNode[]
+  trackingNo?: string
+}
+
 export interface LoginUser {
   userId: number
   openid: string

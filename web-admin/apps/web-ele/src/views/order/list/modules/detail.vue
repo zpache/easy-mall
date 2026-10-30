@@ -6,15 +6,19 @@ import { ref } from 'vue';
 import { useVbenDrawer } from '@vben/common-ui';
 
 import {
+  ElAlert,
+  ElButton,
   ElDescriptions,
   ElDescriptionsItem,
   ElImage,
   ElTable,
   ElTableColumn,
   ElTag,
+  ElTimeline,
+  ElTimelineItem,
 } from 'element-plus';
 
-import { getOrderDetail } from '#/api/order/order';
+import { getOrderDetail, getOrderLogistics } from '#/api/order/order';
 import { $t } from '#/locales';
 
 import {
@@ -26,6 +30,11 @@ import {
 
 const order = ref<null | OrderApi.Order>(null);
 const loading = ref(false);
+
+/** 物流轨迹：undefined 未加载，null 加载失败/不可用 */
+const trace = ref<OrderApi.LogisticsTrace | null | undefined>(undefined);
+const traceError = ref('');
+const traceLoading = ref(false);
 
 const [Drawer, drawerApi] = useVbenDrawer({
   footer: false,
@@ -41,11 +50,30 @@ const [Drawer, drawerApi] = useVbenDrawer({
     loading.value = true;
     try {
       order.value = await getOrderDetail(data.id);
+      trace.value = undefined;
+      traceError.value = '';
+      // 已发货且有单号时自动加载物流轨迹（未开启/失败静默降级，不阻塞详情展示）
+      if (order.value?.deliveryNo) {
+        loadTrace(order.value.id);
+      }
     } finally {
       loading.value = false;
     }
   },
 });
+
+async function loadTrace(id: number) {
+  traceLoading.value = true;
+  traceError.value = '';
+  try {
+    trace.value = await getOrderLogistics(id);
+  } catch (error: any) {
+    trace.value = null;
+    traceError.value = error?.message || $t('order.order.logisticsFailed');
+  } finally {
+    traceLoading.value = false;
+  }
+}
 
 function statusOption(value?: number) {
   return useStatusOptions().find((item) => item.value === value);
@@ -184,6 +212,50 @@ const tagTypeMap: Record<string, any> = {
             {{ order.deliveryNo || '-' }}
           </ElDescriptionsItem>
         </ElDescriptions>
+
+        <div v-if="order.deliveryNo">
+          <div class="mb-2 flex items-center justify-between">
+            <span class="text-sm font-medium">
+              {{ $t('order.order.logisticsTrace') }}
+            </span>
+            <ElButton
+              :loading="traceLoading"
+              link
+              type="primary"
+              @click="loadTrace(order.id)"
+            >
+              {{ $t('order.order.logisticsRefresh') }}
+            </ElButton>
+          </div>
+          <ElAlert
+            v-if="trace === null"
+            :title="traceError"
+            :closable="false"
+            show-icon
+            type="warning"
+          />
+          <ElTimeline v-else-if="trace?.traces?.length" class="pl-2">
+            <ElTimelineItem
+              v-for="(node, index) in trace.traces"
+              :key="`${node.time}-${index}`"
+              :hollow="index !== 0"
+              :timestamp="node.ftime || node.time"
+              :type="index === 0 ? 'primary' : undefined"
+              placement="top"
+            >
+              <div>{{ node.context }}</div>
+              <div
+                v-if="node.location"
+                class="text-xs text-gray-400"
+              >
+                {{ node.location }}
+              </div>
+            </ElTimelineItem>
+          </ElTimeline>
+          <div v-else-if="trace" class="text-sm text-gray-400">
+            {{ $t('order.order.logisticsEmpty') }}
+          </div>
+        </div>
 
         <div>
           <div class="mb-2 text-sm font-medium">
