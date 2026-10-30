@@ -49,8 +49,10 @@ public class RefundService {
         if (order.getPayTime() == null) {
             throw new BusinessException(ResultCode.ORDER_STATUS_ERROR, "订单还未支付，无需申请退款，可直接取消订单");
         }
-        if (order.getStatus() != null && order.getStatus() == MallOrder.STATUS_CANCELLED) {
-            throw new BusinessException(ResultCode.ORDER_STATUS_ERROR, "订单已取消，无法申请退款");
+        // 只有「已支付、待发货」可申请退款：货已在途/已签收的售后走线下协商或客服渠道，
+        // 与小程序端入口展示口径一致，避免已发货订单直接原路退回造成钱货两失
+        if (order.getStatus() == null || order.getStatus() != MallOrder.STATUS_UNDELIVERED) {
+            throw new BusinessException(ResultCode.ORDER_STATUS_ERROR, "只有已支付、待发货的订单可以申请退款");
         }
 
         List<OrderRefund> running = refundMapper.selectList(Wrappers.<OrderRefund>lambdaQuery()
