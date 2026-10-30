@@ -154,7 +154,12 @@ export function useColumns<T = OrderCommentApi.Comment>(
         },
         name: 'CellOperation',
         options: [
-          { code: 'audit', text: $t('order.comment.auditAction') },
+          {
+            code: 'audit',
+            // 仅待审核的记录可审核；已通过/已拒绝不能再改判，避免误操作覆盖审核结论
+            show: (row: OrderCommentApi.Comment) => row.auditStatus === 0,
+            text: $t('order.comment.auditAction'),
+          },
           { code: 'reply', text: $t('order.comment.replyAction') },
           { code: 'delete', text: $t('order.comment.delete') },
         ],

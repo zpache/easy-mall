@@ -49,27 +49,23 @@ public class CommentService extends ServiceImpl<OrderCommentMapper, OrderComment
     }
 
     /**
-     * 审核评价：通过后小程序端其他用户可见，拒绝则只有评价本人能看到。
-     * 允许对已审核的评价改判（如先拒绝后通过）。
+     * 审核评价：通过后小程序端其他用户可见，拒绝则只有评价本人能看到（拒绝同时下架）。
+     * 仅「待审核」的记录可审核，条件更新保证并发下只有一人成功，已审核的不能再改判。
      */
     public void audit(Long id, Integer status, String remark) {
         if (status == null
                 || (status != OrderComment.AUDIT_PASSED && status != OrderComment.AUDIT_REJECTED)) {
             throw new BusinessException("审核结果只能为 1（通过）或 2（拒绝）");
         }
-        OrderComment comment = getById(id);
-        if (comment == null) {
-            throw new BusinessException(ResultCode.DATA_NOT_FOUND);
-        }
-        comment.setAuditStatus(status);
-        comment.setAuditRemark(StringUtils.hasText(remark) ? remark.trim() : null);
-        comment.setAuditAt(LocalDateTime.now());
-        if (status == OrderComment.AUDIT_REJECTED) {
-            // 拒绝同时下架，避免残留展示
-            comment.setIsShow(0);
-        }
-        if (!updateById(comment)) {
-            throw new BusinessException(ResultCode.DATA_CONFLICT, "数据已被其他人修改，请刷新后重试");
+        int affected = baseMapper.update(null, Wrappers.<OrderComment>lambdaUpdate()
+                .eq(OrderComment::getId, id)
+                .eq(OrderComment::getAuditStatus, OrderComment.AUDIT_PENDING)
+                .set(OrderComment::getAuditStatus, status)
+                .set(OrderComment::getAuditRemark, StringUtils.hasText(remark) ? remark.trim() : null)
+                .set(OrderComment::getAuditAt, LocalDateTime.now())
+                .set(status == OrderComment.AUDIT_REJECTED, OrderComment::getIsShow, 0));
+        if (affected == 0) {
+            throw new BusinessException(ResultCode.DATA_CONFLICT, "该评价不存在或已被审核，请刷新后查看");
         }
     }
 
