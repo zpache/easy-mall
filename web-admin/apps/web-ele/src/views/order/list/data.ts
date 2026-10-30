@@ -177,7 +177,8 @@ export function useColumns<T = OrderApi.Order>(
           },
           {
             code: 'close',
-            show: (row: OrderApi.Order) => row.status === 0 || row.status === 1,
+            // 只有待付款订单可关闭；已支付订单一律走「售后退款」，否则会出现「订单已关闭但钱没退」
+            show: (row: OrderApi.Order) => row.status === 0,
             text: $t('order.order.close'),
           },
         ],
