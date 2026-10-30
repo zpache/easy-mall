@@ -27,6 +27,8 @@ const commentAvg = ref(0)
 const commentPage = ref(0)
 const commentFinished = ref(false)
 const commentLoading = ref(false)
+/** 评价加载失败：与「真的没有评价」区分开，避免用户误以为没人评价 */
+const commentError = ref(false)
 
 const avgScoreText = computed(() => Number(commentAvg.value ?? 0).toFixed(1))
 /** 页签上的数字只算已通过审核的条数，不含自己的待审核评价 */
@@ -56,7 +58,7 @@ async function load() {
 
 /**
  * 加载评价：reset=true 重新从第一页拉，否则加载下一页。
- * 失败不打断商品浏览，页签保持「暂无评价」。
+ * 失败不打断商品浏览，但要给出可重试的提示，不能静默当成「暂无评价」。
  */
 async function loadComments(reset = false) {
   if (commentLoading.value) return
@@ -70,9 +72,11 @@ async function loadComments(reset = false) {
     commentList.value = reset ? res.page.records : [...commentList.value, ...res.page.records]
     commentPage.value = nextPage
     commentFinished.value = res.page.pages <= nextPage || res.page.records.length < COMMENT_PAGE_SIZE
+    commentError.value = false
   } catch {
     if (reset) {
       commentList.value = []
+      commentError.value = true
     }
   } finally {
     commentLoading.value = false
@@ -185,7 +189,10 @@ onLoad((options) => {
         </view>
       </view>
 
-      <view v-if="!commentList.length" class="comments__empty">暂无评价，期待你的分享</view>
+      <view v-if="commentError && !commentList.length" class="comments__empty comments__empty--retry" @tap="loadComments(true)">
+        评价加载失败，点击重试
+      </view>
+      <view v-else-if="!commentList.length" class="comments__empty">暂无评价，期待你的分享</view>
 
       <view v-for="item in commentList" :key="item.id" class="comment">
         <view class="comment__head">
@@ -400,6 +407,11 @@ onLoad((options) => {
     margin-top: 20rpx;
     font-size: 26rpx;
     color: $text-placeholder;
+
+    /* 加载失败态：可点击重试，用主色区分「暂无评价」 */
+    &--retry {
+      color: $primary;
+    }
   }
 
   &__more {
