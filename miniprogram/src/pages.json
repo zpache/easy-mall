@@ -77,6 +77,12 @@
       }
     },
     {
+      "path": "pages/order/comment",
+      "style": {
+        "navigationBarTitleText": "评价商品"
+      }
+    },
+    {
       "path": "pages/address/list",
       "style": {
         "navigationBarTitleText": "收货地址"

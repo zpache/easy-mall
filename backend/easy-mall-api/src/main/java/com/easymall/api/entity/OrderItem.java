@@ -1,6 +1,7 @@
 package com.easymall.api.entity;
 
 import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
@@ -32,4 +33,8 @@ public class OrderItem extends BaseEntity {
     private Integer quantity;
 
     private BigDecimal totalAmount;
+
+    /** 该商品是否已评价：返回订单详情时填充，不落库 */
+    @TableField(exist = false)
+    private Boolean commented;
 }

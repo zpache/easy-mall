@@ -21,4 +21,7 @@ public class UploadProperties {
 
     /** 头像单文件大小上限（字节），默认 2MB */
     private long avatarMaxSize = 2 * 1024 * 1024L;
+
+    /** 评价晒图单文件大小上限（字节），默认 5MB */
+    private long commentMaxSize = 5 * 1024 * 1024L;
 }

@@ -56,6 +56,8 @@ easy-mall:
       - /categories
       - /goods
       - /goods/**
+      # 商品评价列表：游客浏览商品详情时也要能看到评价，提交评价仍需登录
+      - /comments/goods/**
       - /decorate
       - /decorate/**
       - /v3/api-docs/**

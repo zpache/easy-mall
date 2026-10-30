@@ -138,6 +138,11 @@ function goDetail(order: Order) {
   uni.navigateTo({ url: `/pages/order/detail?id=${order.id}` })
 }
 
+/** 去评价：把订单内未评价的商品逐条填写 */
+function goComment(order: Order) {
+  uni.navigateTo({ url: `/pages/order/comment?id=${order.id}` })
+}
+
 /** 详情页里支付/取消后回列表要看到最新状态 */
 function onOrderRefresh() {
   load(true)
@@ -243,6 +248,18 @@ onUnload(() => {
       <view v-else-if="order.status === 2" class="order__actions">
         <view class="btn btn--plain" @tap.stop="goDetail(order)">物流信息</view>
         <view class="btn btn--primary" @tap.stop="confirmReceive(order)">确认收货</view>
+      </view>
+
+      <!-- 已完成：还有未评价商品时给评价入口，全部评完显示已评价 -->
+      <view v-else-if="order.status === 3" class="order__actions">
+        <view
+          v-if="(order.pendingCommentCount ?? 0) > 0"
+          class="btn btn--primary"
+          @tap.stop="goComment(order)"
+        >
+          去评价<text v-if="(order.pendingCommentCount ?? 0) > 1">（{{ order.pendingCommentCount }}）</text>
+        </view>
+        <text v-else class="order__commented">已评价</text>
       </view>
     </view>
 
@@ -371,6 +388,14 @@ onUnload(() => {
     justify-content: flex-end;
     gap: 16rpx;
     margin-top: 20rpx;
+  }
+
+  &__commented {
+    padding: 0 8rpx;
+    height: 64rpx;
+    line-height: 64rpx;
+    font-size: 24rpx;
+    color: $text-placeholder;
   }
 }
 
