@@ -1,6 +1,7 @@
 package com.easymall.api.modules.order.vo;
 
 import com.easymall.api.entity.OrderItem;
+import com.easymall.api.entity.OrderPromotion;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -24,6 +25,10 @@ public record OrderVO(
         BigDecimal memberDiscount,
         /** 享受折扣时的会员等级名称（下单时快照） */
         String memberLevelName,
+        /** 满减优惠金额（多活动合计），未参加为 0 */
+        BigDecimal reductionAmount,
+        /** 参加的满减活动快照（1 对多），未参加为空列表 */
+        List<OrderPromotion> promotions,
         BigDecimal payAmount,
         String receiverName,
         String receiverPhone,

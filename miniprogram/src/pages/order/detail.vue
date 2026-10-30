@@ -77,6 +77,9 @@ const freightText = computed(() => {
 
 const couponAmount = computed(() => Number(order.value?.couponAmount ?? 0))
 const memberDiscount = computed(() => Number(order.value?.memberDiscount ?? 0))
+const reductionAmount = computed(() => Number(order.value?.reductionAmount ?? 0))
+/** 参加的满减活动快照（1 对多），按落库顺序展示 */
+const promotions = computed(() => order.value?.promotions ?? [])
 
 /** 商品总额：下单快照里没有单独的字段，用实付反推口径容易对不上，这里按下单明细求和 */
 const goodsAmount = computed(() => {
@@ -85,7 +88,7 @@ const goodsAmount = computed(() => {
   // 明细缺失时退回「应付 - 运费 + 各项优惠」的老口径，保证金额区不出现 0
   if (!sum) {
     return Number(order.value.payAmount) - Number(order.value.freightAmount ?? 0)
-      + couponAmount.value + memberDiscount.value
+      + couponAmount.value + memberDiscount.value + reductionAmount.value
   }
   return sum
 })
@@ -302,6 +305,16 @@ onUnload(stopTicking)
         <view v-if="memberDiscount > 0" class="row">
           <text class="row__label">会员折扣{{ order.memberLevelName ? `（${order.memberLevelName}）` : '' }}</text>
           <text class="row__value row__value--cut">-¥{{ formatPrice(memberDiscount) }}</text>
+        </view>
+        <view v-if="reductionAmount > 0" class="row">
+          <text class="row__label">满减优惠</text>
+          <text class="row__value row__value--cut">-¥{{ formatPrice(reductionAmount) }}</text>
+        </view>
+        <view v-for="promotion in promotions" :key="promotion.id" class="row row--promotion">
+          <text class="row__label">
+            {{ promotion.promotionName }}{{ promotion.times > 1 ? `×${promotion.times}` : '' }}
+          </text>
+          <text class="row__value row__value--cut">-¥{{ formatPrice(promotion.discountAmount) }}</text>
         </view>
         <view v-if="couponAmount > 0" class="row">
           <text class="row__label">优惠券</text>
@@ -587,6 +600,21 @@ onUnload(stopTicking)
     .row__label {
       color: $text-main;
       font-weight: 600;
+    }
+  }
+
+  /* 满减活动明细行：比主行小一号、弱化展示 */
+  &--promotion {
+    padding: 12rpx 0;
+    font-size: 24rpx;
+
+    .row__label {
+      flex: 1;
+      min-width: 0;
+      margin-right: 24rpx;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
   }
 

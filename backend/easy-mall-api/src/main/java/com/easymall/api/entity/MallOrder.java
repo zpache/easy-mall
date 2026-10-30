@@ -52,6 +52,9 @@ public class MallOrder extends BaseEntity {
     /** 下单时的会员等级名称快照，未享受折扣为 null */
     private String memberLevelName;
 
+    /** 满减优惠金额（多活动合计），未参加为 0；参加的每个活动明细见 o_order_promotion 快照 */
+    private BigDecimal reductionAmount;
+
     private BigDecimal payAmount;
 
     /**

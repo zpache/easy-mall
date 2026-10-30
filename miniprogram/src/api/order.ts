@@ -1,5 +1,5 @@
 import { buildQuery, request } from './request'
-import type { FreightPreview, Order, PageResult, PrepayResult, RefundApplyResult } from '@/types/api'
+import type { FreightPreview, Order, PageResult, PrepayResult, PromotionPreview, RefundApplyResult } from '@/types/api'
 import type { UsableCoupon } from '@/types/coupon'
 
 export const orderApi = {
@@ -19,6 +19,10 @@ export const orderApi = {
   /** 结算页可用优惠券：默认按购物车已勾选商品计算；立即购买时按 goodsId+quantity 计算 */
   usableCoupons: (params?: { goodsId?: number, quantity?: number }) =>
     request<UsableCoupon[]>({ url: `/orders/coupons${buildQuery(params ?? {})}` }),
+
+  /** 结算页满减预估：口径同可用优惠券，usable=false 表示未达门槛 */
+  promotionPreview: (params?: { goodsId?: number, quantity?: number }) =>
+    request<PromotionPreview[]>({ url: `/orders/promotions${buildQuery(params ?? {})}` }),
 
   /** 运费预览：按收货地址与商品总额，deliverable=false 表示该地区不配送 */
   freightPreview: (addressId: number, totalAmount: number) =>

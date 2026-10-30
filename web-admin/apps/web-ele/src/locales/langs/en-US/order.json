@@ -11,6 +11,7 @@
     "freight": "Freight",
     "coupon": "Coupon",
     "memberDiscount": "Member discount",
+    "reduction": "Promotion",
     "refundedAmount": "Refunded",
     "status": "Order Status",
     "statusUnpaid": "Unpaid",
