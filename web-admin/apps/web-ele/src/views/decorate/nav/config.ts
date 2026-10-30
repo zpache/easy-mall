@@ -45,7 +45,6 @@ export function tabItem(
     linkType,
     linkValue,
     name,
-    selectedIcon: '',
     visible: true,
   };
 }
@@ -53,7 +52,7 @@ export function tabItem(
 export const DEFAULT_TABBAR: NavApi.Tabbar = {
   bgColor: '#ffffff',
   borderStyle: 'black',
-  color: '#909399',
+  color: '',
   enabled: true,
   items: [
     tabItem('首页', 'home', 'home'),
@@ -61,7 +60,7 @@ export const DEFAULT_TABBAR: NavApi.Tabbar = {
     tabItem('购物车', 'cart', 'path', '/pages/cart/index'),
     tabItem('我的', 'mine', 'path', '/pages/mine/index'),
   ],
-  selectedColor: '#1677ff',
+  selectedColor: '',
 };
 
 export const DEFAULT_NAVBAR: NavApi.Navbar = {

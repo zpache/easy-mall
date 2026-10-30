@@ -11,13 +11,10 @@ import {
   ElDatePicker,
   ElInput,
   ElInputNumber,
-  ElMessage,
   ElOption,
   ElSelect,
   ElSwitch,
 } from 'element-plus';
-
-import { uploadImageApi } from '#/api/upload';
 
 import CouponPicker from './coupon-picker.vue';
 import GoodsPicker from './goods-picker.vue';
@@ -39,58 +36,24 @@ const value = computed({
   set: (val) => emit('update:modelValue', val),
 });
 
-/** 图片上传：大小与格式由后端凭证下发，前端提前拦截一次 */
-const MAX_IMAGE_SIZE = 5 * 1024 * 1024;
-const fileInput = ref<HTMLInputElement>();
-const uploading = ref(false);
-const progress = ref(0);
+/**
+ * 图片统一从「素材中心」取：装修里不再各自直传，
+ * 上传动作收敛到素材选择器内部（上传即登记素材库），避免同一张图重复上传。
+ */
 const materialPickerVisible = ref(false);
+/** 轮播图等列表字段的批量选择 */
+const batchPickerVisible = ref(false);
 
-function pickFile() {
-  if (uploading.value) {
-    return;
-  }
-  fileInput.value?.click();
+function openMaterialPicker() {
+  materialPickerVisible.value = true;
 }
 
 function clearImage() {
   emit('update:modelValue', '');
 }
 
-async function onFileChange(event: Event) {
-  const input = event.target as HTMLInputElement;
-  const file = input.files?.[0];
-  // 清空以便重复选择同一文件
-  input.value = '';
-  if (!file) {
-    return;
-  }
-  if (file.size > MAX_IMAGE_SIZE) {
-    ElMessage.warning('图片不能超过 5MB');
-    return;
-  }
-  uploading.value = true;
-  progress.value = 0;
-  try {
-    const result = await uploadImageApi(file, {
-      scene: 'decorate',
-      onProgress: (percent) => {
-        progress.value = percent;
-      },
-    });
-    if (result?.url) {
-      emit('update:modelValue', result.url);
-      ElMessage.success('图片已上传');
-    }
-  } catch (error: any) {
-    // 接口错误由请求拦截器统一提示，这里只处理本地校验与直传失败
-    if (!error?.response && error?.message) {
-      ElMessage.error(error.message);
-    }
-  } finally {
-    uploading.value = false;
-    progress.value = 0;
-  }
+function onMaterialSelect(url: string) {
+  emit('update:modelValue', url);
 }
 
 const items = computed<any[]>(() =>
@@ -127,6 +90,32 @@ function moveItem(index: number, offset: number) {
   const next = [...items.value];
   const [item] = next.splice(index, 1);
   next.splice(target, 0, item!);
+  emit('update:modelValue', next);
+}
+
+/** 列表字段里的图片子字段（有则支持一次从素材库批量添加多行） */
+const imageSubField = computed(() =>
+  (props.field.itemFields || []).find((sub) => sub.type === 'image'),
+);
+
+function onBatchConfirm(urls: string[]) {
+  const key = imageSubField.value?.key;
+  if (!key) {
+    return;
+  }
+  const limit = props.field.maxItems;
+  const next = items.value.map((item) => ({ ...item }));
+  for (const url of urls) {
+    if (limit !== undefined && next.length >= limit) {
+      break;
+    }
+    const template: Record<string, any> = {};
+    for (const sub of props.field.itemFields || []) {
+      template[sub.key] = sub.type === 'number' ? 0 : '';
+    }
+    template[key] = url;
+    next.push(template);
+  }
   emit('update:modelValue', next);
 }
 
@@ -219,32 +208,22 @@ function itemTitle(item: any, index: number) {
     />
     <div v-else-if="field.type === 'image'" class="image-field">
       <div
-        class="image-preview"
-        :class="{ clickable: !uploading }"
-        title="点击选择图片"
-        @click="pickFile"
+        class="image-preview clickable"
+        title="从素材中心选择图片"
+        @click="openMaterialPicker"
       >
         <img v-if="value" :src="value" alt="preview" />
         <IconifyIcon v-else class="placeholder-icon" icon="lucide:image-plus" />
-        <div v-if="uploading" class="uploading-mask">
-          <IconifyIcon v-if="progress === 0" class="spin" icon="lucide:loader-2" />
-          <span v-else class="percent">{{ progress }}%</span>
-        </div>
       </div>
       <div class="image-input">
-        <ElInput v-model="value" placeholder="图片地址 https://…" size="small" />
+        <ElInput
+          v-model="value"
+          placeholder="图片地址 https://…（建议从素材中心选择）"
+          size="small"
+        />
         <div class="image-actions">
-          <ElButton
-            :loading="uploading"
-            size="small"
-            text
-            type="primary"
-            @click="pickFile"
-          >
-            上传图片
-          </ElButton>
-          <ElButton size="small" text type="primary" @click="materialPickerVisible = true">
-            素材库
+          <ElButton size="small" text type="primary" @click="openMaterialPicker">
+            从素材中心选择
           </ElButton>
           <ElButton v-if="value" size="small" text @click="clearImage">
             清除
@@ -253,19 +232,23 @@ function itemTitle(item: any, index: number) {
       </div>
       <MaterialPicker
         v-model="materialPickerVisible"
-        @select="(url: string) => (value = url)"
-      />
-      <input
-        ref="fileInput"
-        accept="image/jpeg,image/png,image/gif,image/webp,image/bmp"
-        class="file-input"
-        type="file"
-        @change="onFileChange"
+        :selected="value ? [value] : []"
+        @select="onMaterialSelect"
       />
     </div>
 
     <!-- 列表类型 -->
     <div v-else-if="field.type === 'items'" class="items">
+      <ElButton
+        v-if="imageSubField"
+        class="w-full"
+        plain
+        size="small"
+        @click="batchPickerVisible = true"
+      >
+        <IconifyIcon icon="lucide:images" class="mr-1" />
+        从素材中心批量添加
+      </ElButton>
       <div v-for="(item, index) in items" :key="index" class="item">
         <div class="item-head">
           <span class="item-title">{{ itemTitle(item, index) }}</span>
@@ -301,6 +284,16 @@ function itemTitle(item: any, index: number) {
         <IconifyIcon icon="lucide:plus" class="mr-1" />
         添加一项
       </ElButton>
+      <MaterialPicker
+        v-if="imageSubField"
+        v-model="batchPickerVisible"
+        :limit="
+          field.maxItems ? Math.max(field.maxItems - items.length, 0) : 0
+        "
+        multiple
+        title="批量选择图片"
+        @confirm="onBatchConfirm"
+      />
     </div>
   </div>
 </template>
@@ -351,28 +344,6 @@ function itemTitle(item: any, index: number) {
   height: 100%;
   object-fit: cover;
 }
-.uploading-mask {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 16px;
-  color: #1677ff;
-  background: rgb(255 255 255 / 70%);
-}
-.uploading-mask .percent {
-  font-size: 11px;
-  font-weight: 600;
-}
-.spin {
-  animation: spin 1s linear infinite;
-}
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
 .placeholder-icon {
   font-size: 18px;
   color: #c0c4cc;
@@ -391,9 +362,6 @@ function itemTitle(item: any, index: number) {
   height: 20px;
   padding: 0 4px;
   font-size: 11px;
-}
-.file-input {
-  display: none;
 }
 .items {
   display: flex;

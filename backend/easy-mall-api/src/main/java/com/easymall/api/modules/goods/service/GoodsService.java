@@ -37,6 +37,7 @@ public class GoodsService {
                 .like(StringUtils.hasText(keyword), Goods::getName, keyword);
         applySort(wrapper, sortBy);
         Page<Goods> page = goodsMapper.selectPage(Page.of(pageNum, pageSize), wrapper);
+        page.getRecords().forEach(this::mergeSales);
         return PageResult.of(page);
     }
 
@@ -48,7 +49,7 @@ public class GoodsService {
         if (!Integer.valueOf(1).equals(goods.getStatus())) {
             throw new BusinessException(ResultCode.GOODS_OFF_SHELF);
         }
-        return goods;
+        return mergeSales(goods);
     }
 
     public List<Category> categories() {
@@ -62,13 +63,24 @@ public class GoodsService {
         List<Category> categories = categories();
         List<Goods> hotGoods = goodsMapper.selectList(Wrappers.<Goods>lambdaQuery()
                 .eq(Goods::getStatus, 1)
-                .orderByDesc(Goods::getSales)
-                .last("limit " + HOME_LIMIT));
+                .last("ORDER BY (sales + base_sales) DESC LIMIT " + HOME_LIMIT));
         List<Goods> newGoods = goodsMapper.selectList(Wrappers.<Goods>lambdaQuery()
                 .eq(Goods::getStatus, 1)
                 .orderByDesc(Goods::getId)
                 .last("limit " + HOME_LIMIT));
+        hotGoods.forEach(this::mergeSales);
+        newGoods.forEach(this::mergeSales);
         return new HomeVO(categories, hotGoods, newGoods);
+    }
+
+    /**
+     * 对外展示销量 = 真实销量 + 基础销量，副作用是把实体上的 sales 覆盖为合计值（仅用于响应序列化）。
+     */
+    private Goods mergeSales(Goods goods) {
+        int sales = goods.getSales() == null ? 0 : goods.getSales();
+        int base = goods.getBaseSales() == null ? 0 : goods.getBaseSales();
+        goods.setSales(sales + base);
+        return goods;
     }
 
     private void applySort(LambdaQueryWrapper<Goods> wrapper, String sortBy) {
@@ -77,7 +89,7 @@ public class GoodsService {
             return;
         }
         switch (sortBy) {
-            case "sales" -> wrapper.orderByDesc(Goods::getSales);
+            case "sales" -> wrapper.last("ORDER BY (sales + base_sales) DESC");
             case "priceAsc" -> wrapper.orderByAsc(Goods::getPrice);
             case "priceDesc" -> wrapper.orderByDesc(Goods::getPrice);
             default -> wrapper.orderByDesc(Goods::getId);

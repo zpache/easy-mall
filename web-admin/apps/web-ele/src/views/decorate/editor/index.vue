@@ -118,7 +118,13 @@ function onAdd(type: string) {
   addWidget(type);
 }
 
+/** 发布直接影响小程序端展示，必须二次确认 */
 async function onPublish() {
+  await ElMessageBox.confirm(
+    `发布后「${pageName.value}」的装修内容将立即对小程序端生效，确定发布吗？`,
+    '发布页面',
+    { type: 'warning', confirmButtonText: '确认发布' },
+  );
   try {
     await publish();
   } catch (error: any) {

@@ -2,14 +2,22 @@
 import { reactive, ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import EmptyState from '@/components/empty-state.vue'
+import RegionPicker from '@/components/region-picker.vue'
 import { addressApi } from '@/api/user'
 import type { Address, AddressForm } from '@/types/api'
+import { useTheme } from '@/composables/useTheme'
+
+const { theme, themePageStyle } = useTheme()
 
 const list = ref<Address[]>([])
 const selectMode = ref(false)
 const showForm = ref(false)
 const editingId = ref<number | null>(null)
 const submitting = ref(false)
+/** 省市区选择器 */
+const regionPickerVisible = ref(false)
+/** 编辑时用于定位初始选中项 */
+const initialRegion = ref<{ province?: string, city?: string, district?: string }>({})
 
 const form = reactive<AddressForm>({
   receiver: '',
@@ -40,6 +48,7 @@ function resetForm() {
 
 function openCreate() {
   resetForm()
+  initialRegion.value = {}
   showForm.value = true
 }
 
@@ -54,7 +63,15 @@ function openEdit(address: Address) {
     detail: address.detail,
     isDefault: address.isDefault
   })
+  initialRegion.value = { province: address.province, city: address.city, district: address.district }
   showForm.value = true
+}
+
+/** 省市区选择完成：写入标准名称（与 region 表一致，运费按名称精确匹配） */
+function onRegionConfirm(value: { province: string, city: string, district: string }) {
+  form.province = value.province
+  form.city = value.city
+  form.district = value.district
 }
 
 async function submit() {
@@ -67,7 +84,7 @@ async function submit() {
     return
   }
   if (!form.province.trim() || !form.city.trim() || !form.district.trim()) {
-    uni.showToast({ title: '请填写省市区', icon: 'none' })
+    uni.showToast({ title: '请选择省市区', icon: 'none' })
     return
   }
   if (!form.detail.trim()) {
@@ -116,6 +133,10 @@ onLoad((options) => {
 </script>
 
 <template>
+  <!-- 主题变量注入：后台启用主题后页面底色与全部语义色跟随变化 -->
+  <!-- #ifdef MP-WEIXIN -->
+  <page-meta :page-style="themePageStyle" />
+  <!-- #endif -->
   <view class="page">
     <EmptyState v-if="!list.length" text="还没有收货地址" tip="点击下方按钮新增" />
 
@@ -154,17 +175,13 @@ onLoad((options) => {
             <text class="form__label">手机号</text>
             <input v-model="form.phone" class="form__input" type="number" maxlength="11" placeholder="请填写手机号" />
           </view>
-          <view class="form__item">
-            <text class="form__label">省份</text>
-            <input v-model="form.province" class="form__input" placeholder="如 广东省" />
-          </view>
-          <view class="form__item">
-            <text class="form__label">城市</text>
-            <input v-model="form.city" class="form__input" placeholder="如 深圳市" />
-          </view>
-          <view class="form__item">
-            <text class="form__label">区县</text>
-            <input v-model="form.district" class="form__input" placeholder="如 南山区" />
+          <view class="form__item" @tap="regionPickerVisible = true">
+            <text class="form__label">所在地区</text>
+            <text v-if="form.province" class="form__value">
+              {{ form.province }} {{ form.city }} {{ form.district }}
+            </text>
+            <text v-else class="form__placeholder">请选择省 / 市 / 区</text>
+            <text class="form__arrow">›</text>
           </view>
           <view class="form__item">
             <text class="form__label">详细地址</text>
@@ -174,7 +191,7 @@ onLoad((options) => {
             <text class="form__label">设为默认</text>
             <switch
               :checked="form.isDefault === 1"
-              color="#ff5a1f"
+              :color="theme.primaryColor"
               @change="(e) => (form.isDefault = e.detail.value ? 1 : 0)"
             />
           </view>
@@ -187,6 +204,12 @@ onLoad((options) => {
         </view>
       </view>
     </view>
+
+    <RegionPicker
+      v-model="regionPickerVisible"
+      :initial="initialRegion"
+      @confirm="onRegionConfirm"
+    />
   </view>
 </template>
 
@@ -349,6 +372,24 @@ onLoad((options) => {
   &__input {
     flex: 1;
     font-size: 28rpx;
+  }
+
+  &__value {
+    flex: 1;
+    font-size: 28rpx;
+    color: $text-main;
+  }
+
+  &__placeholder {
+    flex: 1;
+    font-size: 28rpx;
+    color: $text-placeholder;
+  }
+
+  &__arrow {
+    font-size: 36rpx;
+    color: $text-placeholder;
+    margin-left: 12rpx;
   }
 }
 </style>

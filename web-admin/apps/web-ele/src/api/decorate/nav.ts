@@ -11,8 +11,8 @@ export namespace DecorateNavApi {
     /** page 时为页面 ID，path 时为以 / 开头的路径 */
     linkValue: string;
     name: string;
-    /** 选中态图标（图片地址） */
-    selectedIcon: string;
+    /** 历史遗留字段：旧数据里存过选中态图标，新配置不再区分，仅解析兼容 */
+    selectedIcon?: string;
     visible: boolean;
   }
 

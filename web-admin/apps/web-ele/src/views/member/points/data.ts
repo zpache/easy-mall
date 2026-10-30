@@ -11,6 +11,7 @@ export function useTypeOptions() {
     { color: 'success', label: $t('member.points.typeEarn'), value: 'earn' },
     { color: 'warning', label: $t('member.points.typeConsume'), value: 'consume' },
     { color: 'processing', label: $t('member.points.typeAdjust'), value: 'adjust' },
+    { color: 'danger', label: $t('member.points.typeRefund'), value: 'refund' },
   ];
 }
 

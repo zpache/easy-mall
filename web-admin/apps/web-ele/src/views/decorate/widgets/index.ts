@@ -192,6 +192,12 @@ export const WIDGETS: WidgetDefinition[] = [
       { key: 'color', label: '文字颜色', type: 'color' },
       { key: 'bold', label: '加粗', type: 'switch' },
       { key: 'more', label: '显示"更多"', type: 'switch' },
+      {
+        key: 'moreLink',
+        label: '更多跳转链接',
+        tip: '留空默认进入全部商品列表；也可填 /goods/1、/category/2、/pages/...',
+        type: 'input',
+      },
       { key: 'margin', label: '外边距', type: 'number', min: 0, max: 40 },
     ],
     icon: 'lucide:heading',
@@ -277,13 +283,10 @@ export const WIDGETS: WidgetDefinition[] = [
       { key: 'title', label: '标题', type: 'input' },
       { key: 'subtitle', label: '副标题', type: 'input' },
       {
-        itemFields: [
-          { key: 'seckillPrice', label: '秒杀价（元）', min: 0, step: 0.01, type: 'number' },
-        ],
         key: 'goods',
         label: '秒杀商品',
         maxItems: 10,
-        tip: '为每个商品单独填写秒杀价',
+        tip: '展示商品现价，与商品详情页价格一致',
         type: 'goods',
       },
       { key: 'endTime', label: '结束时间', type: 'datetime' },

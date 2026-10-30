@@ -110,8 +110,25 @@ async function onDelete(item: MaterialItem) {
 }
 
 async function onCopy(item: MaterialItem) {
-  await navigator.clipboard.writeText(item.url);
-  ElMessage.success('链接已复制');
+  const text = item.url;
+  try {
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(text);
+    } else {
+      // 非安全上下文（HTTP + 非 localhost）下 clipboard API 不可用，降级 execCommand
+      const textarea = document.createElement('textarea');
+      textarea.value = text;
+      textarea.style.position = 'fixed';
+      textarea.style.opacity = '0';
+      document.body.append(textarea);
+      textarea.select();
+      document.execCommand('copy');
+      textarea.remove();
+    }
+    ElMessage.success('链接已复制');
+  } catch {
+    ElMessage.error(`复制失败，请手动复制：${text}`);
+  }
 }
 
 function preview(item: MaterialItem) {

@@ -26,8 +26,9 @@ function active(index: number) {
   return index === props.activeIndex;
 }
 
-function imageOf(item: NavApi.TabItem, isActive: boolean) {
-  return (isActive ? item.selectedIcon || item.icon : item.icon) || '';
+function imageOf(item: NavApi.TabItem, _isActive: boolean) {
+  // 单图标方案：同一图标按选中/未选中着色，不再区分两套图标
+  return item.icon || '';
 }
 </script>
 
@@ -45,7 +46,7 @@ function imageOf(item: NavApi.TabItem, isActive: boolean) {
       :key="item.key"
       class="nav-tab"
       :style="{
-        color: active(index) ? tabbar.selectedColor : tabbar.color,
+        color: active(index) ? tabbar.selectedColor || '#ff5a1f' : tabbar.color || '#8c8c8c',
       }"
     >
       <img

@@ -55,6 +55,7 @@
     "typeAdjust": "Manual",
     "typeConsume": "Redeemed",
     "typeEarn": "Earned",
+    "typeRefund": "Refunded",
     "userId": "Member ID",
     "userIdPlaceholder": "Exact match by member ID"
   },

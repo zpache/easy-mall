@@ -20,7 +20,10 @@ public record GoodsVO(
         BigDecimal originalPrice,
         Integer stock,
         Integer stockWarn,
+        /** 真实销量 */
         Integer sales,
+        /** 基础销量（运营维护的展示基数） */
+        Integer baseSales,
         String unit,
         String detail,
         Integer status,

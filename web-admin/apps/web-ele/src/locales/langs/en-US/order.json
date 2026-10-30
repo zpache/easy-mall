@@ -9,6 +9,9 @@
     "amount": "Paid Amount",
     "totalAmount": "Goods Amount",
     "freight": "Freight",
+    "coupon": "Coupon",
+    "memberDiscount": "Member discount",
+    "refundedAmount": "Refunded",
     "status": "Order Status",
     "statusUnpaid": "Unpaid",
     "statusUndelivered": "To Ship",
@@ -87,7 +90,7 @@
     "auditRemark": "Audit Remark",
     "audit": "Review",
     "confirm": "Confirm Refund",
-    "confirmTip": "Confirm that ¥{0} has been refunded to the buyer? The order will be marked as refunded.",
+    "confirmTip": "Refund ¥{0}? With WeChat Pay enabled this triggers a real refund to the original payment method (in mock mode only the status changes). Points and total spend of this order will be rolled back as well.",
     "confirmSuccess": "Refund confirmed",
     "auditTitle": "Review After-sales",
     "pass": "Decision",
@@ -99,7 +102,8 @@
     "keyword": "Keyword",
     "searchPlaceholder": "Refund no. / order no. / reason",
     "operation": "Operation",
-    "orderStatus": "Order Status"
+    "orderStatus": "Order Status",
+    "wxRefundNo": "WeChat refund no."
   },
   "comment": {
     "entity": "Review",

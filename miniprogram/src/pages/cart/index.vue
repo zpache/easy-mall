@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, reactive } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import DecorateTabbar from '@/components/decorate/tabbar.vue'
 import EmptyState from '@/components/empty-state.vue'
@@ -7,6 +7,9 @@ import { useCartStore } from '@/store/cart'
 import { useDecorateStore } from '@/store/decorate'
 import { useUserStore } from '@/store/user'
 import { formatPrice } from '@/utils/format'
+import { useTheme } from '@/composables/useTheme'
+
+const { themePageStyle } = useTheme()
 
 const cartStore = useCartStore()
 const userStore = useUserStore()
@@ -35,8 +38,77 @@ async function changeQuantity(id: number, quantity: number, stock: number) {
 async function removeItem(id: number) {
   const res = await uni.showModal({ title: '提示', content: '确定删除该商品吗？' })
   if (res.confirm) {
+    closeSwipe()
     await cartStore.remove(id)
   }
+}
+
+/* 左滑删除：同一时刻最多展开一项，滑动中跟手、松手吸附 */
+const DELETE_WIDTH_PX = uni.upx2px(140) // 对应样式里的删除按钮宽度 140rpx
+const swipeState = reactive({
+  openId: 0, // 当前展开的购物车项
+  touchingId: 0, // 正在触摸的购物车项
+  startX: 0,
+  startY: 0,
+  moveX: 0, // 本次触摸的横向位移（px，负值向左）
+})
+
+function closeSwipe() {
+  swipeState.openId = 0
+  swipeState.touchingId = 0
+  swipeState.moveX = 0
+}
+
+function swipeStyle(id: number) {
+  if (swipeState.touchingId === id) {
+    return { transform: `translateX(${swipeState.moveX}px)` }
+  }
+  return { transform: swipeState.openId === id ? `translateX(-${DELETE_WIDTH_PX}px)` : 'translateX(0px)' }
+}
+
+function onTouchStart(id: number, e: TouchEvent) {
+  const touch = e.touches?.[0]
+  if (!touch) return
+  swipeState.touchingId = id
+  swipeState.startX = touch.clientX
+  swipeState.startY = touch.clientY
+  swipeState.moveX = 0
+}
+
+function onTouchMove(id: number, e: TouchEvent) {
+  if (swipeState.touchingId !== id) return
+  const touch = e.touches?.[0]
+  if (!touch) return
+  const dx = touch.clientX - swipeState.startX
+  const dy = touch.clientY - swipeState.startY
+  // 垂直滑动优先交给页面滚动
+  if (Math.abs(dy) > Math.abs(dx)) return
+  // 基于当前展开状态做增量位移：已展开的继续左滑不再移动，右滑可收回
+  const base = swipeState.openId === id ? -DELETE_WIDTH_PX : 0
+  swipeState.moveX = Math.max(Math.min(base + dx, 0), -DELETE_WIDTH_PX)
+}
+
+function onTouchEnd(id: number) {
+  if (swipeState.touchingId !== id) return
+  const moved = Math.abs(swipeState.moveX)
+  // 位移超过一半（或快速轻扫）即展开，否则回弹
+  if (swipeState.moveX <= -DELETE_WIDTH_PX / 2) {
+    swipeState.openId = id
+  } else if (swipeState.openId === id && moved < 6) {
+    // 已展开状态下轻点内容区则收起
+    swipeState.openId = 0
+  }
+  swipeState.touchingId = 0
+  swipeState.moveX = 0
+}
+
+function toDetail(item: { id: number, goodsId: number }) {
+  // 展开状态下点击内容区只收起，不跳详情
+  if (swipeState.openId === item.id) {
+    closeSwipe()
+    return
+  }
+  uni.navigateTo({ url: `/pages/goods/detail?id=${item.goodsId}` })
 }
 
 function toLogin() {
@@ -45,10 +117,6 @@ function toLogin() {
 
 function checkout() {
   uni.navigateTo({ url: '/pages/order/confirm' })
-}
-
-function toDetail(goodsId: number) {
-  uni.navigateTo({ url: `/pages/goods/detail?id=${goodsId}` })
 }
 
 function goHome() {
@@ -66,10 +134,15 @@ function onCheckout() {
 onShow(() => {
   load()
   decorateStore.ensureNav()
+  decorateStore.ensureTheme()
 })
 </script>
 
 <template>
+  <!-- 主题变量注入：后台启用主题后页面底色与全部语义色跟随变化 -->
+  <!-- #ifdef MP-WEIXIN -->
+  <page-meta :page-style="themePageStyle" />
+  <!-- #endif -->
   <view class="page">
     <view v-if="!userStore.isLogin" class="login-tip">
       <text class="login-tip__text">登录后查看购物车</text>
@@ -83,29 +156,41 @@ onShow(() => {
 
       <template v-else>
         <view class="list">
-          <view v-for="item in cartStore.items" :key="item.id" class="item" :class="{ 'item--invalid': item.invalid }">
+          <view v-for="item in cartStore.items" :key="item.id" class="swipe">
             <view
-              class="item__check"
-              :class="{ 'item__check--on': item.checked === 1 }"
-              @tap="cartStore.toggleChecked(item.id, item.checked !== 1)"
-            />
-            <image class="item__image" :src="item.mainImage || ''" mode="aspectFill" @tap="toDetail(item.goodsId)" />
-            <view class="item__body">
-              <text class="item__name ellipsis-2">{{ item.name }}</text>
-              <text v-if="item.invalid" class="item__invalid-tip">商品已下架或库存不足</text>
-              <view class="item__bottom">
-                <view class="flex items-baseline">
-                  <text class="price-symbol price">¥</text>
-                  <text class="price text-30rpx">{{ formatPrice(item.price) }}</text>
-                </view>
-                <view class="stepper">
-                  <text class="stepper__btn" @tap="changeQuantity(item.id, item.quantity - 1, item.stock)">-</text>
-                  <text class="stepper__value">{{ item.quantity }}</text>
-                  <text class="stepper__btn" @tap="changeQuantity(item.id, item.quantity + 1, item.stock)">+</text>
+              class="swipe__content"
+              :class="{ 'swipe__content--anim': swipeState.touchingId !== item.id }"
+              :style="swipeStyle(item.id)"
+              @touchstart="onTouchStart(item.id, $event)"
+              @touchmove="onTouchMove(item.id, $event)"
+              @touchend="onTouchEnd(item.id)"
+              @touchcancel="onTouchEnd(item.id)"
+            >
+              <view class="item" :class="{ 'item--invalid': item.invalid }">
+                <view
+                  class="item__check"
+                  :class="{ 'item__check--on': item.checked === 1 }"
+                  @tap="cartStore.toggleChecked(item.id, item.checked !== 1)"
+                />
+                <image class="item__image" :src="item.mainImage || ''" mode="aspectFill" @tap="toDetail(item)" />
+                <view class="item__body">
+                  <text class="item__name ellipsis-2" @tap="toDetail(item)">{{ item.name }}</text>
+                  <text v-if="item.invalid" class="item__invalid-tip">商品已下架或库存不足</text>
+                  <view class="item__bottom">
+                    <view class="flex items-baseline">
+                      <text class="price-symbol price">¥</text>
+                      <text class="price text-30rpx">{{ formatPrice(item.price) }}</text>
+                    </view>
+                    <view class="stepper">
+                      <text class="stepper__btn" @tap="changeQuantity(item.id, item.quantity - 1, item.stock)">-</text>
+                      <text class="stepper__value">{{ item.quantity }}</text>
+                      <text class="stepper__btn" @tap="changeQuantity(item.id, item.quantity + 1, item.stock)">+</text>
+                    </view>
+                  </view>
                 </view>
               </view>
             </view>
-            <text class="item__delete" @tap="removeItem(item.id)">删除</text>
+            <view class="swipe__delete" @tap="removeItem(item.id)">删除</view>
           </view>
         </view>
 
@@ -180,16 +265,46 @@ onShow(() => {
   padding: 0 20rpx;
 }
 
-.item {
-  display: flex;
-  align-items: center;
-  padding: 24rpx 0;
-  border-bottom: 1rpx solid $border-color;
+.swipe {
   position: relative;
+  overflow: hidden;
+  border-bottom: 1rpx solid $border-color;
 
   &:last-child {
     border-bottom: none;
   }
+
+  &__content {
+    position: relative;
+    z-index: 1;
+    background-color: #fff;
+
+    /* 松手后的展开/回弹动画；跟手滑动时关闭避免迟滞 */
+    &--anim {
+      transition: transform 0.2s ease-out;
+    }
+  }
+
+  &__delete {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 140rpx;
+    background-color: $danger;
+    color: #fff;
+    font-size: 26rpx;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  padding: 24rpx 0;
+  position: relative;
 
   &--invalid {
     opacity: 0.6;
@@ -253,14 +368,6 @@ onShow(() => {
     display: flex;
     align-items: center;
     justify-content: space-between;
-  }
-
-  &__delete {
-    position: absolute;
-    right: 0;
-    bottom: 24rpx;
-    font-size: 22rpx;
-    color: $text-placeholder;
   }
 }
 

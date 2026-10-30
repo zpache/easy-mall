@@ -26,11 +26,16 @@ import {
 
 type ThemeItem = DecorateThemeApi.Theme;
 
+/**
+ * 小程序历史默认配色（换肤上线前写死在 uni.scss 里的那套），
+ * 与后端预设主题「小程序默认配色（经典橙）」保持一致：
+ * 新建主题与颜色清空时的兜底都用它，避免后台与小程序端默认值漂移。
+ */
 const DEFAULT_CONFIG: DecorateThemeApi.ThemeConfig = {
-  pageBgColor: '#f5f6f7',
-  priceColor: '#ff4d1f',
-  primaryColor: '#ff6b00',
-  subTextColor: '#999999',
+  pageBgColor: '#f6f7f9',
+  priceColor: '#e02020',
+  primaryColor: '#ff5a1f',
+  subTextColor: '#8c8c8c',
   textColor: '#1f1f1f',
 };
 
@@ -125,7 +130,7 @@ async function onActivate(theme: ThemeItem) {
     { type: 'warning' },
   );
   await activateDecorateTheme(theme.id);
-  ElMessage.success('已启用，小程序端下次进入即生效');
+  ElMessage.success('已启用，小程序端切换页面或回到前台即同步（约 15 秒内）');
   await load();
   const fresh = themes.value.find((t) => t.id === theme.id);
   if (fresh) select(fresh);
@@ -143,6 +148,12 @@ async function onDelete(theme: ThemeItem) {
   await load();
 }
 
+/** 一键载入小程序历史默认配色（新建主题或想还原到换肤前视觉时用） */
+function applyDefaultPalette() {
+  editingConfig.value = { ...DEFAULT_CONFIG };
+  markDirty();
+}
+
 /** 编辑器与手机预览共用同一份配置（草稿态预览） */
 function colorCss(key: keyof DecorateThemeApi.ThemeConfig) {
   return editingConfig.value[key] || DEFAULT_CONFIG[key];
@@ -152,7 +163,7 @@ onMounted(load);
 </script>
 
 <template>
-  <Page title="主题换肤" description="全局配色一键换肤：装修页面与组件强调色随线上主题生效，启用即发布">
+  <Page title="主题换肤" description="全局配色一键换肤：所有页面底色、文字、价格与按钮强调色随线上主题生效，启用即发布">
     <div class="theme-layout">
       <!-- 左侧：主题列表 -->
       <ElCard shadow="never" class="theme-list">
@@ -248,6 +259,12 @@ onMounted(load);
                 maxlength="50"
                 @input="markDirty"
               />
+            </div>
+            <div class="preset-row">
+              <ElButton size="small" text type="primary" @click="applyDefaultPalette">
+                载入小程序默认配色
+              </ElButton>
+              <span class="field-tip">换肤上线前小程序使用的那套配色，可一键还原</span>
             </div>
             <div v-for="field in COLOR_FIELDS" :key="field.key" class="color-row">
               <div class="field-label">
@@ -416,6 +433,13 @@ onMounted(load);
   gap: 12px;
   align-items: center;
   margin-bottom: 20px;
+}
+
+.preset-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 12px;
 }
 
 .name-input {

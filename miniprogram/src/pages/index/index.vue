@@ -9,11 +9,14 @@ import { decorateApi } from '@/api/decorate'
 import { useDecorateStore } from '@/store/decorate'
 import { parseNav, parseSchema, px, statusBarHeight } from '@/utils/decorate'
 import type { PageSchema } from '@/types/decorate'
+import { useTheme } from '@/composables/useTheme'
+
+const { themePageStyle } = useTheme()
 
 const decorateStore = useDecorateStore()
 
 const schema = ref<PageSchema>({
-  page: { title: '商城首页', bgColor: '#f5f6f7', bgImage: '', padding: 0 },
+  page: { title: '商城首页', bgColor: '', bgImage: '', padding: 0 },
   components: []
 })
 const loading = ref(true)
@@ -29,7 +32,7 @@ const bodyPaddingTop = computed(() => (immersive.value ? '0px' : `${navbarHeight
  * 页面背景：装修页单独设置过背景色（非默认值）则优先，
  * 否则跟随线上主题的背景色（换肤）。
  */
-const DEFAULT_PAGE_BG = '#f5f6f7'
+const DEFAULT_PAGE_BG = '#f6f7f9'
 const pageBg = computed(() => {
   const pageColor = schema.value.page.bgColor
   if (pageColor && pageColor !== DEFAULT_PAGE_BG) return pageColor
@@ -56,6 +59,11 @@ function toSearch() {
   uni.navigateTo({ url: '/pages/search/index' })
 }
 
+/** 标题组件「更多」：默认进入商品列表页，展示全品类商品 */
+function toGoodsList() {
+  uni.navigateTo({ url: '/pages/goods/list' })
+}
+
 onLoad(() => {
   load()
 })
@@ -63,6 +71,8 @@ onLoad(() => {
 onShow(() => {
   // 从其它 tab 切回时不重复请求，仅补齐导航配置
   decorateStore.ensureNav()
+  // 主题按 TTL 校验：后台启用新配色后切回首页即同步
+  decorateStore.ensureTheme()
 })
 
 onPullDownRefresh(async () => {
@@ -72,6 +82,10 @@ onPullDownRefresh(async () => {
 </script>
 
 <template>
+  <!-- 主题变量注入：后台启用主题后页面底色与全部语义色跟随变化 -->
+  <!-- #ifdef MP-WEIXIN -->
+  <page-meta :page-style="themePageStyle" />
+  <!-- #endif -->
   <view class="home" :style="{ background: pageBg }">
     <DecorateNavbar :config="decorateStore.nav.navbar" />
 
@@ -91,7 +105,7 @@ onPullDownRefresh(async () => {
       <view v-else-if="!schema.components.length" class="home__state">
         {{ error || '首页还没有内容，请到后台「商城装修」中搭建' }}
       </view>
-      <DecorateRender v-else :schema="schema" @search="toSearch" />
+      <DecorateRender v-else :schema="schema" @more="toGoodsList" @search="toSearch" />
     </view>
 
     <DecorateFloatBall :config="decorateStore.nav.floatBall" :bottom="150" />

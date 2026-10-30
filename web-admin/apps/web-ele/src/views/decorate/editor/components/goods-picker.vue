@@ -69,7 +69,8 @@ function snapshot(row: any) {
     image: row.mainImage || '',
     name: row.name || '',
     price: Number(row.price ?? 0),
-    sales: Number(row.sales ?? 0),
+    // 小程序展示销量 = 基础销量 + 真实销量，快照按同一口径写入，避免首页与详情页不一致
+    sales: Number(row.sales ?? 0) + Number(row.baseSales ?? 0),
   };
 }
 

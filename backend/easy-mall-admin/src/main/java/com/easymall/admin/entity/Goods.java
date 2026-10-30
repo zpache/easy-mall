@@ -43,7 +43,11 @@ public class Goods extends BaseEntity {
     /** 库存预警值：库存低于等于该值时在库存管理中标注 */
     private Integer stockWarn;
 
+    /** 真实销量：用户下单累加、取消回滚，管理后台以此为准 */
     private Integer sales;
+
+    /** 基础销量：运营维护的展示基数，小程序展示销量 = 基础销量 + 真实销量 */
+    private Integer baseSales;
 
     private String unit;
 

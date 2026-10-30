@@ -9,6 +9,7 @@ import com.easymall.api.modules.decorate.vo.NavConfigVO;
 import com.easymall.api.modules.decorate.vo.ThemeConfigVO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -50,7 +51,10 @@ public class DecorateController {
 
     @Operation(summary = "线上主题配置（换肤，无启用主题时为空）")
     @GetMapping("/theme")
-    public Result<ThemeConfigVO> theme() {
+    public Result<ThemeConfigVO> theme(HttpServletResponse response) {
+        // 主题会被后台随时切换，禁止客户端与网关缓存，保证小程序端拿到的是最新配色
+        response.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+        response.setHeader("Pragma", "no-cache");
         return Result.ok(decorateService.themeConfig());
     }
 

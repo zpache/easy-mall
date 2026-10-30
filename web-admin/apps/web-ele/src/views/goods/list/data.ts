@@ -5,6 +5,7 @@ import type { GoodsApi } from '#/api/goods/goods';
 import { z } from '#/adapter/form';
 import { getBrandOptions } from '#/api/goods/brand';
 import { getCategoryTree } from '#/api/goods/category';
+import GoodsImageField from '#/components/goods-image-field.vue';
 import { $t } from '#/locales';
 
 /**
@@ -52,16 +53,15 @@ export function useFormSchema(): VbenFormSchema[] {
       label: $t('goods.goods.subtitle'),
     },
     {
-      component: 'Input',
-      componentProps: { placeholder: 'https://' },
+      component: GoodsImageField,
       fieldName: 'mainImage',
       help: $t('goods.goods.imageTip'),
       label: $t('goods.goods.mainImage'),
       rules: 'required',
     },
     {
-      component: 'Textarea',
-      componentProps: { rows: 3 },
+      component: GoodsImageField,
+      componentProps: { max: 5, multiple: true },
       fieldName: 'images',
       help: $t('goods.goods.imagesTip'),
       label: $t('goods.goods.images'),
@@ -98,6 +98,13 @@ export function useFormSchema(): VbenFormSchema[] {
       defaultValue: '件',
       fieldName: 'unit',
       label: $t('goods.goods.unit'),
+    },
+    {
+      component: 'InputNumber',
+      componentProps: { class: 'w-full', min: 0 },
+      fieldName: 'baseSales',
+      help: $t('goods.goods.baseSalesTip'),
+      label: $t('goods.goods.baseSales'),
     },
     {
       component: 'InputNumber',
@@ -235,6 +242,11 @@ export function useColumns<T = GoodsApi.Goods>(
       field: 'sales',
       title: $t('goods.goods.sales'),
       width: 90,
+    },
+    {
+      field: 'baseSales',
+      title: $t('goods.goods.baseSales'),
+      width: 100,
     },
     {
       cellRender: {

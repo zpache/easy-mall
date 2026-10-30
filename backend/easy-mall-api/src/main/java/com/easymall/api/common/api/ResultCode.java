@@ -41,7 +41,17 @@ public enum ResultCode {
     FILE_TYPE_NOT_ALLOWED(4018, "仅支持 jpg/png/gif/webp 图片"),
     FILE_SAVE_FAILED(4019, "文件保存失败，请稍后重试"),
 
-    REQUEST_BUSY(4020, "操作过于频繁，请稍后重试");
+    REQUEST_BUSY(4020, "操作过于频繁，请稍后重试"),
+
+    COUPON_NOT_USABLE(4021, "优惠券不可用，请重新选择"),
+
+    FREIGHT_NOT_DELIVERABLE(4022, "该地区暂不提供配送"),
+
+    PAY_CHANNEL_CLOSED(4023, "支付渠道未开启，请联系客服"),
+
+    PAY_FAILED(4024, "拉起支付失败，请稍后重试"),
+    PAY_NOT_CONFIGURED(4025, "微信支付参数未配置完整"),
+    PAY_NOTIFY_INVALID(4026, "支付回调校验失败");
 
     private final int code;
     private final String message;

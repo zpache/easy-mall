@@ -1,11 +1,19 @@
-$primary: #ff5a1f;
+/*
+ * 全局样式变量。
+ * 主题换肤口径：会随主题变化的语义色统一用 CSS 变量 + 内置默认值兜底
+ * （--d-* 由页面根节点 page-meta 注入，见 composables/useTheme.ts）。
+ * 这样后台「主题换肤」启用后，所有页面 / 组件一次生效，不必逐处改样式。
+ * 注意：这些变量只用于纯色赋值，不要参与 darken() / rgba() 等 SCSS 颜色函数运算。
+ */
+$primary: var(--d-primary, #ff5a1f);
 $primary-light: #fff2ec;
+$price: var(--d-price, #e02020);
 $danger: #f5222d;
-$text-main: #1f1f1f;
-$text-secondary: #8c8c8c;
+$text-main: var(--d-text, #1f1f1f);
+$text-secondary: var(--d-sub-text, #8c8c8c);
 $text-placeholder: #bfbfbf;
 $border-color: #ededed;
-$page-bg: #f6f7f9;
+$page-bg: var(--d-page-bg, #f6f7f9);
 
 /* uni-app 约定的全局变量 */
 $uni-color-primary: $primary;

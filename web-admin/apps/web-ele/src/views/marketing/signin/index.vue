@@ -81,6 +81,16 @@ async function onStatusChange(
   newStatus: number,
   row: MarketingSigninApi.SigninRule,
 ) {
+  const action = newStatus === 1 ? '启用' : '停用';
+  try {
+    await ElMessageBox.confirm(
+      `确定要${action}签到规则「${row.name}」吗？`,
+      `${action}确认`,
+      { type: 'warning' },
+    );
+  } catch {
+    return false;
+  }
   await changeSigninRuleStatus(row.id, newStatus);
   ElMessage.success($t('marketing.signin.statusUpdated'));
   return true;

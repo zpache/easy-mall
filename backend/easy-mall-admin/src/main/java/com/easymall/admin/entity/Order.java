@@ -49,8 +49,32 @@ public class Order extends BaseEntity {
 
     private BigDecimal freightAmount;
 
+    /** 使用的优惠券模板 id，未用券为 null */
+    private Long couponId;
+
+    /** 优惠券抵扣金额，未用券为 0 */
+    private BigDecimal couponAmount;
+
+    /** 会员等级折扣优惠金额，未享受为 0 */
+    private BigDecimal memberDiscount;
+
+    /** 下单时的会员等级名称快照 */
+    private String memberLevelName;
+
     /** 应付金额 */
     private BigDecimal payAmount;
+
+    /** 已退款金额累计（支持部分退款多次累加） */
+    private BigDecimal refundedAmount;
+
+    /** 是否已发放会员积分：0 未发放，1 已发放 */
+    private Integer pointsAwarded;
+
+    /** 本单发放的积分数量 */
+    private Integer pointsAmount;
+
+    /** 已因退款回滚的积分 */
+    private Integer pointsReverted;
 
     /** 0 待付款 / 1 待发货 / 2 待收货 / 3 已完成 / 4 已取消 */
     private Integer status;

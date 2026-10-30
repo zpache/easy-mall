@@ -1,8 +1,12 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { openLink, px } from '@/utils/decorate'
+import { useTheme } from '@/composables/useTheme'
 
 const props = defineProps<{ config: Record<string, any> }>()
+
+/** 轮播指示点选中色跟随线上主题的价格色 */
+const { theme } = useTheme()
 
 const images = computed(() =>
   Array.isArray(props.config.images) && props.config.images.length > 0
@@ -23,7 +27,7 @@ const interval = computed(() => Math.max(1, Number(props.config.interval) || 3) 
       :interval="interval"
       :indicator-dots="images.length > 1"
       indicator-color="rgba(255,255,255,0.5)"
-      indicator-active-color="#e02020"
+      :indicator-active-color="theme.priceColor"
     >
       <swiper-item v-for="(item, index) in images" :key="index">
         <image

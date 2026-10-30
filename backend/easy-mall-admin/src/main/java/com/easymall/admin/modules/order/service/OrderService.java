@@ -8,9 +8,15 @@ import com.easymall.admin.common.api.PageResult;
 import com.easymall.admin.common.api.ResultCode;
 import com.easymall.admin.common.exception.BusinessException;
 import com.easymall.admin.entity.AppUser;
+import com.easymall.admin.entity.Coupon;
+import com.easymall.admin.entity.CouponUser;
+import com.easymall.admin.entity.Goods;
 import com.easymall.admin.entity.Order;
 import com.easymall.admin.entity.OrderItem;
 import com.easymall.admin.mapper.AppUserMapper;
+import com.easymall.admin.mapper.CouponMapper;
+import com.easymall.admin.mapper.CouponUserMapper;
+import com.easymall.admin.mapper.GoodsMapper;
 import com.easymall.admin.mapper.OrderItemMapper;
 import com.easymall.admin.mapper.OrderMapper;
 import com.easymall.admin.modules.order.dto.DeliverForm;
@@ -20,6 +26,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -37,6 +44,9 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
 
     private final OrderItemMapper orderItemMapper;
     private final AppUserMapper appUserMapper;
+    private final GoodsMapper goodsMapper;
+    private final CouponMapper couponMapper;
+    private final CouponUserMapper couponUserMapper;
 
     /**
      * 订单分页：支持订单号 / 收货人 / 手机号模糊搜索，状态、售后状态与下单日期区间过滤。
@@ -90,7 +100,13 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
     }
 
     /**
-     * 关闭订单：仅未发货（待付款 / 待发货）的订单可关闭，且不能存在进行中的售后。
+     * 关闭订单：仅未支付的（待付款）或已支付未发货且无进行中售后的订单可关闭。
+     *
+     * <p>关闭时回滚库存与销量、退回优惠券，与小程序端取消/超时关单口径保持一致，
+     * 避免后台关单造成库存永久少扣。</p>
+     *
+     * <p>已支付订单不再允许直接关闭：钱已经收了，必须走售后退款，否则会出现
+     * 「订单已关闭但款项未退」的黑洞。</p>
      */
     @Transactional(rollbackFor = Exception.class)
     public void close(Long id, String reason) {
@@ -102,14 +118,55 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
                 && !Objects.equals(order.getStatus(), Order.STATUS_UNDELIVERED)) {
             throw new BusinessException(ResultCode.DATA_CONFLICT, "订单已发货或已完成，不能关闭");
         }
+        if (order.getPayTime() != null) {
+            throw new BusinessException(ResultCode.DATA_CONFLICT, "订单已支付，请通过「售后退款」处理，不能直接关闭");
+        }
         if (Objects.equals(order.getRefundStatus(), Order.REFUND_PROCESSING)) {
             throw new BusinessException(ResultCode.DATA_CONFLICT, "该订单有进行中的退款申请，请先在售后退款中处理");
         }
-        order.setStatus(Order.STATUS_CANCELLED);
-        order.setCancelTime(LocalDateTime.now());
-        order.setCancelReason(StringUtils.hasText(reason) ? reason : "管理员关闭订单");
-        if (!updateById(order)) {
+        int affected = baseMapper.update(null, Wrappers.<Order>lambdaUpdate()
+                .eq(Order::getId, id)
+                .in(Order::getStatus, Order.STATUS_UNPAID, Order.STATUS_UNDELIVERED)
+                .set(Order::getStatus, Order.STATUS_CANCELLED)
+                .set(Order::getCancelTime, LocalDateTime.now())
+                .set(Order::getCancelReason, StringUtils.hasText(reason) ? reason : "管理员关闭订单"));
+        if (affected == 0) {
             throw new BusinessException(ResultCode.DATA_CONFLICT, "订单已被其他人处理，请刷新后重试");
+        }
+        rollbackStockAndCoupon(order);
+    }
+
+    /**
+     * 关单回滚：库存加回、销量减回（不低于 0）、优惠券置回未使用并回退核销数。
+     * 由带条件的状态更新保证只执行一次，不会重复回滚。
+     */
+    private void rollbackStockAndCoupon(Order order) {
+        List<OrderItem> items = orderItemMapper.selectList(Wrappers.<OrderItem>lambdaQuery()
+                .eq(OrderItem::getOrderId, order.getId()));
+        for (OrderItem item : items) {
+            goodsMapper.update(null, Wrappers.<Goods>lambdaUpdate()
+                    .eq(Goods::getId, item.getGoodsId())
+                    .setSql("stock = stock + " + item.getQuantity())
+                    .setSql("sales = GREATEST(sales - " + item.getQuantity() + ", 0)"));
+        }
+        if (order.getCouponAmount() == null || order.getCouponAmount().compareTo(BigDecimal.ZERO) <= 0) {
+            return;
+        }
+        List<CouponUser> records = couponUserMapper.selectList(Wrappers.<CouponUser>lambdaQuery()
+                .eq(CouponUser::getOrderNo, order.getOrderNo())
+                .eq(CouponUser::getStatus, 1));
+        for (CouponUser record : records) {
+            int affected = couponUserMapper.update(null, Wrappers.<CouponUser>lambdaUpdate()
+                    .eq(CouponUser::getId, record.getId())
+                    .eq(CouponUser::getStatus, 1)
+                    .set(CouponUser::getStatus, 0)
+                    .set(CouponUser::getOrderNo, null)
+                    .set(CouponUser::getUsedAt, null));
+            if (affected > 0) {
+                couponMapper.update(null, Wrappers.<Coupon>lambdaUpdate()
+                        .eq(Coupon::getId, record.getCouponId())
+                        .setSql("used_count = GREATEST(used_count - 1, 0)"));
+            }
         }
     }
 

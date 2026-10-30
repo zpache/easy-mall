@@ -8,6 +8,8 @@ import jakarta.validation.constraints.Size;
  */
 public record OrderCreateRequest(
         @NotNull(message = "请选择收货地址") Long addressId,
-        @Size(max = 255, message = "备注过长") String remark
+        @Size(max = 255, message = "备注过长") String remark,
+        /** 使用的会员券记录 id（mk_coupon_user.id），不传或为 null 表示不使用优惠券 */
+        Long couponUserId
 ) {
 }

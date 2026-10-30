@@ -6,6 +6,10 @@ import { couponApi } from '@/api/coupon'
 import { useDecorateStore } from '@/store/decorate'
 import { useUserStore } from '@/store/user'
 import { resolveMediaUrl } from '@/utils/url'
+import { formatPrice } from '@/utils/format'
+import { useTheme } from '@/composables/useTheme'
+
+const { themePageStyle } = useTheme()
 
 const userStore = useUserStore()
 const decorateStore = useDecorateStore()
@@ -17,6 +21,25 @@ const avatarText = computed(() => (userStore.isLogin ? nickname.value.slice(0, 1
 const profileDesc = computed(() => {
   if (!userStore.isLogin) return '点击登录，开启购物之旅'
   return userStore.profileIncomplete ? '微信不再下发头像昵称，点这里设置 ›' : '欢迎回来，买点好东西'
+})
+
+/** 会员等级文案：带折扣率，如「银卡会员 9.8折」 */
+const levelText = computed(() => {
+  const profile = userStore.profile
+  if (!profile?.levelName) return '普通会员'
+  const rate = Number(profile.levelDiscount ?? 100)
+  const text = rate > 0 && rate < 100 ? `${(rate / 10).toFixed(rate % 10 === 0 ? 0 : 1)}折` : ''
+  return text ? `${profile.levelName} ${text}` : profile.levelName
+})
+
+/** 会员资产：等级 / 积分 / 累计消费，数据随订单支付由服务端结算 */
+const memberStats = computed(() => {
+  const profile = userStore.profile
+  return [
+    { label: '会员等级', value: levelText.value },
+    { label: '可用积分', value: String(profile?.points ?? 0) },
+    { label: '累计消费', value: `¥${formatPrice(profile?.totalSpend ?? 0)}` }
+  ]
 })
 
 /** 可用优惠券张数：个人中心入口上的角标文案 */
@@ -85,10 +108,15 @@ onShow(() => {
     loadCouponCount()
   }
   decorateStore.ensureNav()
+  decorateStore.ensureTheme()
 })
 </script>
 
 <template>
+  <!-- 主题变量注入：后台启用主题后页面底色与全部语义色跟随变化 -->
+  <!-- #ifdef MP-WEIXIN -->
+  <page-meta :page-style="themePageStyle" />
+  <!-- #endif -->
   <view class="page">
     <view class="profile" @tap="toProfile">
       <image v-if="avatar" class="profile__avatar" :src="avatar" mode="aspectFill" />
@@ -98,6 +126,13 @@ onShow(() => {
         <text class="profile__desc">{{ profileDesc }}</text>
       </view>
       <text v-if="userStore.isLogin" class="profile__arrow">›</text>
+    </view>
+
+    <view v-if="userStore.isLogin" class="card stats">
+      <view v-for="item in memberStats" :key="item.label" class="stats__item">
+        <text class="stats__value">{{ item.value }}</text>
+        <text class="stats__label">{{ item.label }}</text>
+      </view>
     </view>
 
     <view class="card">
@@ -239,10 +274,35 @@ onShow(() => {
   }
 }
 
+.stats {
+  display: flex;
+  align-items: center;
+  /* 上移压住头图渐变，做出「卡片浮起来」的层次 */
+  margin-top: -28rpx;
+
+  &__item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  &__value {
+    font-size: 32rpx;
+    font-weight: 600;
+    color: $text-main;
+  }
+
+  &__label {
+    margin-top: 8rpx;
+    font-size: 22rpx;
+    color: $text-secondary;
+  }
+}
+
 .coupon-entry {
   display: flex;
   align-items: center;
-
   &__icon {
     font-size: 40rpx;
   }

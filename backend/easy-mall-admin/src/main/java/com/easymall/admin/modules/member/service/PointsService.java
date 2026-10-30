@@ -8,7 +8,10 @@ import com.easymall.admin.entity.AppUser;
 import com.easymall.admin.entity.PointsLog;
 import com.easymall.admin.mapper.AppUserMapper;
 import com.easymall.admin.mapper.PointsLogMapper;
+import com.easymall.admin.modules.member.dto.PointsRuleForm;
 import com.easymall.admin.modules.member.vo.PointsLogVO;
+import com.easymall.admin.modules.member.vo.PointsRuleVO;
+import com.easymall.admin.modules.setting.service.SysConfigService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -26,8 +29,35 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class PointsService {
 
+    /** 积分规则存于 sys_config 的 member 分组，与小程序端 MemberPointService 读取同一份配置 */
+    private static final String CONFIG_GROUP = "member";
+    private static final String KEY_ENABLED = "pointsEnabled";
+    private static final String KEY_RATE = "pointsRate";
+
     private final PointsLogMapper pointsLogMapper;
     private final AppUserMapper appUserMapper;
+    private final SysConfigService sysConfigService;
+
+    /** 积分规则：订单支付后按「实付金额 × 比例」发放 */
+    public PointsRuleVO rule() {
+        boolean enabled = !"false".equalsIgnoreCase(sysConfigService.get(CONFIG_GROUP, KEY_ENABLED, "true"));
+        return new PointsRuleVO(enabled, parseRate(sysConfigService.get(CONFIG_GROUP, KEY_RATE, "1")));
+    }
+
+    public void updateRule(PointsRuleForm form) {
+        boolean enabled = form.enabled() == null || form.enabled();
+        int rate = form.rate() == null ? 1 : form.rate();
+        sysConfigService.upsert(CONFIG_GROUP, KEY_ENABLED, String.valueOf(enabled));
+        sysConfigService.upsert(CONFIG_GROUP, KEY_RATE, String.valueOf(rate));
+    }
+
+    private int parseRate(String value) {
+        try {
+            return Integer.parseInt(value.trim());
+        } catch (RuntimeException e) {
+            return 1;
+        }
+    }
 
     /**
      * 写一条积分流水（人工调整时操作人取登录上下文）。

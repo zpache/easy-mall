@@ -51,6 +51,10 @@ public record GoodsForm(
         @NotNull(message = "状态不能为空")
         Integer status,
 
+        /** 基础销量：运营维护的展示基数（小程序销量 = 基础销量 + 真实销量）；留空表示不修改，新增默认 0 */
+        @Min(value = 0, message = "基础销量不能小于 0")
+        Integer baseSales,
+
         Integer sort,
 
         /** 乐观锁版本号：编辑时原样带上详情返回的 version，新增留空 */

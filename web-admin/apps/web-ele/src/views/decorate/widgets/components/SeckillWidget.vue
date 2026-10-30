@@ -27,7 +27,7 @@ onMounted(() => {
 onBeforeUnmount(() => clearInterval(timer));
 
 /**
- * 秒杀商品列表：新版为 goods 选择器快照数组（含 seckillPrice）；
+ * 秒杀商品列表：goods 选择器快照数组，统一展示商品现价（与商品详情一致）；
  * 旧版手填单商品字段做兼容展示。
  */
 const goodsList = computed<any[]>(() => {
@@ -40,8 +40,7 @@ const goodsList = computed<any[]>(() => {
       {
         image: image || '',
         name: goodsName || '秒杀商品',
-        price: Number(originPrice ?? 0),
-        seckillPrice: Number(price ?? 0),
+        price: Number(originPrice ?? price ?? 0),
       },
     ];
   }
@@ -49,14 +48,8 @@ const goodsList = computed<any[]>(() => {
 });
 
 function priceOf(item: any) {
-  return Number(item.seckillPrice ?? item.price ?? 0).toFixed(2);
-}
-
-function originOf(item: any) {
-  const origin = Number(item.price ?? 0);
-  const seckill = Number(item.seckillPrice ?? 0);
-  // 没填秒杀价或与原价相同就不显示划线原价
-  return seckill > 0 && origin > seckill ? origin.toFixed(2) : '';
+  // 只展示商品现价，不再有独立的秒杀价，保证与商品详情页价格一致
+  return Number(item.price ?? 0).toFixed(2);
 }
 
 /**
@@ -106,7 +99,6 @@ const segments = computed(() => {
           <p class="name">{{ item.name || '秒杀商品' }}</p>
           <div class="price-row">
             <span class="price"><i>¥</i>{{ priceOf(item) }}</span>
-            <span v-if="originOf(item)" class="origin">¥{{ originOf(item) }}</span>
           </div>
           <span class="btn">立即抢购</span>
         </div>
@@ -223,11 +215,6 @@ const segments = computed(() => {
 .price i {
   font-size: 10px;
   font-style: normal;
-}
-.origin {
-  font-size: 10px;
-  color: #999;
-  text-decoration: line-through;
 }
 .btn {
   align-self: flex-start;

@@ -18,15 +18,17 @@
     "status": "状态",
     "onSale": "上架",
     "offSale": "下架",
-    "sales": "销量",
+    "sales": "真实销量",
     "sort": "排序",
     "createTime": "创建时间",
     "updateTime": "更新时间",
     "operation": "操作",
     "keyword": "商品名称",
     "searchPlaceholder": "搜索商品名称",
-    "imageTip": "填写图片地址，支持 http(s) 链接",
-    "imagesTip": "多张图片用英文逗号分隔"
+    "imageTip": "从素材中心选取，保证与素材库统一",
+    "imagesTip": "从素材中心选取，最多 5 张",
+    "baseSales": "基础销量",
+    "baseSalesTip": "小程序展示销量 = 基础销量 + 真实销量（下单自动累加）"
   },
   "category": {
     "entity": "分类",

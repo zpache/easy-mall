@@ -12,6 +12,8 @@ import java.time.LocalDateTime;
 public record RefundVO(
         Long id,
         String refundNo,
+        /** 微信支付退款单号，模拟退款为 null */
+        String wxRefundNo,
         Long orderId,
         String orderNo,
         Long userId,
@@ -31,6 +33,7 @@ public record RefundVO(
         return new RefundVO(
                 refund.getId(),
                 refund.getRefundNo(),
+                refund.getWxRefundNo(),
                 refund.getOrderId(),
                 refund.getOrderNo(),
                 refund.getUserId(),

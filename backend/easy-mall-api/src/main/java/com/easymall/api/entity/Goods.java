@@ -3,6 +3,7 @@ package com.easymall.api.entity;
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
@@ -35,7 +36,12 @@ public class Goods extends BaseEntity {
 
     private Integer stock;
 
+    /** 真实销量：下单累加、取消回滚 */
     private Integer sales;
+
+    /** 基础销量：运营维护的展示基数，不对外暴露，返回前并入 sales */
+    @JsonIgnore
+    private Integer baseSales;
 
     private String unit;
 

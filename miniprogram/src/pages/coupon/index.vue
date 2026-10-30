@@ -4,6 +4,9 @@ import { onShow } from '@dcloudio/uni-app'
 import EmptyState from '@/components/empty-state.vue'
 import { couponApi } from '@/api/coupon'
 import type { MemberCoupon } from '@/types/coupon'
+import { useTheme } from '@/composables/useTheme'
+
+const { themePageStyle } = useTheme()
 
 const tabs = [
   { label: '全部', value: undefined as number | undefined },
@@ -75,6 +78,10 @@ onShow(() => {
 </script>
 
 <template>
+  <!-- 主题变量注入：后台启用主题后页面底色与全部语义色跟随变化 -->
+  <!-- #ifdef MP-WEIXIN -->
+  <page-meta :page-style="themePageStyle" />
+  <!-- #endif -->
   <view class="page">
     <view class="tabs">
       <view

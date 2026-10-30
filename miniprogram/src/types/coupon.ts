@@ -49,3 +49,22 @@ export interface CouponCard {
   perLimit: number
   soldOut: boolean
 }
+
+/** 结算页可用优惠券（与后端 UsableCouponVO 对应，服务端按购物车金额实时计算） */
+export interface UsableCoupon {
+  /** 领券记录 id，下单时回传 */
+  couponUserId: number
+  name: string
+  /** 面额文案，如 ¥15 / 9折 */
+  valueText: string
+  /** 门槛文案，如 满99元可用 / 无门槛 */
+  ruleText: string
+  /** 本单可抵扣金额，不可用为 0 */
+  discountAmount: number
+  /** 是否可用 */
+  usable: boolean
+  /** 不可用原因（还差 X 元可用 / 已过有效期） */
+  reason: string | null
+  /** 到期日期文案，如 2026.11.11，null 表示长期有效 */
+  expireAt: string | null
+}

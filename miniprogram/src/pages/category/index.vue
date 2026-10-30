@@ -1,12 +1,15 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { onLoad, onUnload } from '@dcloudio/uni-app'
+import { onLoad, onShow, onUnload } from '@dcloudio/uni-app'
 import GoodsCard from '@/components/goods-card.vue'
 import DecorateTabbar from '@/components/decorate/tabbar.vue'
 import EmptyState from '@/components/empty-state.vue'
 import { goodsApi } from '@/api/goods'
 import { useDecorateStore } from '@/store/decorate'
 import type { Category, Goods } from '@/types/api'
+import { useTheme } from '@/composables/useTheme'
+
+const { themePageStyle } = useTheme()
 
 const decorateStore = useDecorateStore()
 
@@ -49,12 +52,21 @@ onLoad(async () => {
   await loadCategories()
 })
 
+onShow(() => {
+  // 切回分类 tab 时按 TTL 校验线上主题
+  decorateStore.ensureTheme()
+})
+
 onUnload(() => {
   uni.$off('category:select', onSelectFromHome)
 })
 </script>
 
 <template>
+  <!-- 主题变量注入：后台启用主题后页面底色与全部语义色跟随变化 -->
+  <!-- #ifdef MP-WEIXIN -->
+  <page-meta :page-style="themePageStyle" />
+  <!-- #endif -->
   <view class="category-page">
     <scroll-view class="sidebar" scroll-y>
       <view

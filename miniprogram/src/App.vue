@@ -1,8 +1,15 @@
 <script setup lang="ts">
+// #ifdef H5
+import { watch } from 'vue'
+// #endif
 import { onLaunch, onShow } from '@dcloudio/uni-app'
 import { setUnauthorizedHandler } from '@/api/request'
 import { useUserStore } from '@/store/user'
 import { useCartStore } from '@/store/cart'
+import { useDecorateStore } from '@/store/decorate'
+import { THEME_VAR_MAP } from '@/composables/useTheme'
+
+const decorateStore = useDecorateStore()
 
 onLaunch(() => {
   const userStore = useUserStore()
@@ -19,11 +26,26 @@ onLaunch(() => {
     userStore.login().catch(() => undefined)
     // #endif
   }
+  // 线上主题：启动即拉一次，后台启用新主题后重开小程序即变色
+  void decorateStore.ensureTheme(true)
 })
 
 onShow(() => {
-  // 预留：小程序从后台切回前台时的刷新逻辑
+  // 从后台切回前台：按 TTL 校验线上主题，管理端启用新主题后切回来就能同步
+  void decorateStore.ensureTheme()
 })
+
+// #ifdef H5
+// H5 没有 page-meta，主题变量直接写到根节点，等价于小程序端的页面级注入
+watch(
+  () => decorateStore.theme,
+  (theme) => {
+    const root = document.documentElement
+    for (const [name, key] of THEME_VAR_MAP) root.style.setProperty(name, theme[key])
+  },
+  { immediate: true, deep: true }
+)
+// #endif
 </script>
 
 <style lang="scss">
@@ -31,7 +53,7 @@ onShow(() => {
 
 page {
   background-color: $page-bg;
-  color: #1f1f1f;
+  color: $text-main;
   font-size: 28rpx;
   font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Helvetica, sans-serif;
 }
