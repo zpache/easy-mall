@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { onLoad, onUnload } from '@dcloudio/uni-app'
+import { onLoad, onShow, onUnload } from '@dcloudio/uni-app'
 import EmptyState from '@/components/empty-state.vue'
 import { orderApi } from '@/api/order'
 import { formatCountdown, formatPrice, formatTime } from '@/utils/format'
@@ -195,6 +195,14 @@ function goGoods(goodsId: number) {
   uni.navigateTo({ url: `/pages/goods/detail?id=${goodsId}` })
 }
 
+/** 待评价商品数：已完成订单里还没有评价的商品 */
+const pendingComments = computed(() => Number(order.value?.pendingCommentCount ?? 0))
+
+/** 去评价：填写本单未评价的商品 */
+function goComment() {
+  uni.navigateTo({ url: `/pages/order/comment?id=${orderId.value}` })
+}
+
 onLoad((options) => {
   orderId.value = Number(options?.id ?? 0)
   if (!orderId.value) {
@@ -205,6 +213,16 @@ onLoad((options) => {
   startTicking()
 })
 
+/** 首屏由 onLoad 拉取；从评价页等子页面返回时刷新，保证已评价状态及时更新 */
+let firstShow = true
+onShow(() => {
+  if (firstShow) {
+    firstShow = false
+    return
+  }
+  if (orderId.value) load()
+})
+
 onUnload(stopTicking)
 </script>
 
@@ -213,7 +231,7 @@ onUnload(stopTicking)
   <!-- #ifdef MP-WEIXIN -->
   <page-meta :page-style="themePageStyle" />
   <!-- #endif -->
-  <view class="page" :class="{ 'page--with-bar': order?.status === 0 || order?.status === 2 || canApplyRefund }">
+  <view class="page" :class="{ 'page--with-bar': order?.status === 0 || order?.status === 2 || canApplyRefund || pendingComments > 0 }">
     <view v-if="loading" class="loading">加载中…</view>
 
     <EmptyState v-else-if="!order" text="订单不存在" tip="可能已被删除，可返回订单列表刷新" />
@@ -255,7 +273,18 @@ onUnload(stopTicking)
             <text class="goods__name ellipsis-2">{{ item.goodsName }}</text>
             <view class="goods__bottom">
               <text class="price">¥{{ formatPrice(item.price) }}</text>
-              <text class="goods__qty">x{{ item.quantity }}</text>
+              <view class="goods__right">
+                <!-- 已完成订单：单个商品也可直接点评价，已评价的打标 -->
+                <text v-if="item.commented" class="goods__commented">已评价</text>
+                <text
+                  v-else-if="order.status === 3"
+                  class="goods__tocomment"
+                  @tap.stop="goComment"
+                >
+                  评价
+                </text>
+                <text class="goods__qty">x{{ item.quantity }}</text>
+              </view>
             </view>
           </view>
         </view>
@@ -311,12 +340,15 @@ onUnload(stopTicking)
         </view>
       </view>
 
-      <view v-else-if="canApplyRefund || order.status === 2" class="bar" :class="{ 'bar--single': !(canApplyRefund && order.status === 2) }">
+      <view v-else-if="canApplyRefund || order.status === 2 || pendingComments > 0" class="bar">
         <view v-if="canApplyRefund" class="bar__btn bar__btn--plain" hover-class="bar__btn--hover" :hover-stay-time="80" @tap="applyRefund">
           申请退款
         </view>
         <view v-if="order.status === 2" class="bar__btn bar__btn--primary" hover-class="bar__btn--hover" :hover-stay-time="80" @tap="confirmReceive">
           确认收货
+        </view>
+        <view v-if="pendingComments > 0" class="bar__btn bar__btn--primary" hover-class="bar__btn--hover" :hover-stay-time="80" @tap="goComment">
+          评价商品<text v-if="pendingComments > 1">（{{ pendingComments }}）</text>
         </view>
       </view>
     </template>
@@ -505,6 +537,28 @@ onUnload(stopTicking)
     display: flex;
     align-items: center;
     justify-content: space-between;
+  }
+
+  &__right {
+    display: flex;
+    align-items: center;
+    gap: 16rpx;
+  }
+
+  &__commented {
+    padding: 2rpx 12rpx;
+    font-size: 22rpx;
+    color: $text-placeholder;
+    border: 1rpx solid $border-color;
+    border-radius: 20rpx;
+  }
+
+  &__tocomment {
+    padding: 2rpx 16rpx;
+    font-size: 22rpx;
+    color: $primary;
+    border: 1rpx solid $primary;
+    border-radius: 20rpx;
   }
 
   &__qty {

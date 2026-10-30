@@ -21,6 +21,7 @@ import com.easymall.api.mapper.GoodsMapper;
 import com.easymall.api.mapper.MallOrderMapper;
 import com.easymall.api.mapper.OrderItemMapper;
 import com.easymall.api.modules.freight.service.FreightService;
+import com.easymall.api.modules.comment.service.CommentService;
 import com.easymall.api.modules.order.dto.BuyNowRequest;
 import com.easymall.api.modules.order.dto.OrderCreateRequest;
 import com.easymall.api.modules.order.vo.OrderVO;
@@ -43,6 +44,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -73,6 +75,7 @@ public class OrderService {
     private final PaymentConfigService paymentConfigService;
     private final MemberPointService memberPointService;
     private final MemberDiscountService memberDiscountService;
+    private final CommentService commentService;
 
     @Transactional(rollbackFor = Exception.class)
     public OrderVO create(Long userId, OrderCreateRequest request) {
@@ -218,7 +221,7 @@ public class OrderService {
             orderItemMapper.insert(item);
         }
 
-        return toVO(order, orderItems);
+        return toVO(order, orderItems, Set.of());
     }
 
     @Transactional(rollbackFor = Exception.class)
@@ -239,8 +242,11 @@ public class OrderService {
                 .stream()
                 .collect(Collectors.groupingBy(OrderItem::getOrderId));
 
+        // 一次性查出本页订单的已评价商品，避免逐单查询
+        Map<Long, Set<Long>> commentedMap = commentService.commentedGoodsByOrder(orderIds);
         List<OrderVO> records = page.getRecords().stream()
-                .map(order -> toVO(order, itemMap.getOrDefault(order.getId(), List.of())))
+                .map(order -> toVO(order, itemMap.getOrDefault(order.getId(), List.of()),
+                        commentedMap.getOrDefault(order.getId(), Set.of())))
                 .toList();
         return new PageResult<>(records, page.getTotal(), page.getCurrent(), page.getSize(), page.getPages());
     }
@@ -254,7 +260,9 @@ public class OrderService {
         MallOrder order = requireOwnOrder(userId, id);
         List<OrderItem> items = orderItemMapper.selectList(Wrappers.<OrderItem>lambdaQuery()
                 .eq(OrderItem::getOrderId, id));
-        return toVO(order, items);
+        Set<Long> commented = commentService.commentedGoodsByOrder(List.of(id))
+                .getOrDefault(id, Set.of());
+        return toVO(order, items, commented);
     }
 
     /**
@@ -702,11 +710,20 @@ public class OrderService {
                 + String.format("%04d", ThreadLocalRandom.current().nextInt(10000));
     }
 
-    private OrderVO toVO(MallOrder order, List<OrderItem> items) {
+    private OrderVO toVO(MallOrder order, List<OrderItem> items, Set<Long> commentedGoods) {
         LocalDateTime payDeadline = payDeadline(order);
         Long payRemainSeconds = payDeadline == null
                 ? null
                 : Math.max(Duration.between(LocalDateTime.now(), payDeadline).getSeconds(), 0L);
+        // 标记每个商品是否已评价；已完成订单再统计待评价数量，供列表页显示评价入口
+        int pendingCommentCount = 0;
+        for (OrderItem item : items) {
+            boolean commented = commentedGoods != null && commentedGoods.contains(item.getGoodsId());
+            item.setCommented(commented);
+            if (!commented && Integer.valueOf(MallOrder.STATUS_FINISHED).equals(order.getStatus())) {
+                pendingCommentCount++;
+            }
+        }
         return new OrderVO(
                 order.getId(),
                 order.getOrderNo(),
@@ -730,6 +747,7 @@ public class OrderService {
                 order.getCreatedAt(),
                 payDeadline,
                 payRemainSeconds,
-                items);
+                items,
+                pendingCommentCount);
     }
 }

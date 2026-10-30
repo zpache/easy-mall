@@ -2,11 +2,12 @@
 import { computed, ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { goodsApi } from '@/api/goods'
+import { commentApi } from '@/api/comment'
 import { useCartStore } from '@/store/cart'
 import { useUserStore } from '@/store/user'
 import { formatPrice } from '@/utils/format'
 import { navIconUri } from '@/utils/nav-icon-uri'
-import type { Goods } from '@/types/api'
+import type { Goods, GoodsCommentPage } from '@/types/api'
 import { useTheme } from '@/composables/useTheme'
 
 const { theme, themePageStyle } = useTheme()
@@ -14,6 +15,12 @@ const { theme, themePageStyle } = useTheme()
 const goods = ref<Goods | null>(null)
 const goodsId = ref<number>(0)
 const current = ref(0)
+
+/** 评价数据：评分概览 + 前 3 条，空对象表示还没拿到 */
+const comments = ref<GoodsCommentPage | null>(null)
+const commentPreview = computed(() => comments.value?.page.records ?? [])
+const commentCount = computed(() => Number(comments.value?.commentCount ?? 0))
+const avgScoreText = computed(() => Number(comments.value?.avgScore ?? 0).toFixed(1))
 
 const cartStore = useCartStore()
 const userStore = useUserStore()
@@ -35,6 +42,19 @@ const cartBadge = computed(() => (cartStore.count > 99 ? '99+' : String(cartStor
 async function load() {
   goods.value = await goodsApi.detail(goodsId.value)
   uni.setNavigationBarTitle({ title: goods.value.name })
+}
+
+/** 评价加载失败不打断商品浏览，卡片保持「暂无评价」 */
+async function loadComments() {
+  try {
+    comments.value = await commentApi.goodsComments(goodsId.value, 1, 3)
+  } catch {
+    comments.value = null
+  }
+}
+
+function previewImage(urls: string[], index: number) {
+  uni.previewImage({ urls, current: urls[index] })
 }
 
 async function requireLogin(): Promise<boolean> {
@@ -71,6 +91,8 @@ onLoad((options) => {
   goodsId.value = Number(options?.id ?? 0)
   if (goodsId.value) {
     load()
+    // 评价与商品详情并行拉取，互不阻塞
+    loadComments()
   }
   // 已登录时同步一次购物车数量，底部角标才有值（失败不打断页面）
   if (userStore.isLogin) {
@@ -103,6 +125,53 @@ onLoad((options) => {
         <text>库存 {{ goods.stock }}</text>
         <text>已售 {{ goods.sales || 0 }}</text>
         <text>{{ goods.unit || '件' }}</text>
+      </view>
+    </view>
+
+    <view class="comments">
+      <view class="comments__head">
+        <text class="comments__title">商品评价（{{ commentCount }}）</text>
+        <view v-if="commentCount > 0" class="comments__score">
+          <text class="comments__star">★</text>
+          <text class="comments__avg">{{ avgScoreText }}</text>
+        </view>
+      </view>
+
+      <view v-if="!commentPreview.length" class="comments__empty">暂无评价，期待你的分享</view>
+
+      <view v-for="item in commentPreview" :key="item.id" class="comment">
+        <view class="comment__head">
+          <text class="comment__user">{{ item.nickname }}</text>
+          <view class="comment__stars">
+            <text
+              v-for="star in 5"
+              :key="star"
+              class="comment__star"
+              :class="{ 'comment__star--on': star <= item.score }"
+            >
+              ★
+            </text>
+          </view>
+          <text class="comment__time">{{ item.commentedAt.slice(0, 10) }}</text>
+        </view>
+
+        <text v-if="item.content" class="comment__content">{{ item.content }}</text>
+
+        <view v-if="item.images.length" class="comment__images">
+          <image
+            v-for="(image, index) in item.images"
+            :key="image"
+            class="comment__image"
+            :src="image"
+            mode="aspectFill"
+            @tap="previewImage(item.images, index)"
+          />
+        </view>
+
+        <view v-if="item.reply" class="comment__reply">
+          <text class="comment__reply-label">商家回复：</text>
+          <text class="comment__reply-text">{{ item.reply }}</text>
+        </view>
       </view>
     </view>
 
@@ -189,6 +258,123 @@ onLoad((options) => {
     margin-top: 20rpx;
     font-size: 24rpx;
     color: $text-placeholder;
+  }
+}
+
+.comments {
+  margin-top: 20rpx;
+  padding: 24rpx;
+  background-color: #fff;
+
+  &__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  &__title {
+    font-size: 30rpx;
+    font-weight: 600;
+  }
+
+  &__score {
+    display: flex;
+    align-items: center;
+  }
+
+  &__star {
+    font-size: 26rpx;
+    color: #ffb400;
+  }
+
+  &__avg {
+    margin-left: 6rpx;
+    font-size: 26rpx;
+    font-weight: 600;
+    color: #ffb400;
+  }
+
+  &__empty {
+    display: block;
+    margin-top: 20rpx;
+    font-size: 26rpx;
+    color: $text-placeholder;
+  }
+}
+
+.comment {
+  padding: 20rpx 0;
+
+  & + & {
+    border-top: 1rpx solid $border-color;
+  }
+
+  &__head {
+    display: flex;
+    align-items: center;
+  }
+
+  &__user {
+    font-size: 26rpx;
+    color: $text-secondary;
+  }
+
+  &__stars {
+    display: flex;
+    margin-left: 12rpx;
+  }
+
+  &__star {
+    font-size: 22rpx;
+    color: #dcdcdc;
+
+    &--on {
+      color: #ffb400;
+    }
+  }
+
+  &__time {
+    margin-left: auto;
+    font-size: 22rpx;
+    color: $text-placeholder;
+  }
+
+  &__content {
+    display: block;
+    margin-top: 12rpx;
+    font-size: 26rpx;
+    line-height: 38rpx;
+    color: #434343;
+  }
+
+  &__images {
+    display: flex;
+    gap: 12rpx;
+    margin-top: 12rpx;
+  }
+
+  &__image {
+    width: 150rpx;
+    height: 150rpx;
+    border-radius: 12rpx;
+    background-color: #f2f2f2;
+  }
+
+  &__reply {
+    margin-top: 12rpx;
+    padding: 12rpx 16rpx;
+    background-color: #f8f8f8;
+    border-radius: 12rpx;
+  }
+
+  &__reply-label {
+    font-size: 24rpx;
+    color: $primary;
+  }
+
+  &__reply-text {
+    font-size: 24rpx;
+    color: $text-secondary;
   }
 }
 

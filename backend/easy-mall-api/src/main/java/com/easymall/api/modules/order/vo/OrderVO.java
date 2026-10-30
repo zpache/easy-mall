@@ -40,7 +40,9 @@ public record OrderVO(
         LocalDateTime payDeadline,
         /** 距离支付截止还剩多少秒：由服务端计算，规避客户端时钟偏差 */
         Long payRemainSeconds,
-        List<OrderItem> items
+        List<OrderItem> items,
+        /** 待评价商品数：仅已完成订单可能大于 0，用于列表页展示「评价」入口 */
+        Integer pendingCommentCount
 ) {
     public static String statusText(Integer status) {
         if (status == null) {

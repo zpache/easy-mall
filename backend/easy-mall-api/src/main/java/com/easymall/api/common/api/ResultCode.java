@@ -51,7 +51,12 @@ public enum ResultCode {
 
     PAY_FAILED(4024, "拉起支付失败，请稍后重试"),
     PAY_NOT_CONFIGURED(4025, "微信支付参数未配置完整"),
-    PAY_NOTIFY_INVALID(4026, "支付回调校验失败");
+    PAY_NOTIFY_INVALID(4026, "支付回调校验失败"),
+
+    COMMENT_ORDER_STATUS_INVALID(4027, "只有已完成的订单可以评价"),
+    COMMENT_ALREADY_DONE(4028, "该商品已经评价过了"),
+    COMMENT_GOODS_NOT_IN_ORDER(4029, "商品不在该订单中"),
+    COMMENT_IMAGE_LIMIT(4030, "最多上传 3 张晒图");
 
     private final int code;
     private final String message;

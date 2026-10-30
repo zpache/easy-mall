@@ -35,11 +35,13 @@ public class FileStorageService {
 
     private final Path root;
     private final long avatarMaxSize;
+    private final long commentMaxSize;
     private final String publicBase;
 
     public FileStorageService(UploadProperties properties) {
         this.root = Paths.get(properties.getDir()).toAbsolutePath().normalize();
         this.avatarMaxSize = properties.getAvatarMaxSize();
+        this.commentMaxSize = properties.getCommentMaxSize();
         this.publicBase = properties.getPublicBase();
     }
 
@@ -47,10 +49,21 @@ public class FileStorageService {
      * 保存头像并返回访问地址。
      */
     public String storeAvatar(MultipartFile file) {
+        return store(file, "avatar", avatarMaxSize);
+    }
+
+    /**
+     * 保存评价晒图并返回访问地址（comment/yyyy/MM/dd）。
+     */
+    public String storeCommentImage(MultipartFile file) {
+        return store(file, "comment", commentMaxSize);
+    }
+
+    private String store(MultipartFile file, String dir, long maxSize) {
         if (file == null || file.isEmpty()) {
             throw new BusinessException(ResultCode.FILE_EMPTY);
         }
-        if (file.getSize() > avatarMaxSize) {
+        if (file.getSize() > maxSize) {
             throw new BusinessException(ResultCode.FILE_TOO_LARGE);
         }
         byte[] head = readHead(file);
@@ -59,7 +72,7 @@ public class FileStorageService {
             throw new BusinessException(ResultCode.FILE_TYPE_NOT_ALLOWED);
         }
 
-        String relativePath = "avatar/" + LocalDate.now().format(DATE_DIR)
+        String relativePath = dir + "/" + LocalDate.now().format(DATE_DIR)
                 + "/" + UUID.randomUUID().toString().replace("-", "") + "." + extension;
         Path target = root.resolve(relativePath).normalize();
         if (!target.startsWith(root)) {

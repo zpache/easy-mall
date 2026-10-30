@@ -32,4 +32,10 @@ public class FileController {
     public Result<FileVO> uploadAvatar(@RequestPart("file") MultipartFile file) {
         return Result.ok(new FileVO(fileStorageService.storeAvatar(file)));
     }
+
+    @Operation(summary = "上传评价晒图")
+    @PostMapping(value = "/comment-image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public Result<FileVO> uploadCommentImage(@RequestPart("file") MultipartFile file) {
+        return Result.ok(new FileVO(fileStorageService.storeCommentImage(file)));
+    }
 }

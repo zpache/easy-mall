@@ -88,6 +88,8 @@ export interface OrderItem {
   price: number
   quantity: number
   totalAmount: number
+  /** 该商品是否已评价（服务端按评价表标记） */
+  commented?: boolean
 }
 
 export interface Order {
@@ -123,6 +125,8 @@ export interface Order {
   /** 距支付截止剩余秒数（服务端算好，避免手机时钟偏差），仅待付款订单有值 */
   payRemainSeconds?: null | number
   items: OrderItem[]
+  /** 待评价商品数：仅已完成订单可能大于 0 */
+  pendingCommentCount?: number
 }
 
 export interface LoginUser {
@@ -192,4 +196,38 @@ export interface UserProfile {
   totalSpend?: number
   /** 累计订单数（已付款订单） */
   orderCount?: number
+}
+
+/** 商品评价（昵称已脱敏） */
+export interface GoodsComment {
+  id: number
+  goodsId: number
+  goodsName: string
+  goodsImage: string
+  nickname: string
+  /** 1-5 星 */
+  score: number
+  content?: null | string
+  images: string[]
+  /** 商家回复 */
+  reply?: null | string
+  repliedAt?: null | string
+  commentedAt: string
+}
+
+/** 商品评价数据：评分概览 + 分页列表 */
+export interface GoodsCommentPage {
+  /** 平均分，无评价为 0 */
+  avgScore: number
+  /** 显示中的评价条数 */
+  commentCount: number
+  page: PageResult<GoodsComment>
+}
+
+/** 提交评价的单个商品 */
+export interface CommentSubmitItem {
+  goodsId: number
+  score: number
+  content?: string
+  images?: string[]
 }
