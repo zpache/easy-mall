@@ -71,6 +71,14 @@ public class OrderService {
     private static final int COUPON_UNUSED = 0;
     private static final int COUPON_USED = 1;
 
+    /**
+     * 用户端订单列表状态组（列表页签语义，非订单真实状态）：
+     * 10 待收货 = 已付款未收货（待发货 1 + 待收货 2），用户视角统一为「等收货」；
+     * 11 待评价 = 已完成且还有未评价的商品。
+     */
+    public static final int GROUP_UNRECEIVED = 10;
+    public static final int GROUP_PENDING_COMMENT = 11;
+
     private final MallOrderMapper orderMapper;
     private final OrderItemMapper orderItemMapper;
     private final CartItemMapper cartItemMapper;
@@ -259,8 +267,19 @@ public class OrderService {
         closeExpiredOrders(userId);
         LambdaQueryWrapper<MallOrder> wrapper = Wrappers.<MallOrder>lambdaQuery()
                 .eq(MallOrder::getUserId, userId)
-                .eq(status != null, MallOrder::getStatus, status)
                 .orderByDesc(MallOrder::getId);
+        if (status != null && status == GROUP_UNRECEIVED) {
+            // 用户端「待收货」：已付款到确认收货之间的全部订单（含商家待发货）
+            wrapper.in(MallOrder::getStatus, MallOrder.STATUS_UNDELIVERED, MallOrder.STATUS_UNRECEIVED);
+        } else if (status != null && status == GROUP_PENDING_COMMENT) {
+            // 用户端「待评价」：已完成且至少一个商品还没有评价记录（子查询保证分页准确）
+            wrapper.eq(MallOrder::getStatus, MallOrder.STATUS_FINISHED)
+                    .exists("SELECT 1 FROM o_order_item i WHERE i.order_id = o_order.id "
+                            + "AND i.deleted = 0 AND NOT EXISTS (SELECT 1 FROM o_order_comment c "
+                            + "WHERE c.order_id = i.order_id AND c.goods_id = i.goods_id AND c.deleted = 0)");
+        } else {
+            wrapper.eq(status != null, MallOrder::getStatus, status);
+        }
         Page<MallOrder> page = orderMapper.selectPage(Page.of(pageNum, pageSize), wrapper);
 
         List<Long> orderIds = page.getRecords().stream().map(MallOrder::getId).toList();

@@ -10,11 +10,12 @@ import { useTheme } from '@/composables/useTheme'
 
 const { themePageStyle } = useTheme()
 
+/** 用户端页签：status=10/11 为服务端状态组（待收货=已付款未收货、待评价=已完成且有未评商品） */
 const tabs = [
   { label: '全部', value: undefined as number | undefined },
   { label: '待付款', value: 0 },
-  { label: '待发货', value: 1 },
-  { label: '待收货', value: 2 },
+  { label: '待收货', value: 10 },
+  { label: '待评价', value: 11 },
   { label: '已完成', value: 3 }
 ]
 
@@ -68,6 +69,11 @@ function remainSeconds(order: Order): number {
 function countdownText(order: Order): string {
   const remain = remainSeconds(order)
   return remain < 0 ? '' : formatCountdown(remain)
+}
+
+/** 用户端状态文案：商家待发货在用户视角统一呈现为「待收货」 */
+function displayStatus(order: Order): string {
+  return order.status === 1 ? '待收货' : order.statusText
 }
 
 async function load(reset = false) {
@@ -210,7 +216,7 @@ onUnload(() => {
       <view class="order__head">
         <text class="order__no">{{ order.orderNo }}</text>
         <view class="order__status-wrap">
-          <text class="order__status">{{ order.statusText }}</text>
+          <text class="order__status">{{ displayStatus(order) }}</text>
           <text class="order__arrow">›</text>
         </view>
       </view>
@@ -244,10 +250,10 @@ onUnload(() => {
         <view class="btn btn--primary" @tap.stop="pay(order)">去支付</view>
       </view>
 
-      <!-- 待收货：可直接确认收货，也可点进详情复制物流单号 -->
-      <view v-else-if="order.status === 2" class="order__actions">
+      <!-- 待收货（含商家待发货）：可看物流信息；已发货的可确认收货 -->
+      <view v-else-if="order.status === 1 || order.status === 2" class="order__actions">
         <view class="btn btn--plain" @tap.stop="goDetail(order)">物流信息</view>
-        <view class="btn btn--primary" @tap.stop="confirmReceive(order)">确认收货</view>
+        <view v-if="order.status === 2" class="btn btn--primary" @tap.stop="confirmReceive(order)">确认收货</view>
       </view>
 
       <!-- 已完成：还有未评价商品时给评价入口，全部评完显示已评价 -->
