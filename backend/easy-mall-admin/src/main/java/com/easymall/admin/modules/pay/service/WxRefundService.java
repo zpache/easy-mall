@@ -5,8 +5,8 @@ import com.easymall.admin.entity.Order;
 import com.easymall.admin.entity.OrderRefund;
 import com.easymall.admin.modules.pay.support.WxPaySigner;
 import com.easymall.admin.modules.setting.service.SysConfigService;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
@@ -117,9 +117,9 @@ public class WxRefundService {
                     .retrieve()
                     .body(String.class);
             JsonNode node = objectMapper.readTree(response);
-            String refundId = node.path("refund_id").asText();
+            String refundId = node.path("refund_id").asString();
             log.info("微信退款受理成功: orderNo={}, refundNo={}, 微信退款单号={}, 状态={}",
-                    order.getOrderNo(), refund.getRefundNo(), refundId, node.path("status").asText());
+                    order.getOrderNo(), refund.getRefundNo(), refundId, node.path("status").asString());
             return StringUtils.hasText(refundId) ? refundId : null;
         } catch (RestClientResponseException e) {
             log.error("微信退款失败: orderNo={}, refundNo={}, status={}, body={}",
@@ -155,7 +155,7 @@ public class WxRefundService {
         }
         try {
             JsonNode node = objectMapper.readTree(body);
-            String message = node.path("message").asText();
+            String message = node.path("message").asString();
             return StringUtils.hasText(message) ? message : body;
         } catch (Exception e) {
             return body;
