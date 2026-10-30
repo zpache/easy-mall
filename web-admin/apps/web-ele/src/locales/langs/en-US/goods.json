@@ -37,7 +37,6 @@
     "parent": "Parent Category",
     "parentTip": "Leave empty to create a top-level category",
     "topLevel": "Top Level",
-    "icon": "Icon",
     "sort": "Sort",
     "status": "Status",
     "createTime": "Created At",

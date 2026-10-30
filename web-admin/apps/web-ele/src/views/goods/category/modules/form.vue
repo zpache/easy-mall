@@ -37,7 +37,6 @@ const [Modal, modalApi] = useVbenModal({
     modalApi.lock();
     try {
       const payload: GoodsCategoryApi.CategoryPayload = {
-        icon: values.icon,
         name: values.name,
         // 不选上级表示一级分类，后端用 0 表示根
         parentId: values.parentId ?? 0,
@@ -63,7 +62,6 @@ const [Modal, modalApi] = useVbenModal({
     formApi.resetForm();
     if (data?.id) {
       formApi.setValues({
-        icon: data.icon,
         name: data.name,
         parentId: data.parentId === 0 ? undefined : data.parentId,
         sort: data.sort ?? 0,

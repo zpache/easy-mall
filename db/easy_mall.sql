@@ -173,7 +173,6 @@ CREATE TABLE `mall_category`
     `id`         bigint      NOT NULL AUTO_INCREMENT,
     `name`       varchar(32) NOT NULL COMMENT '分类名称',
     `parent_id`  bigint      NOT NULL DEFAULT 0 COMMENT '上级分类，0 为一级分类',
-    `icon`       varchar(255)         DEFAULT NULL COMMENT '分类图标',
     `sort`       int         NOT NULL DEFAULT 0 COMMENT '排序值，越小越前',
     `status`     tinyint     NOT NULL DEFAULT 1 COMMENT '1 启用，0 停用',
     `created_at` datetime    NOT NULL DEFAULT CURRENT_TIMESTAMP,

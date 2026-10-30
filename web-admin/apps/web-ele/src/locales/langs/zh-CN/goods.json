@@ -37,7 +37,6 @@
     "parent": "上级分类",
     "parentTip": "不选择上级时创建为一级分类",
     "topLevel": "一级分类",
-    "icon": "分类图标",
     "sort": "排序",
     "status": "状态",
     "createTime": "创建时间",

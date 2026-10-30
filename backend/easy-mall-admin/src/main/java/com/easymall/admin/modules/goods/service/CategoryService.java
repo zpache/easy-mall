@@ -85,7 +85,6 @@ public class CategoryService extends ServiceImpl<CategoryMapper, Category> {
     private void applyForm(Category category, CategoryForm form) {
         category.setName(form.name());
         category.setParentId(form.parentId() == null ? 0L : form.parentId());
-        category.setIcon(form.icon());
         category.setSort(form.sort() == null ? 0 : form.sort());
         category.setStatus(form.status());
     }
