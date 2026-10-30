@@ -232,6 +232,9 @@ const tagTypeMap: Record<string, any> = {
             }}{{ order.memberLevelName ? `（${order.memberLevelName}）` : ''
             }}：-{{ formatMoney(order.memberDiscount) }}
           </span>
+          <span v-if="order.reductionAmount > 0">
+            {{ $t('order.order.reduction') }}：-{{ formatMoney(order.reductionAmount) }}
+          </span>
           <span v-if="order.couponAmount > 0">
             {{ $t('order.order.coupon') }}：-{{ formatMoney(order.couponAmount) }}
           </span>

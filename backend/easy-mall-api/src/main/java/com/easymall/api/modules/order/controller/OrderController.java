@@ -7,6 +7,7 @@ import com.easymall.api.modules.order.dto.BuyNowRequest;
 import com.easymall.api.modules.order.dto.OrderCreateRequest;
 import com.easymall.api.modules.order.service.OrderService;
 import com.easymall.api.modules.order.vo.OrderVO;
+import com.easymall.api.modules.order.vo.ReductionPreviewVO;
 import com.easymall.api.modules.order.vo.UsableCouponVO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -44,6 +45,13 @@ public class OrderController {
     public Result<List<UsableCouponVO>> usableCoupons(@RequestParam(required = false) Long goodsId,
                                                       @RequestParam(required = false) Integer quantity) {
         return Result.ok(orderService.usableCoupons(UserContext.userId(), goodsId, quantity));
+    }
+
+    @Operation(summary = "结算页满减预估（默认按购物车已勾选商品；传 goodsId+quantity 时按立即购买商品计算）")
+    @GetMapping("/promotions")
+    public Result<List<ReductionPreviewVO>> promotions(@RequestParam(required = false) Long goodsId,
+                                                       @RequestParam(required = false) Integer quantity) {
+        return Result.ok(orderService.promotionPreview(UserContext.userId(), goodsId, quantity));
     }
 
     @Operation(summary = "订单列表")

@@ -11,6 +11,7 @@
     "freight": "运费",
     "coupon": "优惠券",
     "memberDiscount": "会员折扣",
+    "reduction": "满减优惠",
     "refundedAmount": "已退款",
     "status": "订单状态",
     "statusUnpaid": "待付款",

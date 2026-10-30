@@ -8,7 +8,7 @@ import { orderApi } from '@/api/order'
 import { useCartStore } from '@/store/cart'
 import { useUserStore } from '@/store/user'
 import { formatPrice } from '@/utils/format'
-import type { Address, CartItem, FreightPreview, Goods, Order } from '@/types/api'
+import type { Address, CartItem, FreightPreview, Goods, Order, PromotionPreview } from '@/types/api'
 import type { UsableCoupon } from '@/types/coupon'
 import { useTheme } from '@/composables/useTheme'
 
@@ -32,6 +32,9 @@ const buyNowQuantity = ref(1)
 const coupons = ref<UsableCoupon[]>([])
 const selectedCouponUserId = ref<number | null>(null)
 const couponPickerVisible = ref(false)
+
+/** 结算页满减预估：服务端按同一口径计算，多活动可叠加 */
+const promotions = ref<PromotionPreview[]>([])
 
 const items = computed<CartItem[]>(() => {
   if (isBuyNow.value && buyNowGoods.value) {
@@ -75,14 +78,30 @@ const memberDiscount = computed(() => {
   if (!(rate > 0) || rate >= 100) return 0
   return Math.round(total.value * (100 - rate)) / 100
 })
-/** 折后商品金额：券门槛、运费包邮门槛、应付金额都基于它计算 */
+/** 折后商品金额：会员折扣后金额 */
 const discountedTotal = computed(() => Math.max(total.value - memberDiscount.value, 0))
+
+/** 满减优惠合计：仅统计已达门槛的活动，服务端按同一口径重算并落快照 */
+const reductionDiscount = computed(() =>
+  promotions.value
+    .filter((item) => item.usable)
+    .reduce((sum, item) => sum + Number(item.discount ?? 0), 0)
+)
+/** 满减活动文案：多个活动用「、」拼接，每满减命中多次时带 ×N */
+const reductionText = computed(() =>
+  promotions.value
+    .filter((item) => item.usable)
+    .map((item) => (item.times > 1 ? `${item.name}×${item.times}` : item.name))
+    .join('、')
+)
+/** 满减后商品金额：运费包邮门槛、优惠券门槛、应付金额都基于它（叠加顺序：会员折扣 -> 满减 -> 优惠券） */
+const afterReductionTotal = computed(() => Math.max(discountedTotal.value - reductionDiscount.value, 0))
 
 const freightAmount = computed(() =>
   freight.value?.deliverable ? Number(freight.value.freightAmount ?? 0) : 0
 )
 const notDeliverable = computed(() => freight.value !== null && !freight.value.deliverable)
-const payAmount = computed(() => Math.max(discountedTotal.value - discount.value, 0) + freightAmount.value)
+const payAmount = computed(() => Math.max(afterReductionTotal.value - discount.value, 0) + freightAmount.value)
 /** 会员折扣文案：98 -> 9.8折、90 -> 9折；无折扣返回空串 */
 const levelText = computed(() => {
   const rate = levelDiscount.value
@@ -90,8 +109,8 @@ const levelText = computed(() => {
   return [levelName.value, text].filter(Boolean).join(' ')
 })
 
-/** 合计优惠：会员折扣 + 优惠券 */
-const savedTotal = computed(() => memberDiscount.value + discount.value)
+/** 合计优惠：会员折扣 + 满减 + 优惠券 */
+const savedTotal = computed(() => memberDiscount.value + reductionDiscount.value + discount.value)
 const usableCount = computed(() => coupons.value.filter((item) => item.usable).length)
 
 async function loadFreight() {
@@ -100,10 +119,22 @@ async function loadFreight() {
     return
   }
   try {
-    // 运费按折后商品金额计算，与下单口径一致（满额包邮门槛看折后金额）
-    freight.value = await orderApi.freightPreview(address.value.id, discountedTotal.value)
+    // 运费按满减后商品金额计算，与下单口径一致（满额包邮门槛看折后金额）
+    freight.value = await orderApi.freightPreview(address.value.id, afterReductionTotal.value)
   } catch {
     freight.value = null
+  }
+}
+
+async function loadPromotions() {
+  try {
+    // 立即购买按单个商品算满减，购物车结算按勾选商品金额算满减
+    const params = isBuyNow.value && buyNowGoods.value
+      ? { goodsId: buyNowGoods.value.id, quantity: buyNowQuantity.value }
+      : undefined
+    promotions.value = await orderApi.promotionPreview(params)
+  } catch {
+    promotions.value = []
   }
 }
 
@@ -206,6 +237,8 @@ onLoad(async (options) => {
     await userStore.fetchProfile().catch(() => undefined)
   }
   await loadAddress()
+  // 满减先于运费加载：运费按满减后金额计算
+  await loadPromotions()
   await loadCoupons()
 })
 
@@ -261,6 +294,13 @@ onUnload(() => {
           <text v-if="levelText" class="cell__tag">{{ levelText }}</text>
         </view>
         <text class="coupon-save">-¥{{ formatPrice(memberDiscount) }}</text>
+      </view>
+      <view v-if="reductionDiscount > 0" class="cell">
+        <view class="cell__label">
+          <text>满减优惠</text>
+          <text class="cell__tag reduction-tag">{{ reductionText }}</text>
+        </view>
+        <text class="coupon-save">-¥{{ formatPrice(reductionDiscount) }}</text>
       </view>
       <view class="cell">
         <text>备注</text>
@@ -470,6 +510,13 @@ onUnload(() => {
     background-color: rgba(255, 90, 31, 0.1);
     border-radius: 6rpx;
   }
+}
+
+.reduction-tag {
+  max-width: 340rpx;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .coupon-save {

@@ -92,6 +92,36 @@ export interface OrderItem {
   commented?: boolean
 }
 
+/** 订单参加的满减活动快照（下单时落库，活动后续修改不影响历史订单） */
+export interface OrderPromotion {
+  id: number
+  orderId: number
+  orderNo: string
+  promotionId: number
+  promotionName: string
+  /** 1 阶梯满减 2 每满减 */
+  mode: number
+  threshold: number
+  benefit: number
+  /** 命中次数：每满减按金额可叠加多次，阶梯为 1 */
+  times: number
+  discountAmount: number
+}
+
+/** 结算页满减预估：当前商品金额下每个生效活动的命中情况 */
+export interface PromotionPreview {
+  reductionId: number
+  name: string
+  mode: number
+  threshold: number
+  benefit: number
+  times: number
+  /** 预计优惠金额 */
+  discount: number
+  /** 是否满足门槛 */
+  usable: boolean
+}
+
 export interface Order {
   id: number
   orderNo: string
@@ -108,6 +138,10 @@ export interface Order {
   memberDiscount: number
   /** 享受折扣时的会员等级名称（下单时快照） */
   memberLevelName?: null | string
+  /** 满减优惠金额（多活动合计），未参加为 0 */
+  reductionAmount: number
+  /** 参加的满减活动快照（1 对多） */
+  promotions?: OrderPromotion[]
   payAmount: number
   receiverName: string
   receiverPhone: string

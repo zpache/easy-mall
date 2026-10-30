@@ -13,6 +13,8 @@ import com.easymall.api.entity.CouponUser;
 import com.easymall.api.entity.Goods;
 import com.easymall.api.entity.MallOrder;
 import com.easymall.api.entity.OrderItem;
+import com.easymall.api.entity.OrderPromotion;
+import com.easymall.api.entity.Reduction;
 import com.easymall.api.mapper.AddressMapper;
 import com.easymall.api.mapper.CartItemMapper;
 import com.easymall.api.mapper.CouponMapper;
@@ -20,11 +22,14 @@ import com.easymall.api.mapper.CouponUserMapper;
 import com.easymall.api.mapper.GoodsMapper;
 import com.easymall.api.mapper.MallOrderMapper;
 import com.easymall.api.mapper.OrderItemMapper;
+import com.easymall.api.mapper.OrderPromotionMapper;
+import com.easymall.api.mapper.ReductionMapper;
 import com.easymall.api.modules.freight.service.FreightService;
 import com.easymall.api.modules.comment.service.CommentService;
 import com.easymall.api.modules.order.dto.BuyNowRequest;
 import com.easymall.api.modules.order.dto.OrderCreateRequest;
 import com.easymall.api.modules.order.vo.OrderVO;
+import com.easymall.api.modules.order.vo.ReductionPreviewVO;
 import com.easymall.api.modules.order.vo.UsableCouponVO;
 import com.easymall.api.modules.member.service.MemberDiscountService;
 import com.easymall.api.modules.member.service.MemberPointService;
@@ -73,6 +78,8 @@ public class OrderService {
     private final AddressMapper addressMapper;
     private final CouponMapper couponMapper;
     private final CouponUserMapper couponUserMapper;
+    private final ReductionMapper reductionMapper;
+    private final OrderPromotionMapper orderPromotionMapper;
     private final FreightService freightService;
     private final PaymentConfigService paymentConfigService;
     private final MemberPointService memberPointService;
@@ -192,17 +199,25 @@ public class OrderService {
         BigDecimal memberDiscount = levelDiscount.discountAmount();
         BigDecimal discountedTotal = totalAmount.subtract(memberDiscount).max(BigDecimal.ZERO);
 
-        // 优惠券：服务端按折后商品金额重新校验与计算，不信任前端传来的抵扣额
+        // 满减：叠加顺序为会员折扣 -> 满减 -> 优惠券 -> 运费；
+        // 多活动可叠加（阶梯取最优档、每满减按次数），优惠快照按活动逐条落 o_order_promotion
+        List<OrderPromotion> promotions = applyReductions(discountedTotal);
+        BigDecimal reductionAmount = promotions.stream()
+                .map(OrderPromotion::getDiscountAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal afterReduction = discountedTotal.subtract(reductionAmount).max(BigDecimal.ZERO);
+
+        // 优惠券：服务端按满减后商品金额重新校验与计算，不信任前端传来的抵扣额
         Long couponId = null;
         BigDecimal couponAmount = BigDecimal.ZERO;
         if (couponUserId != null) {
-            CouponRedemption redemption = redeemCoupon(userId, couponUserId, orderNo, discountedTotal);
+            CouponRedemption redemption = redeemCoupon(userId, couponUserId, orderNo, afterReduction);
             couponId = redemption.couponId();
             couponAmount = redemption.amount();
         }
 
-        // 运费：按收货地址与折后商品金额服务端计算，不配送地区直接阻断下单（优惠不抵运费）
-        BigDecimal freightAmount = freightService.calculateOrThrow(address, discountedTotal);
+        // 运费：按收货地址与满减后商品金额服务端计算，不配送地区直接阻断下单（优惠不抵运费）
+        BigDecimal freightAmount = freightService.calculateOrThrow(address, afterReduction);
 
         MallOrder order = new MallOrder();
         order.setOrderNo(orderNo);
@@ -213,7 +228,8 @@ public class OrderService {
         order.setCouponAmount(couponAmount);
         order.setMemberDiscount(memberDiscount);
         order.setMemberLevelName(levelDiscount.effective() ? levelDiscount.levelName() : null);
-        order.setPayAmount(discountedTotal.subtract(couponAmount).max(BigDecimal.ZERO).add(freightAmount));
+        order.setReductionAmount(reductionAmount);
+        order.setPayAmount(afterReduction.subtract(couponAmount).max(BigDecimal.ZERO).add(freightAmount));
         order.setRefundedAmount(BigDecimal.ZERO);
         order.setStatus(MallOrder.STATUS_UNPAID);
         order.setReceiverName(address.getReceiver());
@@ -227,7 +243,14 @@ public class OrderService {
             orderItemMapper.insert(item);
         }
 
-        return toVO(order, orderItems, Set.of());
+        // 满减快照与订单同事务落库：每个参加的活动一行
+        for (OrderPromotion promotion : promotions) {
+            promotion.setOrderId(order.getId());
+            promotion.setOrderNo(orderNo);
+            orderPromotionMapper.insert(promotion);
+        }
+
+        return toVO(order, orderItems, Set.of(), promotions);
     }
 
     @Transactional(rollbackFor = Exception.class)
@@ -250,9 +273,18 @@ public class OrderService {
 
         // 一次性查出本页订单的已评价商品，避免逐单查询
         Map<Long, Set<Long>> commentedMap = commentService.commentedGoodsByOrder(orderIds);
+        // 一次性查出本页订单参加的满减活动快照
+        Map<Long, List<OrderPromotion>> promotionMap = orderIds.isEmpty()
+                ? Map.of()
+                : orderPromotionMapper.selectList(Wrappers.<OrderPromotion>lambdaQuery()
+                        .in(OrderPromotion::getOrderId, orderIds)
+                        .orderByAsc(OrderPromotion::getId))
+                .stream()
+                .collect(Collectors.groupingBy(OrderPromotion::getOrderId));
         List<OrderVO> records = page.getRecords().stream()
                 .map(order -> toVO(order, itemMap.getOrDefault(order.getId(), List.of()),
-                        commentedMap.getOrDefault(order.getId(), Set.of())))
+                        commentedMap.getOrDefault(order.getId(), Set.of()),
+                        promotionMap.getOrDefault(order.getId(), List.of())))
                 .toList();
         return new PageResult<>(records, page.getTotal(), page.getCurrent(), page.getSize(), page.getPages());
     }
@@ -268,7 +300,10 @@ public class OrderService {
                 .eq(OrderItem::getOrderId, id));
         Set<Long> commented = commentService.commentedGoodsByOrder(List.of(id))
                 .getOrDefault(id, Set.of());
-        return toVO(order, items, commented);
+        List<OrderPromotion> promotions = orderPromotionMapper.selectList(Wrappers.<OrderPromotion>lambdaQuery()
+                .eq(OrderPromotion::getOrderId, id)
+                .orderByAsc(OrderPromotion::getId));
+        return toVO(order, items, commented, promotions);
     }
 
     /**
@@ -539,6 +574,113 @@ public class OrderService {
         }
     }
 
+    /** 单个满减活动的命中结果：活动 + 命中次数 + 本单优惠金额 */
+    private record ReductionHit(Reduction reduction, int times, BigDecimal discount) {
+    }
+
+    /** 当前生效中的满减活动（启用且在活动时间内） */
+    private List<Reduction> activeReductions(LocalDateTime now) {
+        return reductionMapper.selectList(Wrappers.<Reduction>lambdaQuery()
+                .eq(Reduction::getStatus, 1)
+                .le(Reduction::getStartTime, now)
+                .ge(Reduction::getEndTime, now)
+                .orderByDesc(Reduction::getBenefit)
+                .orderByAsc(Reduction::getThreshold));
+    }
+
+    /**
+     * 计算指定金额命中的满减活动（多活动可叠加）：
+     * 阶梯满减（mode=1）一记录一档，只在命中档里取优惠最大的一条；
+     * 每满减（mode=2）按金额可叠加 floor(金额/门槛) 次。
+     * 优惠合计封顶不超过传入金额（极端情况下截断），保证优惠后金额不为负。
+     */
+    private List<ReductionHit> calculateReductionHits(BigDecimal amount) {
+        if (amount.compareTo(BigDecimal.ZERO) <= 0) {
+            return List.of();
+        }
+        List<Reduction> active = activeReductions(LocalDateTime.now());
+        List<ReductionHit> hits = new ArrayList<>(active.size());
+        Reduction bestLadder = null;
+        for (Reduction reduction : active) {
+            boolean ladder = reduction.getMode() != null && reduction.getMode() == Reduction.MODE_LADDER;
+            if (amount.compareTo(reduction.getThreshold()) < 0) {
+                continue;
+            }
+            if (ladder) {
+                if (bestLadder == null || reduction.getBenefit().compareTo(bestLadder.getBenefit()) > 0) {
+                    bestLadder = reduction;
+                }
+                continue;
+            }
+            int times = amount.divideToIntegralValue(reduction.getThreshold()).intValue();
+            hits.add(new ReductionHit(reduction, times, reduction.getBenefit()
+                    .multiply(BigDecimal.valueOf(times)).setScale(2, RoundingMode.HALF_UP)));
+        }
+        if (bestLadder != null) {
+            hits.add(new ReductionHit(bestLadder, 1, bestLadder.getBenefit().setScale(2, RoundingMode.HALF_UP)));
+        }
+        List<ReductionHit> capped = new ArrayList<>(hits.size());
+        BigDecimal remaining = amount;
+        for (ReductionHit hit : hits) {
+            BigDecimal discount = hit.discount().min(remaining).max(BigDecimal.ZERO)
+                    .setScale(2, RoundingMode.HALF_UP);
+            if (discount.compareTo(BigDecimal.ZERO) > 0) {
+                capped.add(new ReductionHit(hit.reduction(), hit.times(), discount));
+                remaining = remaining.subtract(discount);
+            }
+        }
+        return capped;
+    }
+
+    /** 对指定金额应用满减并生成快照行（订单信息由调用方回填），返回快照列表 */
+    private List<OrderPromotion> applyReductions(BigDecimal amount) {
+        List<OrderPromotion> promotions = new ArrayList<>();
+        for (ReductionHit hit : calculateReductionHits(amount)) {
+            OrderPromotion promotion = new OrderPromotion();
+            promotion.setPromotionId(hit.reduction().getId());
+            promotion.setPromotionName(hit.reduction().getName());
+            promotion.setMode(hit.reduction().getMode());
+            promotion.setThreshold(hit.reduction().getThreshold());
+            promotion.setBenefit(hit.reduction().getBenefit());
+            promotion.setTimes(hit.times());
+            promotion.setDiscountAmount(hit.discount());
+            promotions.add(promotion);
+        }
+        return promotions;
+    }
+
+    /** 满减优惠合计（多活动），与下单口径一致 */
+    private BigDecimal reductionTotal(BigDecimal amount) {
+        return calculateReductionHits(amount).stream()
+                .map(ReductionHit::discount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    /**
+     * 结算页满减预估：按购物车已勾选商品金额（或立即购买商品金额）列出每个生效活动的命中情况。
+     * 金额口径与下单一致：会员折扣后的商品金额参与满减。
+     */
+    public List<ReductionPreviewVO> promotionPreview(Long userId, Long goodsId, Integer quantity) {
+        BigDecimal totalAmount = goodsId != null && quantity != null && quantity > 0
+                ? singleGoodsTotal(goodsId, quantity)
+                : checkedCartTotal(userId);
+        BigDecimal discountedTotal = totalAmount
+                .subtract(memberDiscountService.calculate(userId, totalAmount).discountAmount())
+                .max(BigDecimal.ZERO);
+        List<ReductionPreviewVO> list = new ArrayList<>();
+        for (Reduction reduction : activeReductions(LocalDateTime.now())) {
+            boolean ladder = reduction.getMode() != null && reduction.getMode() == Reduction.MODE_LADDER;
+            boolean met = discountedTotal.compareTo(reduction.getThreshold()) >= 0;
+            int times = met ? (ladder ? 1 : discountedTotal.divideToIntegralValue(reduction.getThreshold()).intValue()) : 0;
+            BigDecimal discount = met
+                    ? reduction.getBenefit().multiply(BigDecimal.valueOf(times)).setScale(2, RoundingMode.HALF_UP)
+                    : BigDecimal.ZERO;
+            list.add(new ReductionPreviewVO(reduction.getId(), reduction.getName(), reduction.getMode(),
+                    reduction.getThreshold(), reduction.getBenefit(), times, discount, met));
+        }
+        return list;
+    }
+
     /** 券核销结果：券模板 id + 实际抵扣金额 */
     private record CouponRedemption(Long couponId, BigDecimal amount) {
     }
@@ -627,9 +769,12 @@ public class OrderService {
         if (totalAmount.compareTo(BigDecimal.ZERO) <= 0) {
             return List.of();
         }
-        // 券门槛与抵扣按「会员折扣后的商品金额」计算，与下单口径保持一致
-        BigDecimal discountedTotal = totalAmount
+        // 券门槛与抵扣按「会员折扣、满减后的商品金额」计算，与下单叠加顺序保持一致
+        BigDecimal afterMemberDiscount = totalAmount
                 .subtract(memberDiscountService.calculate(userId, totalAmount).discountAmount())
+                .max(BigDecimal.ZERO);
+        BigDecimal discountedTotal = afterMemberDiscount
+                .subtract(reductionTotal(afterMemberDiscount))
                 .max(BigDecimal.ZERO);
 
         List<CouponUser> records = couponUserMapper.selectList(Wrappers.<CouponUser>lambdaQuery()
@@ -737,7 +882,8 @@ public class OrderService {
                 + String.format("%04d", ThreadLocalRandom.current().nextInt(10000));
     }
 
-    private OrderVO toVO(MallOrder order, List<OrderItem> items, Set<Long> commentedGoods) {
+    private OrderVO toVO(MallOrder order, List<OrderItem> items, Set<Long> commentedGoods,
+                         List<OrderPromotion> promotions) {
         LocalDateTime payDeadline = payDeadline(order);
         Long payRemainSeconds = payDeadline == null
                 ? null
@@ -763,6 +909,8 @@ public class OrderService {
                 order.getCouponAmount(),
                 order.getMemberDiscount() == null ? BigDecimal.ZERO : order.getMemberDiscount(),
                 order.getMemberLevelName(),
+                order.getReductionAmount() == null ? BigDecimal.ZERO : order.getReductionAmount(),
+                promotions == null ? List.of() : promotions,
                 order.getPayAmount(),
                 order.getReceiverName(),
                 order.getReceiverPhone(),

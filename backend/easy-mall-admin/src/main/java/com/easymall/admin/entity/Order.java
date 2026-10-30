@@ -61,6 +61,9 @@ public class Order extends BaseEntity {
     /** 下单时的会员等级名称快照 */
     private String memberLevelName;
 
+    /** 满减优惠金额（多活动合计），未参加为 0 */
+    private BigDecimal reductionAmount;
+
     /** 应付金额 */
     private BigDecimal payAmount;
 

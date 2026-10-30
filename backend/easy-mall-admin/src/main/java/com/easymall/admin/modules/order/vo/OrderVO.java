@@ -21,6 +21,8 @@ public record OrderVO(
         BigDecimal couponAmount,
         BigDecimal memberDiscount,
         String memberLevelName,
+        /** 满减优惠金额（多活动合计），未参加为 0 */
+        BigDecimal reductionAmount,
         BigDecimal payAmount,
         /** 支付方式：0 模拟支付 / 1 微信支付 / 2 支付宝（预留）；存量已支付订单为 null */
         Integer payType,
@@ -64,6 +66,7 @@ public record OrderVO(
                 order.getCouponAmount(),
                 order.getMemberDiscount(),
                 order.getMemberLevelName(),
+                order.getReductionAmount(),
                 order.getPayAmount(),
                 order.getPayType(),
                 order.getPayChannelNo(),
