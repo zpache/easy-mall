@@ -33,6 +33,14 @@ export namespace MemberLevelApi {
     records: T[];
     total: number;
   }
+
+  /** 等级折扣总开关 */
+  export interface DiscountSwitch {
+    /** 是否开启等级折扣 */
+    enabled: boolean;
+    /** 启用中且真正有折扣（低于 100 折）的等级数量 */
+    discountLevelCount: number;
+  }
 }
 
 /**
@@ -70,11 +78,29 @@ async function changeLevelStatus(id: number, status: number) {
   });
 }
 
+/**
+ * 等级折扣总开关（全局唯一，影响所有等级下单折扣）
+ */
+async function getLevelDiscountSwitch() {
+  return requestClient.get<MemberLevelApi.DiscountSwitch>(
+    '/member-levels/discount-switch',
+  );
+}
+
+async function updateLevelDiscountSwitch(enabled: boolean) {
+  return requestClient.put<MemberLevelApi.DiscountSwitch>(
+    '/member-levels/discount-switch',
+    { enabled },
+  );
+}
+
 export {
   changeLevelStatus,
   createLevel,
   deleteLevel,
+  getLevelDiscountSwitch,
   getLevelList,
   getLevelOptions,
   updateLevel,
+  updateLevelDiscountSwitch,
 };

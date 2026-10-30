@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useUserStore } from '@/store/user'
+import { useTheme } from '@/composables/useTheme'
+
+const { themePageStyle } = useTheme()
 
 const userStore = useUserStore()
 const loading = ref(false)
@@ -39,6 +42,10 @@ function skip() {
 </script>
 
 <template>
+  <!-- 主题变量注入：后台启用主题后页面底色与全部语义色跟随变化 -->
+  <!-- #ifdef MP-WEIXIN -->
+  <page-meta :page-style="themePageStyle" />
+  <!-- #endif -->
   <view class="page">
     <view class="logo">🛍</view>
     <text class="title">欢迎来到 easy-mall</text>

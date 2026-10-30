@@ -1,7 +1,6 @@
 package com.easymall.api.entity;
 
 import com.baomidou.mybatisplus.annotation.IdType;
-import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
@@ -16,7 +15,7 @@ public class DecorateTheme {
     @TableId(type = IdType.AUTO)
     private Long id;
 
-    @TableField(select = false)
+    /** 主题名称：小程序端可在调试面板/日志里确认当前生效的是哪一套 */
     private String name;
 
     /** 已发布的主题配置快照 */

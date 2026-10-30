@@ -62,6 +62,8 @@ easy-mall:
       - /swagger-ui/**
       - /swagger-ui.html
       - /actuator/health
+      # 微信支付回调：微信服务器无法携带登录态，安全性由回调报文验签保证
+      - /pay/wxpay/notify
       # 头像等本地上传文件：image 组件无法携带 token，静态资源放开
       - /files/**
   wx:

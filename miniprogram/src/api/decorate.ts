@@ -18,8 +18,11 @@ export const decorateApi = {
   /** 全局导航配置（三段 JSON 字符串） */
   nav: () => request<RawNav<string, string, string>>({ url: '/decorate/nav' }),
 
-  /** 线上主题配置（换肤）：无启用主题时 themeJson 为空 */
-  theme: () => request<{ name?: string; themeJson?: string }>({ url: '/decorate/theme' }),
+  /** 线上主题配置（换肤）：无启用主题时 themeJson 为空；带时间戳避免被客户端/网关缓存 */
+  theme: () =>
+    request<{ name?: string; themeJson?: string }>({
+      url: `/decorate/theme${buildQuery({ _t: Date.now() })}`
+    }),
 
   /** 装修「优惠券」组件的券卡片，按传入随机码顺序返回（免登录） */
   coupons: (codes: string[]) =>

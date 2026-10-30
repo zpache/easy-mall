@@ -52,14 +52,14 @@ function callService(phone?: string) {
 .d-shop__desc {
   margin-top: 6rpx;
   font-size: 22rpx;
-  color: #999;
+  color: $text-secondary;
 }
 
 .d-shop__btn {
   flex: none;
   padding: 10rpx 20rpx;
   font-size: 22rpx;
-  color: #ff6b00;
+  color: $primary;
   border: 1rpx solid #ffd9bf;
   border-radius: 24rpx;
 }

@@ -3,14 +3,18 @@ package com.easymall.api.modules.order.controller;
 import com.easymall.api.common.api.PageResult;
 import com.easymall.api.common.api.Result;
 import com.easymall.api.common.context.UserContext;
+import com.easymall.api.modules.order.dto.BuyNowRequest;
 import com.easymall.api.modules.order.dto.OrderCreateRequest;
 import com.easymall.api.modules.order.service.OrderService;
 import com.easymall.api.modules.order.vo.OrderVO;
+import com.easymall.api.modules.order.vo.UsableCouponVO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 /**
  * 订单。
@@ -27,6 +31,19 @@ public class OrderController {
     @PostMapping
     public Result<OrderVO> create(@Valid @RequestBody OrderCreateRequest request) {
         return Result.ok(orderService.create(UserContext.userId(), request));
+    }
+
+    @Operation(summary = "立即购买下单（不走购物车，不影响购物车数据）")
+    @PostMapping("/buy-now")
+    public Result<OrderVO> buyNow(@Valid @RequestBody BuyNowRequest request) {
+        return Result.ok(orderService.createBuyNow(UserContext.userId(), request));
+    }
+
+    @Operation(summary = "结算页可用优惠券（默认按购物车已勾选商品；传 goodsId+quantity 时按立即购买商品计算）")
+    @GetMapping("/coupons")
+    public Result<List<UsableCouponVO>> usableCoupons(@RequestParam(required = false) Long goodsId,
+                                                      @RequestParam(required = false) Integer quantity) {
+        return Result.ok(orderService.usableCoupons(UserContext.userId(), goodsId, quantity));
     }
 
     @Operation(summary = "订单列表")
@@ -54,6 +71,13 @@ public class OrderController {
     @PutMapping("/{id}/cancel")
     public Result<Void> cancel(@PathVariable Long id) {
         orderService.cancel(UserContext.userId(), id);
+        return Result.ok();
+    }
+
+    @Operation(summary = "确认收货")
+    @PutMapping("/{id}/receive")
+    public Result<Void> confirmReceive(@PathVariable Long id) {
+        orderService.confirmReceive(UserContext.userId(), id);
         return Result.ok();
     }
 }

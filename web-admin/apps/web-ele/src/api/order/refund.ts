@@ -20,6 +20,8 @@ export namespace OrderRefundApi {
     type: 'refund' | 'return';
     userId: number;
     userNickname?: string;
+    /** 微信退款单号，模拟退款为空 */
+    wxRefundNo?: string;
   }
 
   export interface AuditPayload {

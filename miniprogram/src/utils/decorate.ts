@@ -20,14 +20,15 @@ export const TAB_ROUTES = [
 export const DEFAULT_TABBAR: TabbarConfig = {
   enabled: true,
   bgColor: '#ffffff',
-  color: '#909399',
-  selectedColor: '#1677ff',
+  /* 留空表示不指定，跟随线上主题：未选=次要文字色，选中=主色 */
+  color: '',
+  selectedColor: '',
   borderStyle: 'black',
   items: [
-    { key: 'home', name: '首页', icon: '', selectedIcon: '', linkType: 'home', linkValue: '', visible: true },
-    { key: 'category', name: '分类', icon: '', selectedIcon: '', linkType: 'path', linkValue: '/pages/category/index', visible: true },
-    { key: 'cart', name: '购物车', icon: '', selectedIcon: '', linkType: 'path', linkValue: '/pages/cart/index', visible: true },
-    { key: 'mine', name: '我的', icon: '', selectedIcon: '', linkType: 'path', linkValue: '/pages/mine/index', visible: true }
+    { key: 'home', name: '首页', icon: '', linkType: 'home', linkValue: '', visible: true },
+    { key: 'category', name: '分类', icon: '', linkType: 'path', linkValue: '/pages/category/index', visible: true },
+    { key: 'cart', name: '购物车', icon: '', linkType: 'path', linkValue: '/pages/cart/index', visible: true },
+    { key: 'mine', name: '我的', icon: '', linkType: 'path', linkValue: '/pages/mine/index', visible: true }
   ]
 }
 
@@ -50,13 +51,17 @@ export const DEFAULT_FLOAT: FloatConfig = {
   ]
 }
 
-/** 默认主题（与后台「活力橙」预设一致）：主题接口异常或未启用主题时兜底 */
+/**
+ * 默认主题：与后台「小程序默认配色（经典橙）」预设完全一致，
+ * 即换肤上线前小程序写死在 SCSS 里的那套配色。
+ * 主题接口异常、后台未启用任何主题时用它兜底，保证视觉不回退到别的颜色。
+ */
 export const DEFAULT_THEME: ThemeConfig = {
-  primaryColor: '#ff6b00',
-  pageBgColor: '#f5f6f7',
-  priceColor: '#ff4d1f',
+  primaryColor: '#ff5a1f',
+  pageBgColor: '#f6f7f9',
+  priceColor: '#e02020',
   textColor: '#1f1f1f',
-  subTextColor: '#999999'
+  subTextColor: '#8c8c8c'
 }
 
 /** 十六进制颜色校验：#RGB 或 #RRGGBB */

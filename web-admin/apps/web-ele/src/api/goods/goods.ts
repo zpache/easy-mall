@@ -5,6 +5,8 @@ import { requestClient } from '#/api/request';
 export namespace GoodsApi {
   export interface Goods {
     [key: string]: any;
+    /** 基础销量（运营维护的展示基数） */
+    baseSales?: number;
     brandId?: number;
     brandName?: string;
     categoryId: number;
@@ -29,6 +31,7 @@ export namespace GoodsApi {
   }
 
   export interface GoodsPayload {
+    baseSales?: number;
     brandId?: number;
     categoryId: number;
     detail?: string;

@@ -31,6 +31,9 @@ public class OrderRefund extends BaseEntity {
 
     private String refundNo;
 
+    /** 微信支付退款单号，模拟退款为空 */
+    private String wxRefundNo;
+
     private Long orderId;
 
     private String orderNo;

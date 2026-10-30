@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import type { PageSchema } from '@/types/decorate'
+import type { DecorateComponent, PageSchema } from '@/types/decorate'
 import { openLink, px } from '@/utils/decorate'
 import { useDecorateStore } from '@/store/decorate'
 import BannerWidget from './widgets/banner.vue'
@@ -11,7 +11,7 @@ import SeckillWidget from './widgets/seckill.vue'
 import ShopInfoWidget from './widgets/shop-info.vue'
 
 const props = defineProps<{ schema: PageSchema }>()
-const emit = defineEmits<{ (e: 'search'): void }>()
+const emit = defineEmits<{ (e: 'more', item: DecorateComponent): void; (e: 'search'): void }>()
 
 const decorateStore = useDecorateStore()
 
@@ -25,6 +25,19 @@ const themeVars = computed(() => ({
   '--d-sub-text': decorateStore.theme.subTextColor,
   '--d-text': decorateStore.theme.textColor
 }))
+
+/**
+ * 标题组件「更多」点击：
+ * 配了 moreLink 走自定义跳转，未配置则交给宿主页面处理（首页默认跳全部商品列表）。
+ */
+function onMore(item: DecorateComponent) {
+  const link = String(item.props?.moreLink || '').trim()
+  if (link) {
+    openLink(link)
+    return
+  }
+  emit('more', item)
+}
 </script>
 
 <template>
@@ -50,7 +63,7 @@ const themeVars = computed(() => ({
       <view
         v-else-if="item.type === 'notice'"
         class="d-notice"
-        :style="{ background: item.props.bgColor || '#fff7e8', color: item.props.color || '#ff6b00' }"
+        :style="{ background: item.props.bgColor || '#fff7e8', color: item.props.color || 'var(--d-primary, #ff6b00)' }"
       >
         <text class="d-notice__icon">📣</text>
         <text class="d-notice__text">{{ item.props.text || '公告内容' }}</text>
@@ -109,7 +122,11 @@ const themeVars = computed(() => ({
             >{{ item.props.text || '标题' }}</text>
             <text v-if="item.props.subtitle" class="d-title__sub">{{ item.props.subtitle }}</text>
           </view>
-          <text v-if="item.props.more && item.props.align !== 'center'" class="d-title__more">更多 ›</text>
+          <text
+            v-if="item.props.more && item.props.align !== 'center'"
+            class="d-title__more"
+            @tap="onMore(item)"
+          >更多 ›</text>
         </view>
       </view>
 
@@ -119,7 +136,7 @@ const themeVars = computed(() => ({
         class="d-richtext"
         :style="{
           padding: `${px(item.props.margin, 12)} 24rpx`,
-          color: item.props.color || '#333333',
+          color: item.props.color || 'var(--d-text, #333333)',
           fontSize: px(item.props.size, 13)
         }"
       >
@@ -233,6 +250,8 @@ const themeVars = computed(() => ({
 
 .d-title__more {
   flex: none;
+  /* 加大点击热区，避免小字号文字难点中 */
+  padding: 8rpx 0 8rpx 20rpx;
   font-size: 22rpx;
   color: var(--d-sub-text, #999);
 }

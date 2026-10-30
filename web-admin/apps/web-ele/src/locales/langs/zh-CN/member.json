@@ -55,6 +55,7 @@
     "typeAdjust": "人工调整",
     "typeConsume": "积分抵扣",
     "typeEarn": "消费获得",
+    "typeRefund": "退款扣回",
     "userId": "会员 ID",
     "userIdPlaceholder": "按会员 ID 精确查询"
   },

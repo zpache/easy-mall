@@ -3,9 +3,10 @@
 export interface NavTabItem {
   key: string
   name: string
-  /** 未选中图标（图片地址，可为空） */
+  /** 图标：lucide 图标名或图片地址，可为空（走内置兜底）；选中/未选中共用，按状态着色 */
   icon: string
-  selectedIcon: string
+  /** 历史遗留字段：旧数据存过选中态图标，新配置不再区分 */
+  selectedIcon?: string
   linkType: 'home' | 'none' | 'page' | 'path'
   /** page 时为装修页面 ID，path 时为以 / 开头的路径 */
   linkValue: string

@@ -61,7 +61,6 @@ public class GoodsService extends ServiceImpl<GoodsMapper, Goods> {
         checkBrand(form.brandId());
         Goods goods = new Goods();
         applyForm(goods, form);
-        goods.setSales(0);
         save(goods);
         return goods;
     }
@@ -145,6 +144,7 @@ public class GoodsService extends ServiceImpl<GoodsMapper, Goods> {
                     goods.getStock(),
                     goods.getStockWarn(),
                     goods.getSales(),
+                    goods.getBaseSales(),
                     goods.getUnit(),
                     goods.getDetail(),
                     goods.getStatus(),
@@ -185,6 +185,12 @@ public class GoodsService extends ServiceImpl<GoodsMapper, Goods> {
         goods.setUnit(form.unit());
         goods.setDetail(form.detail());
         goods.setStatus(form.status());
+        // 基础销量：显式传值则以运营填写的为准，留空时新增归零、编辑保留库里原值；真实销量不通过表单修改
+        if (form.baseSales() != null) {
+            goods.setBaseSales(form.baseSales());
+        } else if (goods.getId() == null) {
+            goods.setBaseSales(0);
+        }
         goods.setSort(form.sort() == null ? 0 : form.sort());
     }
 }

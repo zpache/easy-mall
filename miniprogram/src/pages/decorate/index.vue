@@ -8,6 +8,9 @@ import { decorateApi } from '@/api/decorate'
 import { useDecorateStore } from '@/store/decorate'
 import { parseNav, parseSchema } from '@/utils/decorate'
 import type { PageSchema } from '@/types/decorate'
+import { useTheme } from '@/composables/useTheme'
+
+const { themePageStyle } = useTheme()
 
 /**
  * 通用装修页：TabBar 里「自定义页面」跳转的落地页。
@@ -17,7 +20,7 @@ const decorateStore = useDecorateStore()
 
 const pageId = ref('')
 const schema = ref<PageSchema>({
-  page: { title: '', bgColor: '#f5f6f7', bgImage: '', padding: 0 },
+  page: { title: '', bgColor: '', bgImage: '', padding: 0 },
   components: []
 })
 const loading = ref(true)
@@ -27,7 +30,7 @@ const error = ref('')
  * 页面背景：装修页单独设置过背景色（非默认值）则优先，
  * 否则跟随线上主题的背景色（换肤）。
  */
-const DEFAULT_PAGE_BG = '#f5f6f7'
+const DEFAULT_PAGE_BG = '#f6f7f9'
 const pageBg = computed(() => {
   const pageColor = schema.value.page.bgColor
   if (pageColor && pageColor !== DEFAULT_PAGE_BG) return pageColor
@@ -60,6 +63,11 @@ function toSearch() {
   uni.navigateTo({ url: '/pages/search/index' })
 }
 
+/** 标题组件「更多」：默认进入商品列表页，展示全品类商品 */
+function toGoodsList() {
+  uni.navigateTo({ url: '/pages/goods/list' })
+}
+
 onLoad((query) => {
   pageId.value = String(query?.id || '')
   load()
@@ -72,6 +80,10 @@ onPullDownRefresh(async () => {
 </script>
 
 <template>
+  <!-- 主题变量注入：后台启用主题后页面底色与全部语义色跟随变化 -->
+  <!-- #ifdef MP-WEIXIN -->
+  <page-meta :page-style="themePageStyle" />
+  <!-- #endif -->
   <view class="dpage" :style="{ background: pageBg }">
     <image
       v-if="schema.page.bgImage"
@@ -84,7 +96,7 @@ onPullDownRefresh(async () => {
       <view v-else-if="!schema.components.length" class="dpage__state">
         {{ error || '页面还没有内容' }}
       </view>
-      <DecorateRender v-else :schema="schema" @search="toSearch" />
+      <DecorateRender v-else :schema="schema" @more="toGoodsList" @search="toSearch" />
     </view>
 
     <DecorateFloatBall :config="decorateStore.nav.floatBall" :bottom="150" />

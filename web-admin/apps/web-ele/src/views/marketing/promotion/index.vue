@@ -76,6 +76,16 @@ async function onStatusChange(
   newStatus: number,
   row: MarketingPromotionApi.Promotion,
 ) {
+  const action = newStatus === 1 ? '上架' : '下架';
+  try {
+    await ElMessageBox.confirm(
+      `确定要${action}促销活动「${row.name}」吗？`,
+      `${action}确认`,
+      { type: 'warning' },
+    );
+  } catch {
+    return false;
+  }
   await changePromotionStatus(row.id, newStatus);
   ElMessage.success($t('marketing.promotion.statusUpdated'));
   return true;

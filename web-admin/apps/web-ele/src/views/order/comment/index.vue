@@ -75,6 +75,16 @@ async function onVisibleChange(
   newValue: number,
   row: OrderCommentApi.Comment,
 ) {
+  const action = newValue === 1 ? '显示' : '隐藏';
+  try {
+    await ElMessageBox.confirm(
+      `确定要${action}这条评价吗？${action}后将立即对小程序端生效。`,
+      `${action}评价确认`,
+      { type: 'warning' },
+    );
+  } catch {
+    return false;
+  }
   await changeCommentVisible(row.id, newValue);
   ElMessage.success($t('order.comment.visibleSuccess'));
   return true;

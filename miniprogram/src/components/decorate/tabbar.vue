@@ -9,6 +9,7 @@ import {
   TAB_ICON_NAMES
 } from '@/utils/decorate'
 import { iconSource } from '@/utils/nav-icon-uri'
+import { useTheme } from '@/composables/useTheme'
 
 const props = withDefaults(
   defineProps<{
@@ -20,6 +21,11 @@ const props = withDefaults(
   }>(),
   { pageId: '' }
 )
+
+/** 导航未指定颜色时跟随线上主题：选中用主色，未选中用次要文字色 */
+const { theme } = useTheme()
+const selectedColor = computed(() => props.config.selectedColor || theme.value.primaryColor)
+const normalColor = computed(() => props.config.color || theme.value.subTextColor)
 
 const items = computed(() =>
   props.config.enabled ? props.config.items.filter((item) => item.visible !== false) : []
@@ -36,15 +42,13 @@ function tabOf(key: string) {
 function iconOf(key: string) {
   const item = tabOf(key)
   if (!item) return ''
-  return key === activeKey.value ? item.selectedIcon || item.icon : item.icon
+  // 单图标方案：选中/未选中共用同一图标，仅着色不同
+  return item.icon
 }
 
 /** 图标名转 SVG data URI（选中态用选中色），无法解析返回空串走字形兜底 */
 function iconSrc(key: string) {
-  const color =
-    key === activeKey.value
-      ? props.config.selectedColor || '#1677ff'
-      : props.config.color || '#909399'
+  const color = key === activeKey.value ? selectedColor.value : normalColor.value
   return iconSource(iconOf(key), color, TAB_ICON_NAMES[key] || 'lucide:circle')
 }
 
@@ -78,7 +82,7 @@ const borderTop = computed(() => {
       v-for="item in items"
       :key="item.key"
       class="d-tabbar__item"
-      :style="{ color: item.key === activeKey ? config.selectedColor : config.color }"
+      :style="{ color: item.key === activeKey ? selectedColor : normalColor }"
       @tap="onTap(item.key)"
     >
       <image

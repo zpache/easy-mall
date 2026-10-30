@@ -18,15 +18,17 @@
     "status": "Status",
     "onSale": "On Sale",
     "offSale": "Off Sale",
-    "sales": "Sales",
+    "sales": "Real sales",
     "sort": "Sort",
     "createTime": "Created At",
     "updateTime": "Updated At",
     "operation": "Operation",
     "keyword": "Product Name",
     "searchPlaceholder": "Search product name",
-    "imageTip": "Image URL, http(s) supported",
-    "imagesTip": "Separate multiple URLs with commas"
+    "imageTip": "Select from the material center",
+    "imagesTip": "Select from the material center, up to 5 images",
+    "baseSales": "Base sales",
+    "baseSalesTip": "Mini program shows base + real sales (auto-incremented on orders)"
   },
   "category": {
     "entity": "Category",

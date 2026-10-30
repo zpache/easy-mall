@@ -22,6 +22,12 @@ export namespace MemberPointsApi {
     records: T[];
     total: number;
   }
+
+  /** 积分规则：订单支付后按「实付金额 × rate」发放 */
+  export interface PointsRule {
+    enabled: boolean;
+    rate: number;
+  }
 }
 
 /**
@@ -34,4 +40,18 @@ async function getPointsLogs(params: Recordable<any>) {
   return { items: result.records, total: result.total };
 }
 
-export { getPointsLogs };
+/**
+ * 积分规则
+ */
+async function getPointsRule() {
+  return requestClient.get<MemberPointsApi.PointsRule>('/points/rule');
+}
+
+/**
+ * 保存积分规则
+ */
+async function updatePointsRule(data: MemberPointsApi.PointsRule) {
+  return requestClient.put('/points/rule', data);
+}
+
+export { getPointsLogs, getPointsRule, updatePointsRule };

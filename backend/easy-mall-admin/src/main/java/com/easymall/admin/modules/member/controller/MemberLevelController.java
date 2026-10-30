@@ -3,8 +3,10 @@ package com.easymall.admin.modules.member.controller;
 import com.easymall.admin.common.api.PageResult;
 import com.easymall.admin.common.api.Result;
 import com.easymall.admin.entity.MemberLevel;
+import com.easymall.admin.modules.member.dto.LevelDiscountSwitchForm;
 import com.easymall.admin.modules.member.dto.LevelForm;
 import com.easymall.admin.modules.member.service.LevelService;
+import com.easymall.admin.modules.member.vo.LevelDiscountSwitchVO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -45,6 +47,18 @@ public class MemberLevelController {
     @GetMapping("/options")
     public Result<List<MemberLevel>> options() {
         return Result.ok(levelService.listEnabled());
+    }
+
+    @Operation(summary = "查询等级折扣总开关")
+    @GetMapping("/discount-switch")
+    public Result<LevelDiscountSwitchVO> discountSwitch() {
+        return Result.ok(levelService.discountSwitch());
+    }
+
+    @Operation(summary = "开启/关闭等级折扣总开关")
+    @PutMapping("/discount-switch")
+    public Result<LevelDiscountSwitchVO> updateDiscountSwitch(@Valid @RequestBody LevelDiscountSwitchForm form) {
+        return Result.ok(levelService.updateDiscountSwitch(form));
     }
 
     @Operation(summary = "新增等级")

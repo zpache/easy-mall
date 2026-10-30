@@ -9,9 +9,12 @@ import com.easymall.admin.common.exception.BusinessException;
 import com.easymall.admin.entity.SysFile;
 import com.easymall.admin.mapper.SysFileMapper;
 import com.easymall.admin.modules.file.vo.MaterialVO;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 
 import java.util.List;
 
@@ -36,7 +39,7 @@ public class MaterialService {
                 .like(StringUtils.hasText(mediaType), SysFile::getMime, mediaType + "/")
                 .orderByDesc(SysFile::getId);
         Page<SysFile> page = sysFileMapper.selectPage(Page.of(pageNum, pageSize), wrapper);
-        List<MaterialVO> records = page.getRecords().stream().map(MaterialVO::of).toList();
+        List<MaterialVO> records = page.getRecords().stream().map(this::toVo).toList();
         return new PageResult<>(records, page.getTotal(), page.getCurrent(), page.getSize(), page.getPages());
     }
 
@@ -47,7 +50,7 @@ public class MaterialService {
         }
         file.setName(name.trim());
         sysFileMapper.updateById(file);
-        return MaterialVO.of(file);
+        return toVo(file);
     }
 
     public void delete(Long id) {
@@ -61,5 +64,32 @@ public class MaterialService {
             throw new BusinessException(ResultCode.DATA_NOT_FOUND);
         }
         return file;
+    }
+
+    private MaterialVO toVo(SysFile file) {
+        return new MaterialVO(file.getId(), file.getName(), absoluteUrl(file.getUrl()),
+                file.getObjectKey(), file.getSize(), file.getMime(), file.getScene(), file.getCreatedAt());
+    }
+
+    /**
+     * 本地上传模式的 url 存的是相对路径（如 /admin/uploads/2026/10/xx.jpg），
+     * 下发时按当前请求来源补全为绝对地址，保证前端「复制链接」拿到即可直接使用；
+     * COS 模式本身就是完整桶地址，原样返回。
+     */
+    private String absoluteUrl(String url) {
+        if (!StringUtils.hasText(url) || url.startsWith("http://") || url.startsWith("https://")) {
+            return url;
+        }
+        if (!(RequestContextHolder.getRequestAttributes() instanceof ServletRequestAttributes attrs)) {
+            return url;
+        }
+        HttpServletRequest request = attrs.getRequest();
+        StringBuilder origin = new StringBuilder()
+                .append(request.getScheme()).append("://").append(request.getServerName());
+        int port = request.getServerPort();
+        if (port != 80 && port != 443) {
+            origin.append(':').append(port);
+        }
+        return origin + url;
     }
 }

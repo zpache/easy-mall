@@ -37,6 +37,7 @@ const [Drawer, drawerApi] = useVbenDrawer({
     drawerApi.lock();
     const payload: GoodsApi.GoodsPayload = {
       brandId: values.brandId,
+      baseSales: values.baseSales ?? undefined,
       categoryId: Number(values.categoryId),
       detail: values.detail,
       images: values.images,
@@ -72,6 +73,7 @@ const [Drawer, drawerApi] = useVbenDrawer({
     if (data?.id) {
       formApi.setValues({
         brandId: data.brandId,
+        baseSales: data.baseSales ?? 0,
         categoryId: data.categoryId,
         detail: data.detail,
         images: data.images,

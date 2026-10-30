@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import type { NavbarConfig } from '@/types/decorate'
 import { statusBarHeight, switchTab } from '@/utils/decorate'
+import { useTheme } from '@/composables/useTheme'
 
 const props = withDefaults(
   defineProps<{
@@ -17,13 +18,18 @@ const props = withDefaults(
 const barHeight = 44
 const statusPx = statusBarHeight()
 
+/** 导航未指定文字色时跟随线上主题 */
+const { theme } = useTheme()
+
 const immersive = computed(() => props.config.style === 'immersive')
 const text = computed(() => props.title || props.config.title || '易商城')
 
 const style = computed(() => {
   const base: Record<string, string> = {
     paddingTop: `${statusPx}px`,
-    color: immersive.value ? '#ffffff' : props.config.textColor || '#333333',
+    color: immersive.value
+      ? '#ffffff'
+      : props.config.textColor || theme.value.textColor || '#333333',
     background: immersive.value ? 'transparent' : props.config.bgColor || '#ffffff'
   }
   return base

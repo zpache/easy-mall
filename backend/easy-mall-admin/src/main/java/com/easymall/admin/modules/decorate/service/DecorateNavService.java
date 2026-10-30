@@ -58,10 +58,10 @@ public class DecorateNavService extends ServiceImpl<DecorateNavMapper, DecorateN
     private static final String DEFAULT_TABBAR = """
             {"enabled":true,"bgColor":"#ffffff","color":"#909399","selectedColor":"#1677ff","borderStyle":"black",\
             "items":[\
-            {"key":"home","name":"首页","icon":"","selectedIcon":"","linkType":"home","linkValue":"","visible":true},\
-            {"key":"category","name":"分类","icon":"","selectedIcon":"","linkType":"path","linkValue":"/pages/category/index","visible":true},\
-            {"key":"cart","name":"购物车","icon":"","selectedIcon":"","linkType":"path","linkValue":"/pages/cart/index","visible":true},\
-            {"key":"mine","name":"我的","icon":"","selectedIcon":"","linkType":"path","linkValue":"/pages/mine/index","visible":true}]}""";
+            {"key":"home","name":"首页","icon":"","linkType":"home","linkValue":"","visible":true},\
+            {"key":"category","name":"分类","icon":"","linkType":"path","linkValue":"/pages/category/index","visible":true},\
+            {"key":"cart","name":"购物车","icon":"","linkType":"path","linkValue":"/pages/cart/index","visible":true},\
+            {"key":"mine","name":"我的","icon":"","linkType":"path","linkValue":"/pages/mine/index","visible":true}]}""";
 
     private static final String DEFAULT_NAVBAR = """
             {"title":"易商城","style":"normal","bgColor":"#ffffff","textColor":"#333333","showBack":true,"backBehavior":"back"}""";
@@ -177,8 +177,8 @@ public class DecorateNavService extends ServiceImpl<DecorateNavMapper, DecorateN
             if (name.length() < MIN_TAB_NAME || name.length() > MAX_TAB_NAME) {
                 throw new BusinessException(prefix + "的文字需为 " + MIN_TAB_NAME + "~" + MAX_TAB_NAME + " 个字符");
             }
-            checkIcon(item, "icon", prefix + "未选中图标");
-            checkIcon(item, "selectedIcon", prefix + "选中图标");
+            // 单图标方案：只校验 icon；selectedIcon 为历史遗留字段，不再要求
+            checkIcon(item, "icon", prefix + "图标");
 
             String linkType = requireText(item, "linkType", prefix + "缺少跳转类型");
             if (!LINK_TYPES.contains(linkType)) {

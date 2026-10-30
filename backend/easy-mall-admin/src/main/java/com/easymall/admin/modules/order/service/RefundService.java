@@ -14,8 +14,10 @@ import com.easymall.admin.entity.OrderRefund;
 import com.easymall.admin.mapper.AppUserMapper;
 import com.easymall.admin.mapper.OrderMapper;
 import com.easymall.admin.mapper.OrderRefundMapper;
+import com.easymall.admin.modules.member.service.MemberRevertService;
 import com.easymall.admin.modules.order.dto.RefundAuditForm;
 import com.easymall.admin.modules.order.vo.RefundVO;
+import com.easymall.admin.modules.pay.service.WxRefundService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -40,6 +42,8 @@ public class RefundService extends ServiceImpl<OrderRefundMapper, OrderRefund> {
 
     private final OrderMapper orderMapper;
     private final AppUserMapper appUserMapper;
+    private final MemberRevertService memberRevertService;
+    private final WxRefundService wxRefundService;
 
     public PageResult<RefundVO> pageQuery(long pageNum, long pageSize, String keyword, Integer status,
                                           String type) {
@@ -87,7 +91,12 @@ public class RefundService extends ServiceImpl<OrderRefundMapper, OrderRefund> {
     }
 
     /**
-     * 确认退款：财务打款成功后调用，退款单与订单同时置为已退款。
+     * 确认退款：调用微信支付原路退款，成功后退款单与订单同时置为已退款。
+     *
+     * <p>退款调用在事务最前面：微信退款失败直接抛异常，状态与会员权益都不会变动，
+     * 运营处理失败原因后可以重试，不会出现「状态已退款、钱没到账」。</p>
+     *
+     * <p>同时回滚该订单已发放的会员权益（积分 / 累计消费 / 订单数 / 等级），与打款同一事务。</p>
      */
     @Transactional(rollbackFor = Exception.class)
     public void confirm(Long id) {
@@ -98,6 +107,15 @@ public class RefundService extends ServiceImpl<OrderRefundMapper, OrderRefund> {
         if (!Objects.equals(refund.getStatus(), OrderRefund.STATUS_APPROVED)) {
             throw new BusinessException(ResultCode.DATA_CONFLICT, "只有已同意待退款的售后单才能确认打款");
         }
+        Order order = orderMapper.selectById(refund.getOrderId());
+        if (order == null) {
+            throw new BusinessException(ResultCode.DATA_NOT_FOUND, "订单不存在，无法退款");
+        }
+
+        // 真实退款（未启用微信支付时按模拟退款处理，返回 null）
+        String wxRefundNo = wxRefundService.refund(order, refund);
+
+        refund.setWxRefundNo(wxRefundNo);
         refund.setStatus(OrderRefund.STATUS_REFUNDED);
         refund.setHandledAt(LocalDateTime.now());
         refund.setHandledBy(UserContext.userId());
@@ -105,6 +123,8 @@ public class RefundService extends ServiceImpl<OrderRefundMapper, OrderRefund> {
             throw new BusinessException(ResultCode.DATA_CONFLICT, "该售后单已被其他人处理，请刷新后重试");
         }
         updateOrderRefundStatus(refund.getOrderId(), Order.REFUND_DONE);
+        // 权益回滚与打款状态同一事务：回滚失败时整个确认操作回滚，运营重试即可，不会出现「钱退了积分没扣」
+        memberRevertService.revertForRefund(refund);
     }
 
     private void updateOrderRefundStatus(Long orderId, int refundStatus) {

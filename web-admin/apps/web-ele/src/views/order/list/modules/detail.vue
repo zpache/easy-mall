@@ -211,6 +211,14 @@ const tagTypeMap: Record<string, any> = {
               formatMoney(order.totalAmount)
             }}
           </span>
+          <span v-if="order.memberDiscount > 0">
+            {{ $t('order.order.memberDiscount')
+            }}{{ order.memberLevelName ? `（${order.memberLevelName}）` : ''
+            }}：-{{ formatMoney(order.memberDiscount) }}
+          </span>
+          <span v-if="order.couponAmount > 0">
+            {{ $t('order.order.coupon') }}：-{{ formatMoney(order.couponAmount) }}
+          </span>
           <span>
             {{ $t('order.order.freight') }}：{{
               formatMoney(order.freightAmount)
@@ -218,6 +226,11 @@ const tagTypeMap: Record<string, any> = {
           </span>
           <span class="font-medium text-red-500">
             {{ $t('order.order.amount') }}：{{ formatMoney(order.payAmount) }}
+          </span>
+          <span v-if="order.refundedAmount > 0" class="text-orange-500">
+            {{ $t('order.order.refundedAmount') }}：{{
+              formatMoney(order.refundedAmount)
+            }}
           </span>
         </div>
       </template>

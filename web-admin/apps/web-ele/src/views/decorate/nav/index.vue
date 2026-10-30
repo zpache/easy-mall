@@ -82,6 +82,19 @@ function touch() {
   dirty.value = true;
 }
 
+/**
+ * TabBar 文字色是否跟随主题：留空即由小程序端读取线上主题
+ * （未选中用次要文字色、选中用主色），换肤后底部导航一起变色
+ */
+const followTheme = computed({
+  get: () => !nav.tabbar.color && !nav.tabbar.selectedColor,
+  set: (value: boolean) => {
+    nav.tabbar.color = value ? '' : '#8c8c8c';
+    nav.tabbar.selectedColor = value ? '' : '#ff5a1f';
+    touch();
+  },
+});
+
 function applyConfig(config: NavApi.Config) {
   const parsedNav = parseNavConfig(config);
   nav.tabbar = parsedNav.tabbar;
@@ -220,8 +233,13 @@ async function onSave() {
   }
 }
 
-/** 发布：先保存草稿再快照生效，发布是唯一影响小程序的闸门 */
+/** 发布：先保存草稿再快照生效，发布是唯一影响小程序的闸门，需二次确认 */
 async function onPublish() {
+  await ElMessageBox.confirm(
+    '发布后导航配置将立即下发到小程序端（底部 TabBar、顶部导航、快捷入口全部生效），确定发布吗？',
+    '发布导航配置',
+    { type: 'warning', confirmButtonText: '确认发布' },
+  );
   saving.value = true;
   try {
     await onSave();
@@ -260,177 +278,30 @@ const previewPageName = computed(() => {
 <template>
   <Page auto-content-height>
     <div class="nav-page" v-loading="loading">
-      <div class="nav-main">
-        <!-- 头部操作条 -->
-        <div class="head">
-          <div class="head-left">
-            <h2>导航装修</h2>
-            <p>
-              配置小程序全局的底部 TabBar、顶部标题栏与悬浮快捷入口；改动即时预览，保存仅存草稿，发布后才下发到小程序。
-            </p>
-          </div>
-          <div class="head-right">
-            <ElTag v-if="dirty" effect="plain" type="warning">未保存</ElTag>
-            <ElTag v-else-if="updatedAt" effect="plain" type="info">
-              上次保存 {{ updatedAt.replace('T', ' ').slice(0, 19) }}
-            </ElTag>
-            <ElButton :loading="loading" @click="load">重新加载</ElButton>
-            <ElButton :disabled="saving" @click="onReset">恢复默认</ElButton>
-            <ElButton :loading="saving" @click="onSave">保存草稿</ElButton>
-            <ElButton :loading="saving" type="primary" @click="onPublish">发 布</ElButton>
-          </div>
+      <!-- 顶部悬浮操作条：固定在页面顶部不随内容滚动，与首页装修编辑器一致 -->
+      <div class="head">
+        <div class="head-left">
+          <h2>导航装修</h2>
+          <p>
+            配置小程序全局的底部 TabBar、顶部标题栏与悬浮快捷入口；改动即时预览，保存仅存草稿，发布后才下发到小程序。
+          </p>
         </div>
+        <div class="head-right">
+          <ElTag v-if="dirty" effect="plain" type="warning">未保存</ElTag>
+          <ElTag v-else-if="updatedAt" effect="plain" type="info">
+            上次保存 {{ updatedAt.replace('T', ' ').slice(0, 19) }}
+          </ElTag>
+          <ElButton :loading="loading" @click="load">重新加载</ElButton>
+          <ElButton :disabled="saving" @click="onReset">恢复默认</ElButton>
+          <ElButton :loading="saving" @click="onSave">保存草稿</ElButton>
+          <ElButton :loading="saving" type="primary" @click="onPublish">发 布</ElButton>
+        </div>
+      </div>
 
-        <!-- 底部 TabBar -->
-        <ElCard class="section" shadow="never">
-          <template #header>
-            <div class="section-head">
-              <span class="section-title">
-                <IconifyIcon icon="lucide:panel-bottom" />
-                底部 TabBar
-              </span>
-              <div class="section-ops">
-                <span class="tip">3~5 个标签</span>
-                <ElSwitch v-model="nav.tabbar.enabled" size="small" @change="touch" />
-              </div>
-            </div>
-          </template>
-
-          <div v-show="nav.tabbar.enabled" class="section-body">
-            <div class="row">
-              <div class="field">
-                <label>背景色</label>
-                <ElColorPicker v-model="nav.tabbar.bgColor" size="small" @change="touch" />
-              </div>
-              <div class="field">
-                <label>未选中文字</label>
-                <ElColorPicker v-model="nav.tabbar.color" size="small" @change="touch" />
-              </div>
-              <div class="field">
-                <label>选中文字</label>
-                <ElColorPicker v-model="nav.tabbar.selectedColor" size="small" @change="touch" />
-              </div>
-              <div class="field wide">
-                <label>上边框</label>
-                <ElSelect v-model="nav.tabbar.borderStyle" size="small" @change="touch">
-                  <ElOption
-                    v-for="item in BORDER_STYLES"
-                    :key="item.value"
-                    :label="item.label"
-                    :value="item.value"
-                  />
-                </ElSelect>
-              </div>
-            </div>
-
-            <div class="tabs-head">
-              <span>标签配置</span>
-              <span class="tip">{{ tabCountTip }}</span>
-            </div>
-
-            <div class="tab-list">
-              <div v-for="(item, index) in nav.tabbar.items" :key="item.key" class="tab-card">
-                <div class="tab-card-head">
-                  <span class="index">第 {{ index + 1 }} 个</span>
-                  <ElInput
-                    v-model="item.name"
-                    maxlength="8"
-                    placeholder="标签文字（最多 8 字）"
-                    size="small"
-                    style="width: 180px"
-                    @input="touch"
-                  />
-                  <span class="spacer"></span>
-                  <ElButton size="small" text @click="moveTab(index, -1)">
-                    <IconifyIcon icon="lucide:chevron-up" />
-                  </ElButton>
-                  <ElButton size="small" text @click="moveTab(index, 1)">
-                    <IconifyIcon icon="lucide:chevron-down" />
-                  </ElButton>
-                  <ElButton size="small" text type="danger" @click="removeTab(index)">
-                    <IconifyIcon icon="lucide:trash-2" />
-                  </ElButton>
-                </div>
-
-                <div class="tab-card-body">
-                  <div class="field-col">
-                    <label>未选中图标</label>
-                    <IconPickerField
-                      v-model="item.icon"
-                      placeholder-icon="lucide:circle"
-                      @update:model-value="touch"
-                    />
-                  </div>
-                  <div class="field-col">
-                    <label>选中态图标</label>
-                    <IconPickerField
-                      v-model="item.selectedIcon"
-                      :placeholder-icon="item.icon || 'lucide:circle-dot'"
-                      @update:model-value="touch"
-                    />
-                  </div>
-                </div>
-
-                <div class="row">
-                  <div class="field">
-                    <label>跳转</label>
-                    <ElSelect
-                      v-model="item.linkType"
-                      size="small"
-                      @change="onLinkTypeChange(item)"
-                    >
-                      <ElOption
-                        v-for="type in LINK_TYPES"
-                        :key="type.value"
-                        :label="type.label"
-                        :value="type.value"
-                      />
-                    </ElSelect>
-                  </div>
-                  <div v-if="item.linkType === 'page'" class="field grow">
-                    <label>自定义页面</label>
-                    <ElSelect
-                      v-model="item.linkValue"
-                      placeholder="选择装修页面"
-                      size="small"
-                      @change="touch"
-                    >
-                      <ElOption
-                        v-for="page in pages"
-                        :key="page.id"
-                        :label="page.name"
-                        :value="String(page.id)"
-                      />
-                    </ElSelect>
-                  </div>
-                  <div v-else-if="item.linkType === 'path'" class="field grow">
-                    <label>自定义路径</label>
-                    <ElInput
-                      v-model="item.linkValue"
-                      placeholder="/pages/category/index"
-                      size="small"
-                      @input="touch"
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <ElButton
-              :disabled="nav.tabbar.items.length >= MAX_TABS"
-              class="add-btn"
-              plain
-              size="small"
-              @click="addTab"
-            >
-              <IconifyIcon class="mr-1" icon="lucide:plus" />
-              添加标签
-            </ElButton>
-          </div>
-        </ElCard>
-
-        <!-- 顶部导航 -->
-        <ElCard class="section" shadow="never">
+      <div class="nav-body">
+      <div class="nav-main">
+        <!-- 顶部导航（紫色版块） -->
+        <ElCard class="section section-navbar" shadow="never">
           <template #header>
             <div class="section-head">
               <span class="section-title">
@@ -513,8 +384,165 @@ const previewPageName = computed(() => {
           </div>
         </ElCard>
 
-        <!-- 快捷入口 / 悬浮球 -->
-        <ElCard class="section" shadow="never">
+        <!-- 底部 TabBar（蓝色版块） -->
+        <ElCard class="section section-tabbar" :class="{ 'is-off': !nav.tabbar.enabled }" shadow="never">
+          <template #header>
+            <div class="section-head">
+              <span class="section-title">
+                <IconifyIcon icon="lucide:panel-bottom" />
+                底部 TabBar
+              </span>
+              <div class="section-ops">
+                <span class="tip">3~5 个标签</span>
+                <ElSwitch v-model="nav.tabbar.enabled" size="small" @change="touch" />
+              </div>
+            </div>
+          </template>
+
+          <div v-show="nav.tabbar.enabled" class="section-body">
+            <div class="row">
+              <div class="field">
+                <label>背景色</label>
+                <ElColorPicker v-model="nav.tabbar.bgColor" size="small" @change="touch" />
+              </div>
+              <div class="field">
+                <label>文字色跟随主题</label>
+                <ElSwitch v-model="followTheme" size="small" />
+              </div>
+              <div class="field">
+                <label>未选中文字</label>
+                <ElColorPicker
+                  v-model="nav.tabbar.color"
+                  :disabled="followTheme"
+                  size="small"
+                  @change="touch"
+                />
+              </div>
+              <div class="field">
+                <label>选中文字</label>
+                <ElColorPicker
+                  v-model="nav.tabbar.selectedColor"
+                  :disabled="followTheme"
+                  size="small"
+                  @change="touch"
+                />
+              </div>
+              <div class="field wide">
+                <label>上边框</label>
+                <ElSelect v-model="nav.tabbar.borderStyle" size="small" @change="touch">
+                  <ElOption
+                    v-for="item in BORDER_STYLES"
+                    :key="item.value"
+                    :label="item.label"
+                    :value="item.value"
+                  />
+                </ElSelect>
+              </div>
+            </div>
+
+            <p class="note">
+              图标留空时使用内置默认图标（首页/分类/购物车/我的各有一枚）；配置后同一图标会按选中色与未选中色自动着色，无需分别上传两套。
+            </p>
+            <div class="tabs-head">
+              <span>标签配置</span>
+              <span class="tip">{{ tabCountTip }}</span>
+            </div>
+
+            <div class="tab-list">
+              <div v-for="(item, index) in nav.tabbar.items" :key="item.key" class="tab-card">
+                <div class="tab-card-head">
+                  <span class="index">第 {{ index + 1 }} 个</span>
+                  <ElInput
+                    v-model="item.name"
+                    maxlength="8"
+                    placeholder="标签文字（最多 8 字）"
+                    size="small"
+                    style="width: 180px"
+                    @input="touch"
+                  />
+                  <span class="spacer"></span>
+                  <ElButton size="small" text @click="moveTab(index, -1)">
+                    <IconifyIcon icon="lucide:chevron-up" />
+                  </ElButton>
+                  <ElButton size="small" text @click="moveTab(index, 1)">
+                    <IconifyIcon icon="lucide:chevron-down" />
+                  </ElButton>
+                  <ElButton size="small" text type="danger" @click="removeTab(index)">
+                    <IconifyIcon icon="lucide:trash-2" />
+                  </ElButton>
+                </div>
+
+                <div class="tab-card-body">
+                  <div class="field-col">
+                    <label>图标</label>
+                    <IconPickerField
+                      v-model="item.icon"
+                      placeholder-icon="lucide:circle"
+                      @update:model-value="touch"
+                    />
+                  </div>
+                </div>
+
+                <div class="row">
+                  <div class="field">
+                    <label>跳转</label>
+                    <ElSelect
+                      v-model="item.linkType"
+                      size="small"
+                      @change="onLinkTypeChange(item)"
+                    >
+                      <ElOption
+                        v-for="type in LINK_TYPES"
+                        :key="type.value"
+                        :label="type.label"
+                        :value="type.value"
+                      />
+                    </ElSelect>
+                  </div>
+                  <div v-if="item.linkType === 'page'" class="field grow">
+                    <label>自定义页面</label>
+                    <ElSelect
+                      v-model="item.linkValue"
+                      placeholder="选择装修页面"
+                      size="small"
+                      @change="touch"
+                    >
+                      <ElOption
+                        v-for="page in pages"
+                        :key="page.id"
+                        :label="page.name"
+                        :value="String(page.id)"
+                      />
+                    </ElSelect>
+                  </div>
+                  <div v-else-if="item.linkType === 'path'" class="field grow">
+                    <label>自定义路径</label>
+                    <ElInput
+                      v-model="item.linkValue"
+                      placeholder="/pages/category/index"
+                      size="small"
+                      @input="touch"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <ElButton
+              :disabled="nav.tabbar.items.length >= MAX_TABS"
+              class="add-btn"
+              plain
+              size="small"
+              @click="addTab"
+            >
+              <IconifyIcon class="mr-1" icon="lucide:plus" />
+              添加标签
+            </ElButton>
+          </div>
+        </ElCard>
+
+        <!-- 快捷入口 / 悬浮球（橙色版块） -->
+        <ElCard class="section section-float" :class="{ 'is-off': !nav.floatBall.enabled }" shadow="never">
           <template #header>
             <div class="section-head">
               <span class="section-title">
@@ -603,6 +631,7 @@ const previewPageName = computed(() => {
             </ElButton>
           </div>
         </ElCard>
+
       </div>
 
       <!-- 右侧实时预览 -->
@@ -620,6 +649,7 @@ const previewPageName = computed(() => {
           <p>· 图标留空时使用内置线性图标</p>
         </div>
       </div>
+      </div>
     </div>
   </Page>
 </template>
@@ -627,32 +657,40 @@ const previewPageName = computed(() => {
 <style scoped>
 .nav-page {
   display: flex;
-  gap: 16px;
-  align-items: flex-start;
+  flex-direction: column;
+  gap: 12px;
   height: 100%;
   padding: 12px;
   overflow: hidden;
   background: #f5f7fa;
 }
+/* 中部：左侧配置滚动区 + 右侧预览 */
+.nav-body {
+  display: flex;
+  flex: 1;
+  gap: 16px;
+  min-height: 0;
+}
 .nav-main {
   flex: 1;
   min-width: 0;
-  height: 100%;
+  min-height: 0;
   padding-right: 4px;
   overflow-y: auto;
 }
+/* 顶部悬浮操作条：固定不随内容滚动（与首页装修编辑器一致） */
 .head {
   display: flex;
   gap: 12px;
-  align-items: flex-start;
+  flex: none;
+  align-items: center;
   justify-content: space-between;
-  padding: 14px 16px;
-  margin-bottom: 12px;
+  padding: 10px 16px;
   background: #fff;
   border-radius: 8px;
 }
 .head h2 {
-  margin: 0 0 4px;
+  margin: 0 0 2px;
   font-size: 16px;
   color: #1f2329;
 }
@@ -669,6 +707,7 @@ const previewPageName = computed(() => {
 }
 .section {
   margin-bottom: 12px;
+  overflow: hidden;
   border-radius: 8px;
 }
 .section :deep(.el-card__header) {
@@ -677,6 +716,62 @@ const previewPageName = computed(() => {
 }
 .section :deep(.el-card__body) {
   padding: 14px 16px;
+}
+
+/* ---- 三个版块专属配色：进入页面一眼区分 ----
+   TabBar=蓝 / 顶部导航=紫 / 悬浮球=橙。
+   色带压在卡片顶边，头部底色与标题图标同色系。 */
+.section-tabbar {
+  --accent: #2f6bff;
+  --accent-bg: #f0f5ff;
+  --accent-border: #d6e3ff;
+  border-top: 3px solid var(--accent);
+}
+.section-navbar {
+  --accent: #7c4dff;
+  --accent-bg: #f5f1ff;
+  --accent-border: #e4d9ff;
+  border-top: 3px solid var(--accent);
+}
+.section-float {
+  --accent: #ff8a1f;
+  --accent-bg: #fff6ec;
+  --accent-border: #ffe3c2;
+  border-top: 3px solid var(--accent);
+}
+.section-tabbar :deep(.el-card__header) {
+  background: var(--accent-bg);
+}
+.section-navbar :deep(.el-card__header) {
+  background: var(--accent-bg);
+}
+.section-float :deep(.el-card__header) {
+  background: var(--accent-bg);
+}
+.section-tabbar .section-title {
+  color: var(--accent);
+}
+.section-navbar .section-title {
+  color: var(--accent);
+}
+.section-float .section-title {
+  color: var(--accent);
+}
+
+/* 版块内部的子卡片沿用对应色系，弱一级 */
+.section-tabbar .tab-card {
+  background: var(--accent-bg);
+  border-color: var(--accent-border);
+}
+.section-float .float-card {
+  background: var(--accent-bg);
+  border-color: var(--accent-border);
+}
+
+/* 版块开关关闭时整体置灰，一眼看出未启用 */
+.section.is-off {
+  opacity: 0.55;
+  filter: grayscale(0.5);
 }
 .section-head {
   display: flex;
@@ -793,7 +888,10 @@ const previewPageName = computed(() => {
 .nav-preview {
   flex: none;
   width: 372px;
+  max-height: 100%;
   padding: 14px;
+  overflow-y: auto;
+  align-self: flex-start;
   background: #fff;
   border-radius: 8px;
 }

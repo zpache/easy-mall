@@ -4,7 +4,9 @@ import com.easymall.api.common.api.ResultCode;
 import com.easymall.api.common.context.UserContext;
 import com.easymall.api.common.exception.BusinessException;
 import com.easymall.api.entity.AppUser;
+import com.easymall.api.entity.MemberLevel;
 import com.easymall.api.mapper.AppUserMapper;
+import com.easymall.api.mapper.MemberLevelMapper;
 import com.easymall.api.modules.user.dto.ProfileForm;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -18,6 +20,7 @@ import org.springframework.util.StringUtils;
 public class UserService {
 
     private final AppUserMapper appUserMapper;
+    private final MemberLevelMapper memberLevelMapper;
 
     public AppUser currentUser() {
         AppUser user = appUserMapper.selectById(UserContext.userId());
@@ -27,6 +30,7 @@ public class UserService {
         if (!Integer.valueOf(1).equals(user.getStatus())) {
             throw new BusinessException(ResultCode.USER_DISABLED);
         }
+        fillLevelName(user);
         return user;
     }
 
@@ -50,5 +54,18 @@ public class UserService {
             throw new BusinessException(ResultCode.DATA_CONFLICT);
         }
         return user;
+    }
+
+    /** 等级名称与折扣仅用于展示，避免小程序为了一个名字再查一次等级表 */
+    private void fillLevelName(AppUser user) {
+        if (user.getLevelId() == null) {
+            return;
+        }
+        MemberLevel level = memberLevelMapper.selectById(user.getLevelId());
+        if (level != null) {
+            user.setLevelName(level.getName());
+            // 折扣按百分比下发，前端用同一公式本地估算结算页的会员优惠金额
+            user.setLevelDiscount(level.getDiscount());
+        }
     }
 }

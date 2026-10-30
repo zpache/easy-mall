@@ -47,6 +47,12 @@
       }
     },
     {
+      "path": "pages/goods/list",
+      "style": {
+        "navigationBarTitleText": "全部商品"
+      }
+    },
+    {
       "path": "pages/goods/detail",
       "style": {
         "navigationBarTitleText": "商品详情"
@@ -62,6 +68,12 @@
       "path": "pages/order/list",
       "style": {
         "navigationBarTitleText": "我的订单"
+      }
+    },
+    {
+      "path": "pages/order/detail",
+      "style": {
+        "navigationBarTitleText": "订单详情"
       }
     },
     {

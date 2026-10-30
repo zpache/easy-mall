@@ -4,6 +4,9 @@ import GoodsCard from '@/components/goods-card.vue'
 import EmptyState from '@/components/empty-state.vue'
 import { goodsApi } from '@/api/goods'
 import type { Goods } from '@/types/api'
+import { useTheme } from '@/composables/useTheme'
+
+const { themePageStyle } = useTheme()
 
 const keyword = ref('')
 const list = ref<Goods[]>([])
@@ -33,6 +36,10 @@ function goBack() {
 </script>
 
 <template>
+  <!-- 主题变量注入：后台启用主题后页面底色与全部语义色跟随变化 -->
+  <!-- #ifdef MP-WEIXIN -->
+  <page-meta :page-style="themePageStyle" />
+  <!-- #endif -->
   <view class="search-page">
     <view class="search-page__bar">
       <input
@@ -85,7 +92,7 @@ function goBack() {
   height: 68rpx;
   padding: 0 24rpx;
   font-size: 26rpx;
-  background-color: #f5f6f7;
+  background-color: $page-bg;
   border-radius: 34rpx;
 }
 

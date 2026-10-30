@@ -63,6 +63,12 @@ export function useColumns<T = OrderRefundApi.Refund>(
       title: $t('order.refund.refundNo'),
     },
     {
+      field: 'wxRefundNo',
+      formatter: ({ row }) => row.wxRefundNo || '-',
+      minWidth: 200,
+      title: $t('order.refund.wxRefundNo'),
+    },
+    {
       field: 'orderNo',
       minWidth: 180,
       title: $t('order.refund.orderNo'),

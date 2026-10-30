@@ -79,6 +79,16 @@ function onActionClick(e: OnActionClickParams<MarketingCouponApi.Coupon>) {
 }
 
 async function onStatusChange(newStatus: number, row: MarketingCouponApi.Coupon) {
+  const action = newStatus === 1 ? '启用' : '停用';
+  try {
+    await ElMessageBox.confirm(
+      `确定要${action}优惠券「${row.name}」吗？`,
+      `${action}确认`,
+      { type: 'warning' },
+    );
+  } catch {
+    return false;
+  }
   await changeCouponStatus(row.id, newStatus);
   ElMessage.success($t('marketing.coupon.statusUpdated'));
   return true;

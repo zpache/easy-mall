@@ -1,10 +1,14 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
+import { onHide, onLoad, onShow, onUnload } from '@dcloudio/uni-app'
 import EmptyState from '@/components/empty-state.vue'
 import { orderApi } from '@/api/order'
-import { formatPrice, formatTime } from '@/utils/format'
+import { formatCountdown, formatPrice, formatTime } from '@/utils/format'
+import { payOrder } from '@/utils/pay'
 import type { Order } from '@/types/api'
+import { useTheme } from '@/composables/useTheme'
+
+const { themePageStyle } = useTheme()
 
 const tabs = [
   { label: '全部', value: undefined as number | undefined },
@@ -19,6 +23,52 @@ const orders = ref<Order[]>([])
 const loading = ref(false)
 const pageNum = ref(1)
 const finished = ref(false)
+
+/* ---------------- 支付倒计时 ---------------- */
+
+/** 每秒加 1，只作为响应式触发器，真实剩余时间按「服务端剩余秒数 - 本地流逝秒数」算 */
+const tick = ref(0)
+let tickTimer: ReturnType<typeof setInterval> | null = null
+/** 本页数据最近一次刷新完成的时间戳 */
+let syncedAt = 0
+/** 有订单倒计时归零时刷新一次的最新时间，避免每秒钟连续刷新 */
+let lastExpireRefresh = 0
+
+function startTicking() {
+  if (tickTimer) return
+  tickTimer = setInterval(() => {
+    tick.value += 1
+    const expired = orders.value.some(
+      (order) => order.status === 0 && remainSeconds(order) === 0
+    )
+    if (expired && Date.now() - lastExpireRefresh > 5000) {
+      lastExpireRefresh = Date.now()
+      load(true)
+    }
+  }, 1000)
+}
+
+function stopTicking() {
+  if (!tickTimer) return
+  clearInterval(tickTimer)
+  tickTimer = null
+}
+
+/** 剩余秒数：-1 表示不展示（非待付款或服务端没给截止时间） */
+function remainSeconds(order: Order): number {
+  if (order.status !== 0 || order.payRemainSeconds === null || order.payRemainSeconds === undefined) {
+    return -1
+  }
+  // 依赖滴答，保证每秒重算
+  void tick.value
+  if (!syncedAt) return -1
+  return Math.max(Number(order.payRemainSeconds) - Math.floor((Date.now() - syncedAt) / 1000), 0)
+}
+
+function countdownText(order: Order): string {
+  const remain = remainSeconds(order)
+  return remain < 0 ? '' : formatCountdown(remain)
+}
 
 async function load(reset = false) {
   if (loading.value) return
@@ -35,6 +85,8 @@ async function load(reset = false) {
     orders.value = pageNum.value === 1 ? page.records : [...orders.value, ...page.records]
     finished.value = pageNum.value >= page.pages
     pageNum.value += 1
+    // 以服务端返回剩余秒数为基准，记录当前时刻用于本地递减
+    syncedAt = Date.now()
   } finally {
     loading.value = false
   }
@@ -47,7 +99,16 @@ function switchTab(index: number) {
 }
 
 async function pay(order: Order) {
-  await orderApi.pay(order.id)
+  try {
+    await payOrder(order.id)
+  } catch (e) {
+    const message = (e as Error)?.message
+    uni.showToast({
+      title: message === 'NOT_IN_WECHAT' ? '请在微信小程序内完成支付' : '支付已取消',
+      icon: 'none'
+    })
+    return
+  }
   uni.showToast({ title: '支付成功', icon: 'success' })
   load(true)
 }
@@ -60,7 +121,30 @@ async function cancel(order: Order) {
   load(true)
 }
 
+/** 确认收货：待收货 → 已完成 */
+async function confirmReceive(order: Order) {
+  const res = await uni.showModal({
+    title: '确认收货',
+    content: '请确认已收到全部商品，确认后订单将标记为已完成'
+  })
+  if (!res.confirm) return
+  await orderApi.confirmReceive(order.id)
+  uni.showToast({ title: '已确认收货', icon: 'success' })
+  load(true)
+}
+
+/** 卡片整体可点：进订单详情；卡片内的操作按钮用 @tap.stop 拦住冒泡 */
+function goDetail(order: Order) {
+  uni.navigateTo({ url: `/pages/order/detail?id=${order.id}` })
+}
+
+/** 详情页里支付/取消后回列表要看到最新状态 */
+function onOrderRefresh() {
+  load(true)
+}
+
 onLoad((options) => {
+  uni.$on('order:refresh', onOrderRefresh)
   const status = options?.status
   if (status !== undefined) {
     const index = tabs.findIndex((tab) => String(tab.value) === String(status))
@@ -70,9 +154,31 @@ onLoad((options) => {
   }
   load(true)
 })
+
+/** 首屏由 onLoad 拉取；从详情页/后台切回来时重新对齐倒计时基准 */
+let firstShow = true
+onShow(() => {
+  startTicking()
+  if (firstShow) {
+    firstShow = false
+    return
+  }
+  load(true)
+})
+
+onHide(stopTicking)
+
+onUnload(() => {
+  stopTicking()
+  uni.$off('order:refresh', onOrderRefresh)
+})
 </script>
 
 <template>
+  <!-- 主题变量注入：后台启用主题后页面底色与全部语义色跟随变化 -->
+  <!-- #ifdef MP-WEIXIN -->
+  <page-meta :page-style="themePageStyle" />
+  <!-- #endif -->
   <view class="page">
     <view class="tabs">
       <view
@@ -88,10 +194,20 @@ onLoad((options) => {
 
     <EmptyState v-if="!loading && !orders.length" text="暂无相关订单" />
 
-    <view v-for="order in orders" :key="order.id" class="order">
+    <view
+      v-for="order in orders"
+      :key="order.id"
+      class="order"
+      hover-class="order--hover"
+      :hover-stay-time="80"
+      @tap="goDetail(order)"
+    >
       <view class="order__head">
         <text class="order__no">{{ order.orderNo }}</text>
-        <text class="order__status">{{ order.statusText }}</text>
+        <view class="order__status-wrap">
+          <text class="order__status">{{ order.statusText }}</text>
+          <text class="order__arrow">›</text>
+        </view>
       </view>
 
       <view v-for="item in order.items" :key="item.id" class="goods">
@@ -106,7 +222,12 @@ onLoad((options) => {
       </view>
 
       <view class="order__foot">
-        <text class="order__time">{{ formatTime(order.createdAt) }}</text>
+        <view class="order__meta">
+          <text class="order__time">{{ formatTime(order.createdAt) }}</text>
+          <text v-if="countdownText(order)" class="order__countdown">
+            剩 {{ countdownText(order) }} 自动关闭
+          </text>
+        </view>
         <view class="order__amount">
           <text class="text-24rpx">实付</text>
           <text class="price text-30rpx"> ¥{{ formatPrice(order.payAmount) }}</text>
@@ -114,8 +235,14 @@ onLoad((options) => {
       </view>
 
       <view v-if="order.status === 0" class="order__actions">
-        <view class="btn btn--plain" @tap="cancel(order)">取消订单</view>
-        <view class="btn btn--primary" @tap="pay(order)">去支付</view>
+        <view class="btn btn--plain" @tap.stop="cancel(order)">取消订单</view>
+        <view class="btn btn--primary" @tap.stop="pay(order)">去支付</view>
+      </view>
+
+      <!-- 待收货：可直接确认收货，也可点进详情复制物流单号 -->
+      <view v-else-if="order.status === 2" class="order__actions">
+        <view class="btn btn--plain" @tap.stop="goDetail(order)">物流信息</view>
+        <view class="btn btn--primary" @tap.stop="confirmReceive(order)">确认收货</view>
       </view>
     </view>
 
@@ -172,6 +299,12 @@ onLoad((options) => {
   padding: 24rpx;
   background-color: #fff;
   border-radius: 20rpx;
+  transition: background-color 0.15s;
+
+  /* 整卡可点：按下时给一点底噪，提示可进入详情 */
+  &--hover {
+    background-color: #fafafa;
+  }
 
   &__head {
     display: flex;
@@ -179,6 +312,18 @@ onLoad((options) => {
     justify-content: space-between;
     padding-bottom: 16rpx;
     border-bottom: 1rpx solid $border-color;
+  }
+
+  &__status-wrap {
+    display: flex;
+    align-items: center;
+  }
+
+  &__arrow {
+    margin-left: 6rpx;
+    font-size: 30rpx;
+    line-height: 30rpx;
+    color: $text-placeholder;
   }
 
   &__no {
@@ -202,6 +347,18 @@ onLoad((options) => {
   &__time {
     font-size: 22rpx;
     color: $text-placeholder;
+  }
+
+  &__meta {
+    display: flex;
+    flex-direction: column;
+  }
+
+  &__countdown {
+    margin-top: 6rpx;
+    font-size: 22rpx;
+    font-weight: 600;
+    color: $danger;
   }
 
   &__amount {

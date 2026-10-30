@@ -5,6 +5,9 @@ import { uploadAvatar } from '@/api/file'
 import { userApi } from '@/api/user'
 import { useUserStore } from '@/store/user'
 import { resolveMediaUrl } from '@/utils/url'
+import { useTheme } from '@/composables/useTheme'
+
+const { themePageStyle } = useTheme()
 
 const userStore = useUserStore()
 
@@ -108,6 +111,10 @@ onLoad(async () => {
 </script>
 
 <template>
+  <!-- 主题变量注入：后台启用主题后页面底色与全部语义色跟随变化 -->
+  <!-- #ifdef MP-WEIXIN -->
+  <page-meta :page-style="themePageStyle" />
+  <!-- #endif -->
   <view class="page">
     <view class="card">
       <!-- #ifdef MP-WEIXIN -->
