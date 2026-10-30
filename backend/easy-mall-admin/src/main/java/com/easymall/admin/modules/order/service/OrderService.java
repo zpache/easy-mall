@@ -21,6 +21,7 @@ import com.easymall.admin.mapper.OrderItemMapper;
 import com.easymall.admin.mapper.OrderMapper;
 import com.easymall.admin.modules.order.dto.DeliverForm;
 import com.easymall.admin.modules.order.vo.OrderVO;
+import com.easymall.admin.modules.pay.service.WxPayCloseService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -47,6 +48,7 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
     private final GoodsMapper goodsMapper;
     private final CouponMapper couponMapper;
     private final CouponUserMapper couponUserMapper;
+    private final WxPayCloseService wxPayCloseService;
 
     /**
      * 订单分页：支持订单号 / 收货人 / 手机号模糊搜索，状态、售后状态与下单日期区间过滤。
@@ -140,6 +142,42 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
             throw new BusinessException(ResultCode.DATA_CONFLICT, "订单已被其他人处理，请刷新后重试");
         }
         rollbackStockAndCoupon(order);
+        // 关闭微信侧预支付单：防止用户停留在收银台时又付款成功（best-effort，失败只记日志）
+        if (order.getOrderNo() != null) {
+            wxPayCloseService.close(order.getOrderNo());
+        }
+    }
+
+    /**
+     * 全额退款且订单仍在「待发货」时自动关闭订单：回滚库存、销量与优惠券。
+     * 供售后退款确认后调用（与确认打款同一事务）。
+     *
+     * <p>部分退款不动订单状态；已发货订单的退货入库由运营在商品库存中手工调整，
+     * 这里不自动回滚，避免「货还在路上、库存已经加回」。</p>
+     *
+     * @return true 表示本次关闭成功
+     */
+    public boolean closeRefundedOrder(Order order) {
+        if (order == null || order.getPayAmount() == null) {
+            return false;
+        }
+        BigDecimal refunded = order.getRefundedAmount() == null
+                ? BigDecimal.ZERO : order.getRefundedAmount();
+        if (refunded.compareTo(order.getPayAmount()) < 0) {
+            return false;
+        }
+        int affected = baseMapper.update(null, Wrappers.<Order>lambdaUpdate()
+                .eq(Order::getId, order.getId())
+                .eq(Order::getStatus, Order.STATUS_UNDELIVERED)
+                .eq(Order::getRefundStatus, Order.REFUND_DONE)
+                .set(Order::getStatus, Order.STATUS_CANCELLED)
+                .set(Order::getCancelTime, LocalDateTime.now())
+                .set(Order::getCancelReason, "全额退款完成，订单自动关闭"));
+        if (affected == 0) {
+            return false;
+        }
+        rollbackStockAndCoupon(order);
+        return true;
     }
 
     /**

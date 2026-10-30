@@ -28,9 +28,11 @@ import com.easymall.api.modules.order.vo.OrderVO;
 import com.easymall.api.modules.order.vo.UsableCouponVO;
 import com.easymall.api.modules.member.service.MemberDiscountService;
 import com.easymall.api.modules.member.service.MemberPointService;
+import com.easymall.api.modules.pay.service.WxPayService;
 import com.easymall.api.modules.setting.service.PaymentConfigService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -76,6 +78,10 @@ public class OrderService {
     private final MemberPointService memberPointService;
     private final MemberDiscountService memberDiscountService;
     private final CommentService commentService;
+    /**
+     * 微信关单用 ObjectProvider 延迟解析：WxPayService 构造器依赖本类，直接注入会形成循环依赖。
+     */
+    private final ObjectProvider<WxPayService> wxPayServiceProvider;
 
     @Transactional(rollbackFor = Exception.class)
     public OrderVO create(Long userId, OrderCreateRequest request) {
@@ -457,10 +463,27 @@ public class OrderService {
                     .setSql("sales = GREATEST(sales - " + item.getQuantity() + ", 0)"));
         }
         rollbackCoupon(order);
+        closeWxPayOrder(order.getOrderNo());
         // 同步内存对象，避免同一请求里继续用旧状态渲染
         order.setStatus(MallOrder.STATUS_CANCELLED);
         order.setCancelTime(cancelTime);
         return true;
+    }
+
+    /**
+     * 通知微信关闭预支付单：防止用户停留在收银台时付款成功（那笔钱会变成待人工退款）。
+     * best-effort：微信侧订单不存在或已支付都属正常，失败只记日志不影响本地关单。
+     */
+    private void closeWxPayOrder(String orderNo) {
+        WxPayService wxPayService = wxPayServiceProvider.getIfAvailable();
+        if (wxPayService == null) {
+            return;
+        }
+        try {
+            wxPayService.closeRemoteOrder(orderNo);
+        } catch (Exception e) {
+            log.warn("微信关单调用异常: orderNo={}, err={}", orderNo, e.getMessage());
+        }
     }
 
     /**

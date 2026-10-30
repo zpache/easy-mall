@@ -174,6 +174,27 @@ public class WxPayService {
         }
     }
 
+    /**
+     * 关闭微信侧的预支付单：本地关单（用户取消 / 超时 / 后台关闭）后调用，
+     * 防止用户停留在收银台时又付款成功（那笔钱会变成「待人工退款」）。
+     *
+     * <p>best-effort：订单在微信侧不存在（用户从未拉起支付）或已支付时微信都会报错，
+     * 这里只记日志不抛出，本地关单结果不受影响。</p>
+     */
+    public void closeRemoteOrder(String outTradeNo) {
+        WxPayConfig config = config();
+        if (!config.enabled() || !config.complete()) {
+            return;
+        }
+        String path = "/v3/pay/transactions/out-trade-no/" + outTradeNo + "/close";
+        try {
+            postV3(config, path, Map.of("mchid", config.mchId()));
+            log.info("微信关单成功: outTradeNo={}", outTradeNo);
+        } catch (Exception e) {
+            log.warn("微信关单失败（不影响本地关单）: outTradeNo={}, err={}", outTradeNo, e.getMessage());
+        }
+    }
+
     /* ---------------- 微信支付 v3 下单 ---------------- */
 
     private String requestPrepayId(WxPayConfig config, MallOrder order) {
@@ -193,35 +214,8 @@ public class WxPayService {
         payload.put("notify_url", config.notifyUrl());
         payload.put("amount", Map.of("total", totalFen, "currency", "CNY"));
 
-        String body;
         try {
-            body = objectMapper.writeValueAsString(payload);
-        } catch (Exception e) {
-            throw new BusinessException(ResultCode.PAY_FAILED, "支付请求参数序列化失败");
-        }
-
-        String timestamp = String.valueOf(System.currentTimeMillis() / 1000);
-        String nonce = randomString(32);
-        String message = "POST\n" + JSAPI_PATH + "\n" + timestamp + "\n" + nonce + "\n" + body + "\n";
-        String signature = WxPaySigner.sign(config.privateKey(), message);
-        String authorization = "WECHATPAY2-SHA256-RSA2048 "
-                + "mchid=\"" + config.mchId() + "\","
-                + "nonce_str=\"" + nonce + "\","
-                + "signature=\"" + signature + "\","
-                + "timestamp=\"" + timestamp + "\","
-                + "serial_no=\"" + config.mchSerialNo() + "\"";
-
-        try {
-            String response = RestClient.create(API_BASE)
-                    .post()
-                    .uri(JSAPI_PATH)
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .header("Authorization", authorization)
-                    .header("Accept", "application/json")
-                    .header("Wechatpay-Serial", config.publicKeyId() == null ? "" : config.publicKeyId())
-                    .body(body)
-                    .retrieve()
-                    .body(String.class);
+            String response = postV3(config, JSAPI_PATH, payload);
             JsonNode node = objectMapper.readTree(response);
             String prepayId = node.path("prepay_id").asString();
             if (!StringUtils.hasText(prepayId)) {
@@ -235,6 +229,38 @@ public class WxPayService {
             log.error("微信支付 JSAPI 下单异常: orderNo={}", order.getOrderNo(), e);
             throw new BusinessException(ResultCode.PAY_FAILED, "拉起支付失败，请稍后重试");
         }
+    }
+
+    /** 带商户签名的 v3 POST 通用请求：微信 4xx/5xx 时抛 RestClientResponseException，由调用方决定如何处理 */
+    private String postV3(WxPayConfig config, String path, Map<String, Object> payload) {
+        String body;
+        try {
+            body = objectMapper.writeValueAsString(payload);
+        } catch (Exception e) {
+            throw new BusinessException(ResultCode.PAY_FAILED, "支付请求参数序列化失败");
+        }
+
+        String timestamp = String.valueOf(System.currentTimeMillis() / 1000);
+        String nonce = randomString(32);
+        String message = "POST\n" + path + "\n" + timestamp + "\n" + nonce + "\n" + body + "\n";
+        String signature = WxPaySigner.sign(config.privateKey(), message);
+        String authorization = "WECHATPAY2-SHA256-RSA2048 "
+                + "mchid=\"" + config.mchId() + "\","
+                + "nonce_str=\"" + nonce + "\","
+                + "signature=\"" + signature + "\","
+                + "timestamp=\"" + timestamp + "\","
+                + "serial_no=\"" + config.mchSerialNo() + "\"";
+
+        return RestClient.create(API_BASE)
+                .post()
+                .uri(path)
+                .contentType(MediaType.APPLICATION_JSON)
+                .header("Authorization", authorization)
+                .header("Accept", "application/json")
+                .header("Wechatpay-Serial", config.publicKeyId() == null ? "" : config.publicKeyId())
+                .body(body)
+                .retrieve()
+                .body(String.class);
     }
 
     private WxPayConfig config() {
