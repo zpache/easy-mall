@@ -36,12 +36,6 @@ export function useSchema(): VbenFormSchema[] {
       label: $t('goods.category.parent'),
     },
     {
-      component: 'Input',
-      componentProps: { placeholder: 'https://' },
-      fieldName: 'icon',
-      label: $t('goods.category.icon'),
-    },
-    {
       component: 'InputNumber',
       componentProps: { class: 'w-full', min: 0 },
       defaultValue: 0,
@@ -78,12 +72,6 @@ export function useColumns(
       title: $t('goods.category.name'),
       treeNode: true,
       width: 240,
-    },
-    {
-      field: 'icon',
-      formatter: ({ row }) => row.icon ?? '',
-      title: $t('goods.category.icon'),
-      width: 260,
     },
     {
       cellRender: { name: 'CellTag' },

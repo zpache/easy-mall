@@ -16,9 +16,6 @@ public record CategoryForm(
         @NotNull(message = "上级分类不能为空")
         Long parentId,
 
-        @Size(max = 255, message = "图标地址过长")
-        String icon,
-
         Integer sort,
 
         @NotNull(message = "状态不能为空")

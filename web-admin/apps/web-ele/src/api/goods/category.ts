@@ -5,7 +5,6 @@ export namespace GoodsCategoryApi {
     [key: string]: any;
     children?: Category[];
     createdAt?: string;
-    icon?: string;
     id: number;
     name: string;
     parentId: number;
@@ -15,7 +14,6 @@ export namespace GoodsCategoryApi {
   }
 
   export interface CategoryPayload {
-    icon?: string;
     name: string;
     parentId: number;
     sort?: number;

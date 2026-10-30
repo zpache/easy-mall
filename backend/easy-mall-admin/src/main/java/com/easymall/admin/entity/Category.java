@@ -24,8 +24,6 @@ public class Category extends BaseEntity {
 
     private Long parentId;
 
-    private String icon;
-
     private Integer sort;
 
     /** 1 启用，0 停用 */
