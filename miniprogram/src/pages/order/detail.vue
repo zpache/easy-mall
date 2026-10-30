@@ -160,11 +160,11 @@ async function confirmReceive() {
   load()
 }
 
-/** 能否申请退款：已支付、未取消，且没有处理中/已完成的售后 */
+/** 能否申请退款：只有「已支付、待发货」可申请；待收货/已完成需先联系客服或走售后流程 */
 const canApplyRefund = computed(() => {
   const current = order.value
   if (!current) return false
-  if (current.status !== 1 && current.status !== 2) return false
+  if (current.status !== 1) return false
   return !current.refundStatus || current.refundStatus === 3
 })
 
