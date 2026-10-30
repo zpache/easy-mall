@@ -11,8 +11,8 @@ import com.easymall.api.modules.pay.config.WxPayConfig;
 import com.easymall.api.modules.pay.support.WxPaySigner;
 import com.easymall.api.modules.pay.vo.PrepayVO;
 import com.easymall.api.modules.setting.service.SysConfigService;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -135,7 +135,7 @@ public class WxPayService {
         } catch (Exception e) {
             throw new BusinessException(ResultCode.PAY_NOTIFY_INVALID, "回调报文解析失败");
         }
-        String eventType = root.path("event_type").asText();
+        String eventType = root.path("event_type").asString();
         if (!"TRANSACTION.SUCCESS".equals(eventType)) {
             // 非支付成功事件（如退款通知走另一个回调地址），直接应答成功避免微信重试
             log.info("忽略非支付成功事件: {}", eventType);
@@ -146,9 +146,9 @@ public class WxPayService {
         String plain;
         try {
             plain = WxPaySigner.decrypt(config.apiV3Key(),
-                    resource.path("nonce").asText(),
-                    resource.path("associated_data").asText(),
-                    resource.path("ciphertext").asText());
+                    resource.path("nonce").asString(),
+                    resource.path("associated_data").asString(),
+                    resource.path("ciphertext").asString());
         } catch (Exception e) {
             throw new BusinessException(ResultCode.PAY_NOTIFY_INVALID, "回调报文解密失败");
         }
@@ -159,9 +159,9 @@ public class WxPayService {
         } catch (Exception e) {
             throw new BusinessException(ResultCode.PAY_NOTIFY_INVALID, "回调明文字段解析失败");
         }
-        String tradeState = txn.path("trade_state").asText();
-        String outTradeNo = txn.path("out_trade_no").asText();
-        String transactionId = txn.path("transaction_id").asText();
+        String tradeState = txn.path("trade_state").asString();
+        String outTradeNo = txn.path("out_trade_no").asString();
+        String transactionId = txn.path("transaction_id").asString();
         if (!"SUCCESS".equals(tradeState)) {
             log.warn("微信支付回调状态非 SUCCESS: outTradeNo={}, tradeState={}", outTradeNo, tradeState);
             return;
@@ -223,7 +223,7 @@ public class WxPayService {
                     .retrieve()
                     .body(String.class);
             JsonNode node = objectMapper.readTree(response);
-            String prepayId = node.path("prepay_id").asText();
+            String prepayId = node.path("prepay_id").asString();
             if (!StringUtils.hasText(prepayId)) {
                 log.error("微信支付下单未返回 prepay_id: {}", response);
                 throw new BusinessException(ResultCode.PAY_FAILED, "微信支付下单失败，请稍后重试");
