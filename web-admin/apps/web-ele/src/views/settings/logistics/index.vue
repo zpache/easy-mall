@@ -37,8 +37,8 @@ async function loadConfig() {
     form.kuaidi100Enabled = config.kuaidi100Enabled;
     form.kuaidi100Customer = config.kuaidi100Customer ?? '';
     kuaidi100KeySet.value = config.kuaidi100KeySet;
-    // 敏感项不回显明文，留空即「不修改」
-    form.kuaidi100Key = '';
+    // 敏感项回显脱敏值（后端返回 ********），占位可见「已配置」
+    form.kuaidi100Key = config.kuaidi100KeySet ? (config.kuaidi100Key ?? '') : '';
   } finally {
     loading.value = false;
   }
@@ -46,11 +46,16 @@ async function loadConfig() {
 
 onMounted(loadConfig);
 
+/** 脱敏占位值：保持原样提交表示「不修改」，后端据此跳过覆盖 */
+const KEY_MASK = '********';
+
 function buildPayload() {
+  const key = form.kuaidi100Key.trim();
   return {
     kuaidi100Enabled: form.kuaidi100Enabled,
     kuaidi100Customer: form.kuaidi100Customer.trim(),
-    kuaidi100Key: form.kuaidi100Key.trim() || undefined,
+    // 未改动的脱敏值不回传，避免把掩码当成新密钥落库
+    kuaidi100Key: key && key !== KEY_MASK ? key : undefined,
   };
 }
 
