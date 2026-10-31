@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import type { NotificationItem } from '@vben/layouts';
 
-import { computed, ref, watch } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 
 import { AuthenticationLoginExpiredModal } from '@vben/common-ui';
@@ -15,62 +15,58 @@ import {
 import { preferences, usePreferences } from '@vben/preferences';
 import { useAccessStore, useUserStore } from '@vben/stores';
 
+import { getStockList } from '#/api/goods/stock';
 import { $t } from '#/locales';
 import { useAuthStore } from '#/store';
 import LoginForm from '#/views/_core/authentication/login.vue';
 
-const notifications = ref<NotificationItem[]>([
-  {
-    id: 1,
-    avatar: 'https://avatar.vercel.sh/vercel.svg?text=VB',
-    date: '3小时前',
-    isRead: true,
-    message: '描述信息描述信息描述信息',
-    title: '收到了 14 份新周报',
-  },
-  {
-    id: 2,
-    avatar: 'https://avatar.vercel.sh/1',
-    date: '刚刚',
-    isRead: false,
-    message: '描述信息描述信息描述信息',
-    title: '朱偏右 回复了你',
-  },
-  {
-    id: 3,
-    avatar: 'https://avatar.vercel.sh/1',
-    date: '2024-01-01',
-    isRead: false,
-    message: '描述信息描述信息描述信息',
-    title: '曲丽丽 评论了你',
-  },
-  {
-    id: 4,
-    avatar: 'https://avatar.vercel.sh/satori',
-    date: '1天前',
-    isRead: false,
-    message: '描述信息描述信息描述信息',
-    title: '代办提醒',
-  },
-  {
-    id: 5,
-    avatar: 'https://avatar.vercel.sh/satori',
-    date: '1天前',
-    isRead: false,
-    message: '描述信息描述信息描述信息',
-    title: '跳转Workspace示例',
-    link: '/workspace',
-  },
-  {
-    id: 6,
-    avatar: 'https://avatar.vercel.sh/satori',
-    date: '1天前',
-    isRead: false,
-    message: '描述信息描述信息描述信息',
-    title: '跳转外部链接示例',
-    link: 'https://doc.vben.pro',
-  },
-]);
+/** 库存预警跳转页 */
+const STOCK_PAGE = '/goods/stock';
+/** 轮询间隔：60s 拉一次预警数量，避免更频繁的无效请求 */
+const POLL_INTERVAL = 60_000;
+
+const notifications = ref<NotificationItem[]>([]);
+/** 预警商品总数，铃铛角标显示该数字 */
+const warnTotal = ref(0);
+let pollTimer: null | ReturnType<typeof setInterval> = null;
+
+/**
+ * 拉取库存预警：角标 = 预警商品数，列表最多展示 10 条（弹层里看全量请点「查看全部」进库存管理）。
+ * 失败静默：角标保持上次数据，不弹错误打断使用。
+ */
+async function loadWarnings() {
+  try {
+    const { items, total } = await getStockList({
+      lowStock: true,
+      pageNum: 1,
+      pageSize: 10,
+    });
+    warnTotal.value = total;
+    notifications.value = items.map((item) => ({
+      id: `stock-${item.goodsId}`,
+      avatar: item.mainImage || preferences.app.defaultAvatar,
+      date: (item.updatedAt ?? '').replace('T', ' ').slice(0, 16),
+      isRead: false,
+      message: `当前库存 ${item.stock}${item.unit ?? '件'}，低于预警值 ${item.stockWarn}`,
+      title: `「${item.name}」库存不足`,
+      link: STOCK_PAGE,
+    }));
+  } catch {
+    // 静默降级，保留下次轮询重试
+  }
+}
+
+onMounted(() => {
+  loadWarnings();
+  pollTimer = setInterval(loadWarnings, POLL_INTERVAL);
+});
+
+onUnmounted(() => {
+  if (pollTimer) {
+    clearInterval(pollTimer);
+    pollTimer = null;
+  }
+});
 
 const router = useRouter();
 const userStore = useUserStore();
@@ -78,9 +74,6 @@ const authStore = useAuthStore();
 const accessStore = useAccessStore();
 const { destroyWatermark, updateWatermark } = useWatermark();
 const { isDark } = usePreferences();
-const showDot = computed(() =>
-  notifications.value.some((item) => !item.isRead),
-);
 
 const menus = computed(() => [
   {
@@ -119,7 +112,9 @@ function handleMakeAll() {
   notifications.value.forEach((item) => (item.isRead = true));
 }
 
-const viewAll = () => {};
+function viewAll() {
+  router.push(STOCK_PAGE);
+}
 
 const handleClick = (item: NotificationItem) => {
   // 如果通知项有链接，点击时跳转
@@ -201,7 +196,7 @@ watch(
     </template>
     <template #notification>
       <Notification
-        :dot="showDot"
+        :count="warnTotal"
         :notifications="notifications"
         @clear="handleNoticeClear"
         @read="(item) => item.id && markRead(item.id)"
