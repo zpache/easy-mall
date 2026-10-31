@@ -11,9 +11,13 @@ let timer: any
 
 const pad2 = (n: number) => String(n).padStart(2, '0')
 
+/** 当前时间：随秒针刷新，用于判断活动是否已结束 */
+const now = ref(Date.now())
+
 function tick() {
+  now.value = Date.now()
   const end = props.config.endTime ? new Date(String(props.config.endTime).replace(/-/g, '/')).getTime() : 0
-  const diff = Math.max(0, end - Date.now())
+  const diff = Math.max(0, end - now.value)
   remain.value = {
     days: Math.floor(diff / 86_400_000),
     hours: Math.floor((diff % 86_400_000) / 3_600_000),
@@ -21,6 +25,12 @@ function tick() {
     seconds: Math.floor((diff % 60_000) / 1000)
   }
 }
+
+/** 活动已结束（配置了结束时间且已到期）：整个模块不再展示 */
+const expired = computed(() => {
+  const end = props.config.endTime ? new Date(String(props.config.endTime).replace(/-/g, '/')).getTime() : 0
+  return end > 0 && now.value >= end
+})
 
 onMounted(() => {
   tick()
@@ -89,7 +99,7 @@ const segments = computed(() => {
 </script>
 
 <template>
-  <view class="d-seckill" :style="{ background: config.bgColor || '#fff1f0' }">
+  <view v-if="!expired" class="d-seckill" :style="{ background: config.bgColor || '#fff1f0' }">
     <view class="d-seckill__head">
       <view class="d-seckill__head-left">
         <text class="d-seckill__flag">秒杀</text>
