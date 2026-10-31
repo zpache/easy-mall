@@ -1,65 +1,60 @@
 <script setup lang="ts">
-import type { BasicOption } from '@vben/types';
+import { onMounted, ref } from 'vue';
 
-import type { VbenFormSchema } from '#/adapter/form';
-
-import { computed, onMounted, ref } from 'vue';
-
-import { ProfileBaseSetting } from '@vben/common-ui';
+import { ElDescriptions, ElDescriptionsItem, ElTag } from 'element-plus';
 
 import { getUserInfoApi } from '#/api';
 
-const profileBaseSettingRef = ref();
+/** /user/info 返回结构（展示所需的字段） */
+interface ProfileInfo {
+  avatar?: string;
+  homePath?: string;
+  realName?: string;
+  roleNames?: string[];
+  roles?: string[];
+  userId?: number | string;
+  username?: string;
+}
 
-const MOCK_ROLES_OPTIONS: BasicOption[] = [
-  {
-    label: '管理员',
-    value: 'super',
-  },
-  {
-    label: '用户',
-    value: 'user',
-  },
-  {
-    label: '测试',
-    value: 'test',
-  },
-];
-
-const formSchema = computed((): VbenFormSchema[] => {
-  return [
-    {
-      fieldName: 'realName',
-      component: 'Input',
-      label: '姓名',
-    },
-    {
-      fieldName: 'username',
-      component: 'Input',
-      label: '用户名',
-    },
-    {
-      fieldName: 'roles',
-      component: 'Select',
-      componentProps: {
-        mode: 'tags',
-        options: MOCK_ROLES_OPTIONS,
-      },
-      label: '角色',
-    },
-    {
-      fieldName: 'introduction',
-      component: 'Textarea',
-      label: '个人简介',
-    },
-  ];
-});
+const info = ref<ProfileInfo | null>(null);
 
 onMounted(async () => {
-  const data = await getUserInfoApi();
-  profileBaseSettingRef.value.getFormApi().setValues(data);
+  info.value = await getUserInfoApi();
 });
 </script>
+
 <template>
-  <ProfileBaseSetting ref="profileBaseSettingRef" :form-schema="formSchema" />
+  <ElDescriptions
+    v-if="info"
+    :column="1"
+    border
+    class="max-w-[560px]"
+    size="small"
+  >
+    <ElDescriptionsItem label="用户 ID">
+      {{ info.userId ?? '-' }}
+    </ElDescriptionsItem>
+    <ElDescriptionsItem label="登录账号">
+      {{ info.username || '-' }}
+    </ElDescriptionsItem>
+    <ElDescriptionsItem label="姓名">
+      {{ info.realName || '-' }}
+    </ElDescriptionsItem>
+    <ElDescriptionsItem label="角色">
+      <template v-if="info.roleNames?.length">
+        <ElTag
+          v-for="name in info.roleNames"
+          :key="name"
+          class="mr-1"
+          effect="plain"
+        >
+          {{ name }}
+        </ElTag>
+      </template>
+      <span v-else>-</span>
+    </ElDescriptionsItem>
+    <ElDescriptionsItem label="默认首页">
+      {{ info.homePath || '-' }}
+    </ElDescriptionsItem>
+  </ElDescriptions>
 </template>
