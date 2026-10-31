@@ -44,6 +44,7 @@ public class RefundService extends ServiceImpl<OrderRefundMapper, OrderRefund> {
     private final AppUserMapper appUserMapper;
     private final MemberRevertService memberRevertService;
     private final WxRefundService wxRefundService;
+    private final WxSubscribeService wxSubscribeService;
     private final OrderService orderService;
 
     public PageResult<RefundVO> pageQuery(long pageNum, long pageSize, String keyword, Integer status,
@@ -89,6 +90,13 @@ public class RefundService extends ServiceImpl<OrderRefundMapper, OrderRefund> {
         }
         updateOrderRefundStatus(refund.getOrderId(),
                 pass ? Order.REFUND_PROCESSING : Order.REFUND_REJECTED);
+        // 订阅消息触达：售后被拒要立刻让用户知道，避免干等（失败只记日志）
+        if (!pass) {
+            Order order = orderMapper.selectById(refund.getOrderId());
+            if (order != null) {
+                wxSubscribeService.notifyRefundResult(order, refund, "售后已拒绝");
+            }
+        }
     }
 
     /**
@@ -126,6 +134,8 @@ public class RefundService extends ServiceImpl<OrderRefundMapper, OrderRefund> {
         updateOrderRefundStatus(refund.getOrderId(), Order.REFUND_DONE);
         // 权益回滚与打款状态同一事务：回滚失败时整个确认操作回滚，运营重试即可，不会出现「钱退了积分没扣」
         memberRevertService.revertForRefund(refund);
+        // 订阅消息触达：退款到账通知（失败只记日志，不影响退款结果）
+        wxSubscribeService.notifyRefundResult(order, refund, "退款已到账");
         // 全额退款且尚未发货：自动关闭订单并回滚库存与优惠券，避免运营按「待发货」筛选时误发货
         orderService.closeRefundedOrder(orderMapper.selectById(refund.getOrderId()));
     }

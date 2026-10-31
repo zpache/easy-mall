@@ -49,6 +49,7 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
     private final CouponMapper couponMapper;
     private final CouponUserMapper couponUserMapper;
     private final WxPayCloseService wxPayCloseService;
+    private final WxSubscribeService wxSubscribeService;
 
     /**
      * 订单分页：支持订单号 / 收货人 / 手机号模糊搜索，状态、售后状态与下单日期区间过滤。
@@ -110,6 +111,13 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
         if (!updateById(order)) {
             throw new BusinessException(ResultCode.DATA_CONFLICT, "订单已被其他人处理，请刷新后重试");
         }
+        // 订阅消息触达：发货后通知用户（失败只记日志，不影响发货结果）
+        List<String> goodsNames = orderItemMapper.selectList(Wrappers.<OrderItem>lambdaQuery()
+                        .eq(OrderItem::getOrderId, order.getId()))
+                .stream()
+                .map(OrderItem::getGoodsName)
+                .toList();
+        wxSubscribeService.notifyDeliver(order, String.join("、", goodsNames));
     }
 
     /**

@@ -20,6 +20,9 @@ public class SysConfig extends BaseEntity {
     /** 物流分组（快递100） */
     public static final String GROUP_LOGISTICS = "logistics";
 
+    /** 通知分组（微信订阅消息） */
+    public static final String GROUP_NOTIFY = "notify";
+
     @TableId(type = IdType.AUTO)
     private Long id;
 
