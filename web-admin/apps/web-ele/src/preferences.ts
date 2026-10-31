@@ -16,4 +16,8 @@ export const overridesPreferences = defineOverridesPreferences({
     // 默认浅色主题（浏览器缓存过旧偏好的需在偏好设置里点「恢复默认」或清缓存）
     mode: 'light',
   },
+  copyright: {
+    // 版权年份，登录页与页脚共用
+    date: '2026',
+  },
 });

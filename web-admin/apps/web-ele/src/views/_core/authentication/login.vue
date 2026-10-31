@@ -16,6 +16,8 @@ const authStore = useAuthStore();
  * 对接 easy-mall-admin 真实接口：
  * - 去掉了 vben 演示用的账号下拉与假密码
  * - 去掉了纯前端滑块验证码（未接服务端校验，形同虚设；需要防爆破时在网关或后端加）
+ * - 只保留账号密码登录：手机验证码 / 扫码 / 第三方登录 / 注册 / 忘记密码
+ *   均为 vben 演示页（提交是空函数、无后端接口），入口与路由一并移除
  */
 const formSchema = computed((): VbenFormSchema[] => {
   return [
@@ -45,6 +47,11 @@ const formSchema = computed((): VbenFormSchema[] => {
   <AuthenticationLogin
     :form-schema="formSchema"
     :loading="authStore.loginLoading"
+    :show-code-login="false"
+    :show-forget-password="false"
+    :show-qrcode-login="false"
+    :show-register="false"
+    :show-third-party-login="false"
     @submit="authStore.authLogin"
   />
 </template>
