@@ -3,6 +3,7 @@ package com.easymall.admin.modules.marketing.controller;
 import com.easymall.admin.common.api.PageResult;
 import com.easymall.admin.common.api.Result;
 import com.easymall.admin.entity.Coupon;
+import com.easymall.admin.modules.marketing.dto.CouponGrantForm;
 import com.easymall.admin.modules.marketing.dto.CouponForm;
 import com.easymall.admin.modules.marketing.service.CouponService;
 import com.easymall.admin.modules.marketing.vo.CouponUserVO;
@@ -75,5 +76,11 @@ public class CouponController {
     public Result<Void> delete(@PathVariable Long id) {
         couponService.delete(id);
         return Result.ok();
+    }
+
+    @Operation(summary = "定向发放：直接发到指定会员账户，返回实际发放张数")
+    @PostMapping("/{id}/grant")
+    public Result<Integer> grant(@PathVariable Long id, @Valid @RequestBody CouponGrantForm form) {
+        return Result.ok(couponService.grantToUsers(id, form.userIds()));
     }
 }

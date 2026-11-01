@@ -46,7 +46,8 @@
     "validStart": "Valid From",
     "validType": "Validity Type",
     "validTypeDate": "Fixed Date",
-    "validTypeDays": "N Days After Claim"
+    "validTypeDays": "N Days After Claim",
+    "grant": "Grant"
   },
   "promotion": {
     "create": "New Activity",

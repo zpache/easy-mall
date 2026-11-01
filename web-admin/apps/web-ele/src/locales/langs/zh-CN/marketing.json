@@ -46,7 +46,8 @@
     "validStart": "有效期自",
     "validType": "有效期类型",
     "validTypeDate": "固定日期",
-    "validTypeDays": "领取后 N 天"
+    "validTypeDays": "领取后 N 天",
+    "grant": "定向发放"
   },
   "promotion": {
     "create": "新增活动",

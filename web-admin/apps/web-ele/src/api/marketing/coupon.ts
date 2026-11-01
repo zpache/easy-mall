@@ -110,5 +110,12 @@ export {
   deleteCoupon,
   getCouponList,
   getCouponRecords,
+  grantCoupon,
   updateCoupon,
 };
+/**
+ * 定向发放：直接发到指定会员账户，返回实际发放张数
+ */
+async function grantCoupon(id: number, userIds: number[]) {
+  return requestClient.post<number>(`/coupons/${id}/grant`, { userIds });
+}

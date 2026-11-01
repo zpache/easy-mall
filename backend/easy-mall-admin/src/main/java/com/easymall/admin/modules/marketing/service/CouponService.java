@@ -18,9 +18,12 @@ import com.easymall.admin.modules.marketing.support.CouponCodeGenerator;
 import com.easymall.admin.modules.marketing.vo.CouponUserVO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -28,14 +31,107 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
- * 优惠券：券模板维护与领券记录查询。
+ * 优惠券：券模板维护、领券记录查询与定向发放。
  */
 @Service
 @RequiredArgsConstructor
 public class CouponService extends ServiceImpl<CouponMapper, Coupon> {
 
+    /** 领券记录状态：未使用 */
+    private static final int STATUS_UNUSED = 0;
+
     private final CouponUserMapper couponUserMapper;
     private final AppUserMapper appUserMapper;
+
+    /**
+     * 定向发放：把券直接发到指定会员账户（免领取）。
+     *
+     * <p>口径与小程序端领券一致：每人限领 perLimit 张（未使用 + 已使用，
+     * 已过期的不占额）；券库存 total_count=0 视为不限量。任一会员发放失败
+     * 即整体报错列出原因，运营处理后重试（已发放的重试会因限领被跳过）。</p>
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public int grantToUsers(Long couponId, List<Long> userIds) {
+        Coupon coupon = getById(couponId);
+        if (coupon == null) {
+            throw new BusinessException(ResultCode.DATA_NOT_FOUND);
+        }
+        if (!Integer.valueOf(1).equals(coupon.getStatus())) {
+            throw new BusinessException("优惠券已停用，无法发放");
+        }
+        int perLimit = coupon.getPerLimit() == null || coupon.getPerLimit() <= 0
+                ? 1 : coupon.getPerLimit();
+        int total = coupon.getTotalCount() == null ? 0 : coupon.getTotalCount();
+        int sent = coupon.getSendCount() == null ? 0 : coupon.getSendCount();
+        int remain = total <= 0 ? Integer.MAX_VALUE : total - sent;
+        if (remain <= 0) {
+            throw new BusinessException("券已发完（发放量已达上限）");
+        }
+
+        List<Long> distinctIds = userIds.stream().distinct().toList();
+        Map<Long, AppUser> users = appUserMapper.selectBatchIds(distinctIds).stream()
+                .collect(Collectors.toMap(AppUser::getId, Function.identity(), (a, b) -> a));
+
+        // 已有领取记录（未使用 + 已使用，已过期不占额）：判断限领
+        Map<Long, Long> ownedCounts = couponUserMapper.selectList(
+                        Wrappers.<CouponUser>lambdaQuery()
+                                .eq(CouponUser::getCouponId, couponId)
+                                .in(CouponUser::getUserId, distinctIds)
+                                .ne(CouponUser::getStatus, 2))
+                .stream()
+                .collect(Collectors.groupingBy(CouponUser::getUserId, Collectors.counting()));
+
+        LocalDateTime now = LocalDateTime.now();
+        List<CouponUser> toInsert = new ArrayList<>();
+        List<String> failures = new ArrayList<>();
+        for (Long userId : distinctIds) {
+            if (!users.containsKey(userId)) {
+                failures.add("会员 " + userId + " 不存在");
+                continue;
+            }
+            if (ownedCounts.getOrDefault(userId, 0L) >= perLimit) {
+                failures.add(nicknameOf(users.get(userId)) + " 已达限领 " + perLimit + " 张，跳过");
+                continue;
+            }
+            if (toInsert.size() >= remain) {
+                failures.add(nicknameOf(users.get(userId)) + " 券库存不足，跳过");
+                continue;
+            }
+            CouponUser record = new CouponUser();
+            record.setCouponId(couponId);
+            record.setUserId(userId);
+            record.setStatus(STATUS_UNUSED);
+            record.setReceivedAt(now);
+            record.setExpiredAt(resolveExpireAt(coupon, now));
+            toInsert.add(record);
+        }
+        if (!toInsert.isEmpty()) {
+            for (CouponUser record : toInsert) {
+                couponUserMapper.insert(record);
+            }
+            update(Wrappers.<Coupon>lambdaUpdate()
+                    .eq(Coupon::getId, couponId)
+                    .setSql("send_count = send_count + " + toInsert.size()));
+        }
+        if (!failures.isEmpty()) {
+            throw new BusinessException("部分会员未能发放：" + String.join("；", failures));
+        }
+        return toInsert.size();
+    }
+
+    private String nicknameOf(AppUser user) {
+        return user.getNickname() == null ? "会员" + user.getId() : user.getNickname();
+    }
+
+    /** 发放记录的到期时间：与小程序端领券口径一致（固定日期取结束日 23:59:59，N 天券领取时间 + N 天） */
+    private LocalDateTime resolveExpireAt(Coupon coupon, LocalDateTime now) {
+        if (coupon.getValidType() != null && coupon.getValidType() == 2) {
+            int days = coupon.getValidDays() == null || coupon.getValidDays() <= 0
+                    ? 7 : coupon.getValidDays();
+            return now.plusDays(days);
+        }
+        return coupon.getValidEnd() == null ? null : coupon.getValidEnd().atTime(23, 59, 59);
+    }
 
     public PageResult<Coupon> pageQuery(long pageNum, long pageSize, String keyword, Integer type, Integer status) {
         LambdaQueryWrapper<Coupon> wrapper = Wrappers.<Coupon>lambdaQuery()

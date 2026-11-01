@@ -6,7 +6,11 @@ import com.easymall.admin.entity.Goods;
 import com.easymall.admin.entity.Order;
 import com.easymall.admin.mapper.GoodsMapper;
 import com.easymall.admin.mapper.OrderMapper;
+import com.easymall.admin.modules.dashboard.mapper.DashboardMapper;
 import com.easymall.admin.modules.dashboard.vo.DashboardOverviewVO;
+import com.easymall.admin.modules.dashboard.vo.MemberGrowthVO;
+import com.easymall.admin.modules.dashboard.vo.TopGoodsVO;
+import com.easymall.admin.modules.dashboard.vo.TrendPointVO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -14,7 +18,11 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 分析页统计：全部为轻量聚合查询，直接走 Mapper，不引入额外缓存。
@@ -25,6 +33,50 @@ public class DashboardService {
 
     private final OrderMapper orderMapper;
     private final GoodsMapper goodsMapper;
+    private final DashboardMapper dashboardMapper;
+
+    /**
+     * 订单趋势：按下单日期聚合（排除已取消），无单日期补零。
+     */
+    public List<TrendPointVO> orderTrend(int days) {
+        LocalDateTime start = LocalDate.now().minusDays(days - 1L).atStartOfDay();
+        Map<String, TrendPointVO> byDate = new HashMap<>();
+        for (TrendPointVO point : dashboardMapper.orderTrend(start)) {
+            byDate.put(point.date(), point);
+        }
+        List<TrendPointVO> result = new ArrayList<>(days);
+        for (int i = 0; i < days; i++) {
+            String date = start.plusDays(i).toLocalDate().toString();
+            result.add(byDate.getOrDefault(date, new TrendPointVO(date, 0, BigDecimal.ZERO)));
+        }
+        return result;
+    }
+
+    /**
+     * 商品销量排行：按明细快照聚合（排除已取消订单）。
+     */
+    public List<TopGoodsVO> topGoods(int days, int limit) {
+        LocalDateTime start = LocalDate.now().minusDays(days - 1L).atStartOfDay();
+        return dashboardMapper.topGoods(start, Math.min(Math.max(limit, 1), 20));
+    }
+
+    /**
+     * 会员增长：按注册日期聚合，无注册日期补零。
+     */
+    public List<MemberGrowthVO> memberGrowth(int days) {
+        LocalDateTime start = LocalDate.now().minusDays(days - 1L).atStartOfDay();
+        Map<String, MemberGrowthVO> byDate = new HashMap<>();
+        for (MemberGrowthVO point : dashboardMapper.memberGrowth(start)) {
+            byDate.put(point.date(), point);
+        }
+        List<MemberGrowthVO> result = new ArrayList<>(days);
+        DateTimeFormatter formatter = DateTimeFormatter.ISO_LOCAL_DATE;
+        for (int i = 0; i < days; i++) {
+            String date = formatter.format(start.plusDays(i).toLocalDate());
+            result.add(byDate.getOrDefault(date, new MemberGrowthVO(date, 0)));
+        }
+        return result;
+    }
 
     public DashboardOverviewVO overview() {
         LocalDateTime dayStart = LocalDate.now().atStartOfDay();

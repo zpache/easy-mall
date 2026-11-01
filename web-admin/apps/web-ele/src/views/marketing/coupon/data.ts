@@ -261,12 +261,16 @@ export function useColumns<T = MarketingCouponApi.Coupon>(
           onClick: onActionClick,
         },
         name: 'CellOperation',
-        options: ['edit', 'delete'],
+        options: [
+          { code: 'grant', text: $t('marketing.coupon.grant') },
+          'edit',
+          'delete',
+        ],
       },
       field: 'operation',
       fixed: 'right',
       title: $t('marketing.coupon.operation'),
-      width: 150,
+      width: 200,
     },
   ];
 }

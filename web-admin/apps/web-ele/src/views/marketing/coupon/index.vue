@@ -5,7 +5,7 @@ import type {
 } from '#/adapter/vxe-table';
 import type { MarketingCouponApi } from '#/api/marketing/coupon';
 
-import { Page, useVbenDrawer } from '@vben/common-ui';
+import { Page, useVbenDrawer, useVbenModal } from '@vben/common-ui';
 import { Plus } from '@vben/icons';
 
 import { ElButton, ElMessage, ElMessageBox } from 'element-plus';
@@ -20,6 +20,7 @@ import { $t } from '#/locales';
 
 import { useColumns, useGridFormSchema } from './data';
 import Form from './modules/form.vue';
+import Grant from './modules/grant.vue';
 import Records from './modules/records.vue';
 
 const [FormDrawer, formDrawerApi] = useVbenDrawer({
@@ -29,6 +30,11 @@ const [FormDrawer, formDrawerApi] = useVbenDrawer({
 
 const [RecordsDrawer, recordsDrawerApi] = useVbenDrawer({
   connectedComponent: Records,
+  destroyOnClose: true,
+});
+
+const [GrantModal, grantModalApi] = useVbenModal({
+  connectedComponent: Grant,
   destroyOnClose: true,
 });
 
@@ -75,6 +81,10 @@ function onActionClick(e: OnActionClickParams<MarketingCouponApi.Coupon>) {
       formDrawerApi.setData(e.row).open();
       break;
     }
+    case 'grant': {
+      grantModalApi.setData(e.row).open();
+      break;
+    }
   }
 }
 
@@ -118,6 +128,7 @@ function onRecords() {
   <Page auto-content-height>
     <FormDrawer @success="gridApi.query()" />
     <RecordsDrawer />
+    <GrantModal @success="gridApi.query()" />
     <Grid :table-title="$t('marketing.coupon.list')">
       <template #toolbar-tools>
         <ElButton class="mr-2" @click="onRecords">
