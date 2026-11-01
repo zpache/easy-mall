@@ -40,6 +40,16 @@ export function useFormSchema(): VbenFormSchema[] {
     },
     {
       component: 'Input',
+      componentProps: {
+        disabled: true,
+        placeholder: $t('goods.goods.goodsCodePlaceholder'),
+      },
+      fieldName: 'goodsCode',
+      help: $t('goods.goods.goodsCodeTip'),
+      label: $t('goods.goods.goodsCode'),
+    },
+    {
+      component: 'Input',
       fieldName: 'name',
       label: $t('goods.goods.name'),
       rules: z
@@ -202,6 +212,11 @@ export function useColumns<T = GoodsApi.Goods>(
       field: 'mainImage',
       title: $t('goods.goods.mainImage'),
       width: 90,
+    },
+    {
+      field: 'goodsCode',
+      title: $t('goods.goods.goodsCode'),
+      width: 130,
     },
     {
       field: 'name',

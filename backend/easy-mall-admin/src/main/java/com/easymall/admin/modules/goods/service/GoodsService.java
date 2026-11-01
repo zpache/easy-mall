@@ -19,6 +19,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
+import java.security.SecureRandom;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -32,13 +33,23 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class GoodsService extends ServiceImpl<GoodsMapper, Goods> {
 
+    /** 商品编码字符集：数字 + 大写字母 */
+    private static final String CODE_CHARS = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+
+    /** 商品编码长度 */
+    private static final int CODE_LENGTH = 10;
+
+    private static final SecureRandom CODE_RANDOM = new SecureRandom();
+
     private final CategoryMapper categoryMapper;
     private final BrandMapper brandMapper;
 
     public PageResult<GoodsVO> pageQuery(long pageNum, long pageSize, String keyword,
                                          Long categoryId, Long brandId, Integer status) {
         LambdaQueryWrapper<Goods> wrapper = Wrappers.<Goods>lambdaQuery()
-                .like(StringUtils.hasText(keyword), Goods::getName, keyword)
+                // 关键词同时匹配商品名称与商品编码
+                .and(StringUtils.hasText(keyword),
+                        w -> w.like(Goods::getName, keyword).or().like(Goods::getGoodsCode, keyword))
                 .eq(categoryId != null, Goods::getCategoryId, categoryId)
                 .eq(brandId != null, Goods::getBrandId, brandId)
                 .eq(status != null, Goods::getStatus, status)
@@ -61,6 +72,7 @@ public class GoodsService extends ServiceImpl<GoodsMapper, Goods> {
         checkBrand(form.brandId());
         Goods goods = new Goods();
         applyForm(goods, form);
+        goods.setGoodsCode(generateGoodsCode());
         save(goods);
         return goods;
     }
@@ -72,6 +84,7 @@ public class GoodsService extends ServiceImpl<GoodsMapper, Goods> {
         }
         checkCategory(form.categoryId());
         checkBrand(form.brandId());
+        // 商品编码不来自表单，沿用库中原值，保证不可修改
         applyForm(goods, form);
         if (form.version() != null) {
             goods.setVersion(form.version());
@@ -131,6 +144,7 @@ public class GoodsService extends ServiceImpl<GoodsMapper, Goods> {
             Brand brand = goods.getBrandId() == null ? null : brandMap.get(goods.getBrandId());
             return new GoodsVO(
                     goods.getId(),
+                    goods.getGoodsCode(),
                     goods.getCategoryId(),
                     category == null ? null : category.getName(),
                     goods.getBrandId(),
@@ -153,6 +167,23 @@ public class GoodsService extends ServiceImpl<GoodsMapper, Goods> {
                     goods.getUpdatedAt(),
                     goods.getVersion());
         }).toList();
+    }
+
+    /**
+     * 生成 10 位数字+大写字母的随机商品编码，查重通过后才返回；唯一索引兜底防并发重复。
+     */
+    private String generateGoodsCode() {
+        for (int attempt = 0; attempt < 5; attempt++) {
+            StringBuilder sb = new StringBuilder(CODE_LENGTH);
+            for (int i = 0; i < CODE_LENGTH; i++) {
+                sb.append(CODE_CHARS.charAt(CODE_RANDOM.nextInt(CODE_CHARS.length())));
+            }
+            String code = sb.toString();
+            if (count(Wrappers.<Goods>lambdaQuery().eq(Goods::getGoodsCode, code)) == 0) {
+                return code;
+            }
+        }
+        throw new BusinessException("商品编码生成失败，请稍后重试");
     }
 
     private void checkCategory(Long categoryId) {

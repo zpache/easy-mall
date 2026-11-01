@@ -76,6 +76,7 @@ const [Drawer, drawerApi] = useVbenDrawer({
         baseSales: data.baseSales ?? 0,
         categoryId: data.categoryId,
         detail: data.detail,
+        goodsCode: data.goodsCode,
         images: data.images,
         mainImage: data.mainImage,
         name: data.name,

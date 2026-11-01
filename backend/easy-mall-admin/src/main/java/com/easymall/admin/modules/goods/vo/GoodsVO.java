@@ -8,6 +8,8 @@ import java.time.LocalDateTime;
  */
 public record GoodsVO(
         Long id,
+        /** 商品编码：系统生成、唯一、不可修改 */
+        String goodsCode,
         Long categoryId,
         String categoryName,
         Long brandId,

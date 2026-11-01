@@ -26,6 +26,9 @@ public class Goods extends BaseEntity {
 
     private String name;
 
+    /** 商品编码：新增时系统生成的 10 位字母数字唯一编码，生成后不可修改 */
+    private String goodsCode;
+
     private String subtitle;
 
     /** 主图 */

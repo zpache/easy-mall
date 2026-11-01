@@ -13,6 +13,8 @@ export namespace GoodsApi {
     categoryName?: string;
     createdAt?: string;
     detail?: string;
+    /** 商品编码：系统生成、唯一、不可修改 */
+    goodsCode?: string;
     id: number;
     images?: string;
     mainImage: string;
