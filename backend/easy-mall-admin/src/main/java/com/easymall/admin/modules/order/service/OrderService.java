@@ -20,6 +20,7 @@ import com.easymall.admin.mapper.GoodsMapper;
 import com.easymall.admin.mapper.OrderItemMapper;
 import com.easymall.admin.mapper.OrderMapper;
 import com.easymall.admin.modules.order.dto.DeliverForm;
+import com.easymall.admin.modules.order.vo.BatchDeliverVO;
 import com.easymall.admin.modules.order.vo.OrderVO;
 import com.easymall.admin.modules.pay.service.WxPayCloseService;
 import lombok.RequiredArgsConstructor;
@@ -30,6 +31,8 @@ import org.springframework.util.StringUtils;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -118,6 +121,45 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
                 .map(OrderItem::getGoodsName)
                 .toList();
         wxSubscribeService.notifyDeliver(order, String.join("、", goodsNames));
+    }
+
+    /**
+     * 批量发货单行：订单号 + 快递公司 + 快递单号（来自导入的 Excel）。
+     */
+    public record BatchDeliverRow(String orderNo, String deliveryCompany, String deliveryNo) {
+    }
+
+    /**
+     * 批量发货：逐行校验并发货，单行失败不影响其他行。
+     * <p>文件内订单号去重（后行忽略）；发货复用 {@link #deliver} 的乐观锁与状态校验，
+     * 与单个发货行为完全一致。</p>
+     */
+    public BatchDeliverVO batchDeliver(List<BatchDeliverRow> rows) {
+        int success = 0;
+        List<BatchDeliverVO.Failure> failures = new ArrayList<>();
+        Set<String> seen = new HashSet<>();
+        for (BatchDeliverRow row : rows) {
+            String orderNo = row.orderNo() == null ? "" : row.orderNo().trim();
+            if (orderNo.isEmpty()) {
+                continue;
+            }
+            if (!seen.add(orderNo)) {
+                failures.add(new BatchDeliverVO.Failure(orderNo, "订单号在文件中重复，仅处理首次出现"));
+                continue;
+            }
+            try {
+                Order order = getOne(Wrappers.<Order>lambdaQuery().eq(Order::getOrderNo, orderNo).last("LIMIT 1"));
+                if (order == null) {
+                    failures.add(new BatchDeliverVO.Failure(orderNo, "订单号不存在"));
+                    continue;
+                }
+                deliver(order.getId(), new DeliverForm(row.deliveryCompany(), row.deliveryNo()));
+                success++;
+            } catch (BusinessException e) {
+                failures.add(new BatchDeliverVO.Failure(orderNo, e.getMessage()));
+            }
+        }
+        return new BatchDeliverVO(rows.size(), success, failures);
     }
 
     /**

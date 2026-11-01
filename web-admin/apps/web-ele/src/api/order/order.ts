@@ -70,6 +70,12 @@ export namespace OrderApi {
     time?: string;
   }
 
+  export interface BatchDeliverResult {
+    failures: { orderNo: string; reason: string }[];
+    successCount: number;
+    total: number;
+  }
+
   export interface PageResult<T> {
     pageNum: number;
     pageSize: number;
@@ -119,9 +125,46 @@ async function closeOrder(id: number, reason?: string) {
   });
 }
 
+/**
+ * 订单导出（xlsx Blob，沿用列表筛选条件）
+ */
+async function exportOrders(params: Recordable<any>) {
+  return requestClient.download<Blob>('/orders/export', { params });
+}
+
+/**
+ * 批量发货模板下载（xlsx Blob）
+ */
+async function downloadDeliverTemplate() {
+  return requestClient.download<Blob>('/orders/deliver-template');
+}
+
+/**
+ * 批量发货（上传按模板填写的 xlsx）
+ */
+async function batchDeliverOrders(file: File) {
+  return requestClient.upload<OrderApi.BatchDeliverResult>('/orders/batch-deliver', {
+    file,
+  });
+}
+
+/** 浏览器端保存 Blob 文件 */
+function downloadBlob(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
 export {
+  batchDeliverOrders,
   closeOrder,
   deliverOrder,
+  downloadBlob,
+  downloadDeliverTemplate,
+  exportOrders,
   getOrderDetail,
   getOrderList,
   getOrderLogistics,

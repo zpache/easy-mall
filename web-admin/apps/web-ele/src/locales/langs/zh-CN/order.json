@@ -3,6 +3,8 @@
   "order": {
     "entity": "订单",
     "list": "订单列表",
+    "exportBtn": "导出订单",
+    "exportSuccess": "导出成功",
     "orderNo": "订单号",
     "buyer": "买家",
     "goods": "商品",
@@ -77,7 +79,17 @@
     "companyPlaceholder": "选择或输入快递公司",
     "no": "快递单号",
     "noPlaceholder": "请输入快递单号",
-    "orderInfo": "订单信息"
+    "orderInfo": "订单信息",
+    "batchDeliver": "批量发货",
+    "downloadTemplate": "下载模板",
+    "batchTip": "三列依次为 订单号 / 快递公司 / 快递单号",
+    "dropHere": "点击或拖拽 xlsx 文件到这里",
+    "pickFileFirst": "请先选择发货文件",
+    "batchDone": "成功发货 {0} 单",
+    "batchSummary": "共 {0} 条，成功 {1} 条，失败 {2} 条",
+    "startDeliver": "开始发货",
+    "templateName": "批量发货模板.xlsx",
+    "close": "关闭"
   },
   "refund": {
     "entity": "售后单",

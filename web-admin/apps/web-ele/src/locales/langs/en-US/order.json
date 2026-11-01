@@ -3,6 +3,8 @@
   "order": {
     "entity": "Order",
     "list": "Order List",
+    "exportBtn": "Export",
+    "exportSuccess": "Exported",
     "orderNo": "Order No.",
     "buyer": "Buyer",
     "goods": "Items",
@@ -77,7 +79,17 @@
     "companyPlaceholder": "Select or type a carrier",
     "no": "Tracking No.",
     "noPlaceholder": "Enter tracking number",
-    "orderInfo": "Order Info"
+    "orderInfo": "Order Info",
+    "batchDeliver": "Batch Ship",
+    "downloadTemplate": "Download Template",
+    "batchTip": "Columns: Order No. / Carrier / Tracking No.",
+    "dropHere": "Click or drag an xlsx file here",
+    "pickFileFirst": "Please pick a file first",
+    "batchDone": "{0} orders shipped",
+    "batchSummary": "Total {0}, success {1}, failed {2}",
+    "startDeliver": "Start",
+    "templateName": "batch-deliver-template.xlsx",
+    "close": "Close"
   },
   "refund": {
     "entity": "After-sales",

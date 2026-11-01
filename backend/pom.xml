@@ -34,6 +34,8 @@
         <tencentcloud-sdk.version>3.2.6</tencentcloud-sdk.version>
         <!-- admin 管理端自包含 JWT 仍在用；小程序端已改为 Redis 自定义登录态 -->
         <jjwt.version>0.13.0</jjwt.version>
+        <!-- 订单导出 / 批量发货模板：xlsx 读写 -->
+        <poi.version>5.3.0</poi.version>
     </properties>
 
     <dependencyManagement>
@@ -73,6 +75,11 @@
                 <groupId>io.jsonwebtoken</groupId>
                 <artifactId>jjwt-jackson</artifactId>
                 <version>${jjwt.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.poi</groupId>
+                <artifactId>poi-ooxml</artifactId>
+                <version>${poi.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
