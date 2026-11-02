@@ -12,6 +12,7 @@ import com.easymall.admin.entity.StockLog;
 import com.easymall.admin.mapper.GoodsMapper;
 import com.easymall.admin.mapper.StockLogMapper;
 import com.easymall.admin.modules.goods.dto.StockAdjustForm;
+import com.easymall.admin.modules.goods.vo.BatchStockVO;
 import com.easymall.admin.modules.goods.vo.GoodsVO;
 import com.easymall.admin.modules.goods.vo.StockLogVO;
 import com.easymall.admin.modules.goods.vo.StockVO;
@@ -51,7 +52,9 @@ public class StockService {
      */
     public PageResult<StockVO> pageQuery(long pageNum, long pageSize, String keyword, Boolean lowStock) {
         LambdaQueryWrapper<Goods> wrapper = Wrappers.<Goods>lambdaQuery()
-                .like(StringUtils.hasText(keyword), Goods::getName, keyword)
+                // 关键词同时匹配商品名称与商品编码
+                .and(StringUtils.hasText(keyword),
+                        w -> w.like(Goods::getName, keyword).or().like(Goods::getGoodsCode, keyword))
                 .orderByAsc(Goods::getStock)
                 .orderByDesc(Goods::getId);
         if (Boolean.TRUE.equals(lowStock)) {
@@ -62,6 +65,7 @@ public class StockService {
         List<StockVO> records = voList.stream()
                 .map(vo -> new StockVO(
                         vo.id(),
+                        vo.goodsCode(),
                         vo.name(),
                         vo.mainImage(),
                         vo.unit(),
@@ -165,5 +169,78 @@ public class StockService {
         int s = stock == null ? 0 : stock;
         int warn = stockWarn == null ? 0 : stockWarn;
         return s <= warn;
+    }
+
+    /* ---------------- 批量设置库存 ---------------- */
+
+    /** 批量设置时写入流水的备注 */
+    private static final String BATCH_REMARK = "批量设置库存";
+
+    /**
+     * 批量设置库存文件中的一行：商品编码 + 目标库存（Excel 读出的原始字符串）。
+     */
+    public record BatchStockRow(String goodsCode, String stock) {
+    }
+
+    /**
+     * 批量设置库存（盘点语义）：按商品编码逐条把库存改为目标值。
+     *
+     * <p>编码大小写不敏感；文件内编码去重（后行忽略）；目标库存与当前库存一致视为成功但不写流水；
+     * 单条失败不影响其余行，失败原因逐条返回。库存增减复用 {@link #adjust} 相同的
+     * 单条原子 SQL 守卫（stock + delta &gt;= 0），并发安全。</p>
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public BatchStockVO batchSetStock(List<BatchStockRow> rows) {
+        int success = 0;
+        List<BatchStockVO.Failure> failures = new java.util.ArrayList<>();
+        Set<String> seen = new java.util.HashSet<>();
+        for (BatchStockRow row : rows) {
+            String code = row.goodsCode() == null ? "" : row.goodsCode().trim();
+            if (code.isEmpty()) {
+                continue;
+            }
+            if (!seen.add(code.toUpperCase())) {
+                failures.add(new BatchStockVO.Failure(code, null, "商品编码在文件中重复，仅处理首次出现"));
+                continue;
+            }
+            Goods goods = goodsService.getOne(
+                    Wrappers.<Goods>lambdaQuery().eq(Goods::getGoodsCode, code).last("LIMIT 1"));
+            if (goods == null) {
+                failures.add(new BatchStockVO.Failure(code, null, "商品编码不存在"));
+                continue;
+            }
+            int target;
+            try {
+                target = Integer.parseInt(row.stock() == null ? "" : row.stock().trim());
+            } catch (NumberFormatException e) {
+                failures.add(new BatchStockVO.Failure(code, goods.getName(), "目标库存必须为非负整数"));
+                continue;
+            }
+            if (target < 0) {
+                failures.add(new BatchStockVO.Failure(code, goods.getName(), "目标库存不能小于 0"));
+                continue;
+            }
+            int current = goods.getStock() == null ? 0 : goods.getStock();
+            int delta = target - current;
+            if (delta == 0) {
+                success++;
+                continue;
+            }
+            if (goodsMapper.adjustStock(goods.getId(), delta) == 0) {
+                failures.add(new BatchStockVO.Failure(code, goods.getName(), "库存调整失败，请刷新后重试"));
+                continue;
+            }
+            StockLog log = new StockLog();
+            log.setGoodsId(goods.getId());
+            log.setType(TYPE_CHECK);
+            log.setChangeQty(delta);
+            log.setBeforeStock(current);
+            log.setAfterStock(target);
+            log.setRemark(BATCH_REMARK);
+            log.setCreatedBy(UserContext.get() == null ? null : UserContext.userId());
+            stockLogMapper.insert(log);
+            success++;
+        }
+        return new BatchStockVO(rows.size(), success, failures);
     }
 }

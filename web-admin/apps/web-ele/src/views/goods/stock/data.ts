@@ -90,6 +90,11 @@ export function useColumns<T = GoodsStockApi.Stock>(
       width: 90,
     },
     {
+      field: 'goodsCode',
+      title: $t('goods.goods.goodsCode'),
+      width: 130,
+    },
+    {
       field: 'name',
       minWidth: 200,
       title: $t('goods.stock.goods'),

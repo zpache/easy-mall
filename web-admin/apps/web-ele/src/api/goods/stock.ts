@@ -7,6 +7,7 @@ export namespace GoodsStockApi {
     [key: string]: any;
     brandName?: string;
     categoryName?: string;
+    goodsCode?: string;
     goodsId: number;
     lowStock: boolean;
     mainImage?: string;
@@ -37,6 +38,18 @@ export namespace GoodsStockApi {
     qty: number;
     remark?: string;
     type: 'check' | 'in' | 'out';
+  }
+
+  export interface BatchStockFailure {
+    goodsCode: string;
+    goodsName?: string;
+    reason: string;
+  }
+
+  export interface BatchStockResult {
+    failures: BatchStockFailure[];
+    successCount: number;
+    total: number;
   }
 
   export interface PageResult<T> {
@@ -75,4 +88,38 @@ async function getStockLogs(params: Recordable<any>) {
   return { items: result.records, total: result.total };
 }
 
-export { adjustStock, getStockList, getStockLogs };
+/**
+ * 批量设置库存模板下载（xlsx Blob，模板已预填全部商品）
+ */
+async function downloadBatchStockTemplate() {
+  return requestClient.download<Blob>('/stock/batch-template');
+}
+
+/**
+ * 批量设置库存（上传按模板填写的 xlsx）
+ */
+async function batchSetStock(file: File) {
+  return requestClient.upload<GoodsStockApi.BatchStockResult>(
+    '/stock/batch-set',
+    { file },
+  );
+}
+
+/** 浏览器端保存 Blob 文件 */
+function downloadBlob(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+export {
+  adjustStock,
+  batchSetStock,
+  downloadBatchStockTemplate,
+  downloadBlob,
+  getStockList,
+  getStockLogs,
+};

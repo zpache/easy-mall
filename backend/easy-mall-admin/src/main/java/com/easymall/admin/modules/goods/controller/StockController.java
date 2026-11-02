@@ -4,19 +4,28 @@ import com.easymall.admin.common.api.PageResult;
 import com.easymall.admin.common.api.Result;
 import com.easymall.admin.entity.StockLog;
 import com.easymall.admin.modules.goods.dto.StockAdjustForm;
+import com.easymall.admin.modules.goods.service.StockExcelService;
 import com.easymall.admin.modules.goods.service.StockService;
+import com.easymall.admin.modules.goods.vo.BatchStockVO;
 import com.easymall.admin.modules.goods.vo.StockLogVO;
 import com.easymall.admin.modules.goods.vo.StockVO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 
 /**
  * 库存管理。
@@ -28,6 +37,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class StockController {
 
     private final StockService stockService;
+    private final StockExcelService stockExcelService;
 
     @Operation(summary = "库存分页列表")
     @GetMapping
@@ -50,5 +60,23 @@ public class StockController {
                                                @RequestParam(defaultValue = "1") long pageNum,
                                                @RequestParam(defaultValue = "10") long pageSize) {
         return Result.ok(stockService.pageLogs(goodsId, pageNum, pageSize));
+    }
+
+    @Operation(summary = "批量设置库存模板下载（xlsx）")
+    @GetMapping("/batch-template")
+    public ResponseEntity<byte[]> batchTemplate() {
+        byte[] bytes = stockExcelService.stockTemplate();
+        String filename = URLEncoder.encode("批量设置库存模板.xlsx", StandardCharsets.UTF_8);
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename*=UTF-8''" + filename)
+                .contentType(MediaType.parseMediaType(
+                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                .body(bytes);
+    }
+
+    @Operation(summary = "批量设置库存（上传按模板填写的 xlsx）")
+    @PostMapping("/batch-set")
+    public Result<BatchStockVO> batchSet(@RequestParam("file") MultipartFile file) {
+        return Result.ok(stockExcelService.parseAndBatchSet(file));
     }
 }

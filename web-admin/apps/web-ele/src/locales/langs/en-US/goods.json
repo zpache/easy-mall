@@ -85,8 +85,17 @@
     "afterStock": "After",
     "time": "Time",
     "updateTime": "Last Updated",
-    "keyword": "Product Name",
-    "searchPlaceholder": "Search product name",
+    "keyword": "Name/Code",
+    "searchPlaceholder": "Search product name or code",
+    "batchSet": "Batch Set Stock",
+    "downloadTemplate": "Download Template",
+    "batchTip": "Template is pre-filled with codes and current stock; edit the target stock column and upload",
+    "dropHere": "Click or drag an xlsx file here",
+    "pickFileFirst": "Please select a file first",
+    "batchDone": "Batch set completed, {0} goods updated",
+    "batchSummary": "Total {0}, success {1}, failed {2}",
+    "startSet": "Import",
+    "templateName": "Batch Stock Template",
     "operation": "Operation"
   }
 }

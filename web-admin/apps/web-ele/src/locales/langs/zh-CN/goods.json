@@ -85,8 +85,17 @@
     "afterStock": "变动后",
     "time": "操作时间",
     "updateTime": "最后更新",
-    "keyword": "商品名称",
-    "searchPlaceholder": "搜索商品名称",
+    "keyword": "名称/编码",
+    "searchPlaceholder": "搜索商品名称或编码",
+    "batchSet": "批量设置库存",
+    "downloadTemplate": "下载模板",
+    "batchTip": "模板已预填商品编码与当前库存，改「目标库存」列后上传",
+    "dropHere": "点击或拖拽 xlsx 文件到此处",
+    "pickFileFirst": "请先选择文件",
+    "batchDone": "批量设置完成，成功 {0} 个商品",
+    "batchSummary": "共 {0} 条，成功 {1} 条，失败 {2} 条",
+    "startSet": "开始导入",
+    "templateName": "批量设置库存模板",
     "operation": "操作"
   }
 }

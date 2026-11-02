@@ -9,6 +9,8 @@ import java.time.LocalDateTime;
  */
 public record StockVO(
         Long goodsId,
+        /** 商品编码：批量设置库存时的唯一标识 */
+        String goodsCode,
         String name,
         String mainImage,
         String unit,
