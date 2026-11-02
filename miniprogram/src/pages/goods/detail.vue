@@ -1,12 +1,20 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
+import { onLoad, onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
 import { goodsApi } from '@/api/goods'
 import { commentApi } from '@/api/comment'
 import { useCartStore } from '@/store/cart'
 import { useUserStore } from '@/store/user'
 import { formatPrice } from '@/utils/format'
 import { navIconUri } from '@/utils/nav-icon-uri'
+import {
+  appMessage,
+  captureInviter,
+  enableShareMenu,
+  SHOP_NAME,
+  sharePath,
+  timelineMessage
+} from '@/utils/share'
 import type { Goods, GoodsComment, GoodsSku, SpecGroup } from '@/types/api'
 import { useTheme } from '@/composables/useTheme'
 
@@ -48,6 +56,9 @@ const soldOut = computed(() => displayStock.value <= 0)
 
 /** 购物车图标用 lucide 线性图标按主题次文字色渲染，避免 emoji 在安卓端显示成彩色图形 */
 const cartIcon = computed(() => navIconUri('shopping-cart', theme.value.subTextColor))
+
+/** 分享图标与购物车保持同一套线性图标与配色 */
+const shareIcon = computed(() => navIconUri('share-2', theme.value.subTextColor))
 
 const cartBadge = computed(() => (cartStore.count > 99 ? '99+' : String(cartStore.count)))
 
@@ -94,6 +105,12 @@ const specSummary = computed(() => {
   if (!specGroups.value.length) return ''
   const parts = selectedSpecs.value.filter(Boolean)
   return parts.length === specGroups.value.length ? parts.join(' / ') : '请选择规格'
+})
+
+/** 分享标题：商品名 + 当前价格，卡片里一眼看到卖点 */
+const shareTitle = computed(() => {
+  if (!goods.value) return SHOP_NAME
+  return `${goods.value.name} ¥${formatPrice(displayPrice.value)}`
 })
 
 /** 初始化已选值：进入页面默认不预选，强制用户确认规格 */
@@ -193,6 +210,9 @@ function goCart() {
 }
 
 onLoad((options) => {
+  // 分享卡片进入：记录邀请人（用于后续拉新归因），并打开朋友圈分享入口
+  captureInviter(options)
+  enableShareMenu()
   goodsId.value = Number(options?.id ?? 0)
   if (goodsId.value) {
     load()
@@ -204,6 +224,24 @@ onLoad((options) => {
     cartStore.refreshCount().catch(() => undefined)
   }
 })
+
+/** 转发给好友：带商品 ID 与分享人 ID，规格图优先作为卡片封面 */
+onShareAppMessage(() =>
+  appMessage(
+    shareTitle.value,
+    sharePath('/pages/goods/detail', goodsId.value ? { id: goodsId.value } : undefined),
+    displayImage.value
+  )
+)
+
+/** 分享到朋友圈：路径固定本页，query 同样带商品与邀请人 */
+onShareTimeline(() =>
+  timelineMessage(
+    shareTitle.value,
+    goodsId.value ? { id: goodsId.value } : undefined,
+    displayImage.value
+  )
+)
 </script>
 
 <template>
@@ -344,6 +382,11 @@ onLoad((options) => {
         </view>
         <text class="bar__cart-label">购物车</text>
       </view>
+      <!-- 分享转发：button open-type=share 直接唤起微信转发面板 -->
+      <button class="bar__share" open-type="share" hover-class="bar__share--hover" :hover-stay-time="80">
+        <image class="bar__share-icon" :src="shareIcon" mode="aspectFit" />
+        <text class="bar__share-label">分享</text>
+      </button>
       <view class="bar__actions">
         <view
           class="bar__btn bar__btn--cart"
@@ -759,6 +802,45 @@ onLoad((options) => {
   }
 
   &__cart-label {
+    margin-top: 4rpx;
+    font-size: 20rpx;
+    line-height: 24rpx;
+    color: $text-secondary;
+  }
+
+  /* 分享入口：小程序 button 自带边框/内边距，全部重置成与购物车一致的图标列 */
+  &__share {
+    flex: none;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 96rpx;
+    margin: 0;
+    padding: 0;
+    font-size: inherit;
+    line-height: normal;
+    color: inherit;
+    background-color: transparent;
+    border: none;
+    border-radius: 0;
+    transition: opacity 0.15s;
+
+    &::after {
+      border: none;
+    }
+
+    &--hover {
+      opacity: 0.6;
+    }
+  }
+
+  &__share-icon {
+    width: 46rpx;
+    height: 46rpx;
+  }
+
+  &__share-label {
     margin-top: 4rpx;
     font-size: 20rpx;
     line-height: 24rpx;

@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { onShow } from '@dcloudio/uni-app'
+import { onShareAppMessage, onShareTimeline, onShow } from '@dcloudio/uni-app'
 import DecorateTabbar from '@/components/decorate/tabbar.vue'
 import { couponApi } from '@/api/coupon'
 import { useDecorateStore } from '@/store/decorate'
 import { useUserStore } from '@/store/user'
 import { resolveMediaUrl } from '@/utils/url'
 import { formatPrice } from '@/utils/format'
+import { appMessage, enableShareMenu, SHOP_NAME, sharePath, timelineMessage } from '@/utils/share'
 import { useTheme } from '@/composables/useTheme'
 
 const { themePageStyle } = useTheme()
@@ -102,6 +103,13 @@ async function logout() {
   }
 }
 
+/** 分享标题：登录后用「昵称邀请你逛」更有说服力，未登录用通用文案 */
+const shareTitle = computed(() => {
+  const shop = decorateStore.nav.navbar.title || SHOP_NAME
+  const name = userStore.isLogin ? userStore.profile?.nickname : ''
+  return name ? `${name} 邀请你逛${shop}` : `发现一个好物商城：${shop}`
+})
+
 onShow(() => {
   if (userStore.isLogin) {
     userStore.fetchProfile().catch(() => userStore.logout())
@@ -109,7 +117,14 @@ onShow(() => {
   }
   decorateStore.ensureNav()
   decorateStore.ensureTheme()
+  // 打开右上角菜单的转发 / 朋友圈入口
+  enableShareMenu()
 })
+
+/** 转发给好友：落地到首页，比停在个人中心更有逛的动力 */
+onShareAppMessage(() => appMessage(shareTitle.value, sharePath('/pages/index/index')))
+
+onShareTimeline(() => timelineMessage(shareTitle.value))
 </script>
 
 <template>
@@ -175,6 +190,11 @@ onShow(() => {
       <view class="cell cell-arrow" @tap="toAddress">
         <text>收货地址</text>
       </view>
+      <!-- 分享转发：个人中心也放一个入口，不用教用户去右上角菜单找 -->
+      <button class="cell share-cell" open-type="share" hover-class="share-cell--hover" :hover-stay-time="80">
+        <text class="share-cell__label">分享给好友</text>
+        <text class="share-cell__tip">右上角可分享到朋友圈</text>
+      </button>
     </view>
 
     <view v-if="userStore.isLogin" class="logout" @tap="logout">退出登录</view>
@@ -355,5 +375,36 @@ onShow(() => {
   border-radius: 20rpx;
   color: $danger;
   font-size: 28rpx;
+}
+
+/* 分享入口用 button open-type=share，重置默认外观后与左侧 cell 对齐 */
+.share-cell {
+  width: 100%;
+  margin: 0;
+  padding: 28rpx 24rpx;
+  font-size: 28rpx;
+  line-height: normal;
+  text-align: left;
+  color: $text-main;
+  background-color: #fff;
+  border-radius: 0;
+
+  &::after {
+    border: none;
+  }
+
+  &__label {
+    font-size: 28rpx;
+    color: $text-main;
+  }
+
+  &__tip {
+    font-size: 22rpx;
+    color: $text-placeholder;
+  }
+
+  &--hover {
+    opacity: 0.7;
+  }
 }
 </style>

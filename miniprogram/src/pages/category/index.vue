@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-import { onLoad, onShow, onUnload } from '@dcloudio/uni-app'
+import { computed, ref } from 'vue'
+import { onLoad, onShareAppMessage, onShareTimeline, onShow, onUnload } from '@dcloudio/uni-app'
 import GoodsCard from '@/components/goods-card.vue'
 import DecorateTabbar from '@/components/decorate/tabbar.vue'
 import EmptyState from '@/components/empty-state.vue'
 import { goodsApi } from '@/api/goods'
 import { useDecorateStore } from '@/store/decorate'
+import { appMessage, captureInviter, enableShareMenu, SHOP_NAME, sharePath, timelineMessage } from '@/utils/share'
 import type { Category, Goods } from '@/types/api'
 import { useTheme } from '@/composables/useTheme'
 
@@ -46,7 +47,10 @@ function onSelectFromHome(categoryId: number) {
   }
 }
 
-onLoad(async () => {
+onLoad(async (options) => {
+  // 分享卡片进入：记录邀请人 + 打开转发/朋友圈入口
+  captureInviter(options)
+  enableShareMenu()
   uni.$on('category:select', onSelectFromHome)
   decorateStore.ensureNav()
   await loadCategories()
@@ -60,6 +64,29 @@ onShow(() => {
 onUnload(() => {
   uni.$off('category:select', onSelectFromHome)
 })
+
+/** 分享标题跟随当前选中的分类 */
+const shareTitle = computed(() => {
+  const category = categories.value.find((item) => item.id === activeId.value)
+  return category ? `${category.name} · 好物推荐` : `${SHOP_NAME} · 全部分类`
+})
+
+/** 转发落地到商品列表页（带分类），比落地分类 tab 更直接 */
+onShareAppMessage(() =>
+  appMessage(
+    shareTitle.value,
+    sharePath('/pages/goods/list', { categoryId: activeId.value || undefined }),
+    goodsList.value[0]?.mainImage
+  )
+)
+
+onShareTimeline(() =>
+  timelineMessage(
+    shareTitle.value,
+    { categoryId: activeId.value || undefined },
+    goodsList.value[0]?.mainImage
+  )
+)
 </script>
 
 <template>

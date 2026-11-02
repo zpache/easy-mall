@@ -1,6 +1,12 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { onLoad, onPullDownRefresh, onShow } from '@dcloudio/uni-app'
+import {
+  onLoad,
+  onPullDownRefresh,
+  onShareAppMessage,
+  onShareTimeline,
+  onShow
+} from '@dcloudio/uni-app'
 import DecorateFloatBall from '@/components/decorate/float-ball.vue'
 import DecorateNavbar from '@/components/decorate/navbar.vue'
 import DecorateRender from '@/components/decorate/render.vue'
@@ -8,6 +14,7 @@ import DecorateTabbar from '@/components/decorate/tabbar.vue'
 import { decorateApi } from '@/api/decorate'
 import { useDecorateStore } from '@/store/decorate'
 import { parseNav, parseSchema, px, statusBarHeight } from '@/utils/decorate'
+import { appMessage, captureInviter, enableShareMenu, SHOP_NAME, sharePath, timelineMessage } from '@/utils/share'
 import type { PageSchema } from '@/types/decorate'
 import { useTheme } from '@/composables/useTheme'
 
@@ -64,7 +71,13 @@ function toGoodsList() {
   uni.navigateTo({ url: '/pages/goods/list' })
 }
 
-onLoad(() => {
+/** 分享标题跟随后台装修的导航标题，未配置时用店铺兜底名 */
+const shareTitle = computed(() => decorateStore.nav.navbar.title || SHOP_NAME)
+
+onLoad((options) => {
+  // 分享卡片进入：记录邀请人 + 打开转发/朋友圈入口
+  captureInviter(options)
+  enableShareMenu()
   load()
 })
 
@@ -79,6 +92,13 @@ onPullDownRefresh(async () => {
   await load()
   uni.stopPullDownRefresh()
 })
+
+/** 转发首页：带上分享人 ID，卡片封面优先用装修页背景图 */
+onShareAppMessage(() =>
+  appMessage(shareTitle.value, sharePath('/pages/index/index'), schema.value.page.bgImage)
+)
+
+onShareTimeline(() => timelineMessage(shareTitle.value, undefined, schema.value.page.bgImage))
 </script>
 
 <template>

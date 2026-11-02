@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { onLoad, onPullDownRefresh } from '@dcloudio/uni-app'
+import { onLoad, onPullDownRefresh, onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
 import DecorateFloatBall from '@/components/decorate/float-ball.vue'
 import DecorateRender from '@/components/decorate/render.vue'
 import DecorateTabbar from '@/components/decorate/tabbar.vue'
 import { decorateApi } from '@/api/decorate'
 import { useDecorateStore } from '@/store/decorate'
 import { parseNav, parseSchema } from '@/utils/decorate'
+import { appMessage, captureInviter, enableShareMenu, SHOP_NAME, sharePath, timelineMessage } from '@/utils/share'
 import type { PageSchema } from '@/types/decorate'
 import { useTheme } from '@/composables/useTheme'
 
@@ -69,6 +70,9 @@ function toGoodsList() {
 }
 
 onLoad((query) => {
+  // 分享卡片进入：记录邀请人 + 打开转发/朋友圈入口
+  captureInviter(query)
+  enableShareMenu()
   pageId.value = String(query?.id || '')
   load()
 })
@@ -77,6 +81,21 @@ onPullDownRefresh(async () => {
   await load()
   uni.stopPullDownRefresh()
 })
+
+/** 分享标题用装修页名称，落地页带 pageId，好友点开看到同一个活动页 */
+const shareTitle = computed(() => schema.value.page.title || decorateStore.nav.navbar.title || SHOP_NAME)
+
+onShareAppMessage(() =>
+  appMessage(
+    shareTitle.value,
+    sharePath('/pages/decorate/index', { id: pageId.value }),
+    schema.value.page.bgImage
+  )
+)
+
+onShareTimeline(() =>
+  timelineMessage(shareTitle.value, { id: pageId.value }, schema.value.page.bgImage)
+)
 </script>
 
 <template>

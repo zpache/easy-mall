@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { onLoad, onReachBottom } from '@dcloudio/uni-app'
+import { onLoad, onReachBottom, onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
 import EmptyState from '@/components/empty-state.vue'
 import GoodsCard from '@/components/goods-card.vue'
 import { goodsApi } from '@/api/goods'
+import { appMessage, captureInviter, enableShareMenu, SHOP_NAME, sharePath, timelineMessage } from '@/utils/share'
 import type { Category, Goods } from '@/types/api'
 import { useTheme } from '@/composables/useTheme'
 
@@ -126,6 +127,9 @@ function onSortTap(value: string) {
 }
 
 onLoad((options) => {
+  // 分享卡片进入：记录邀请人 + 打开转发/朋友圈入口
+  captureInviter(options)
+  enableShareMenu()
   // 支持从其它页面带初始条件进入：?categoryId=1&keyword=脐橙
   const categoryId = Number(options?.categoryId)
   if (Number.isFinite(categoryId) && categoryId > 0) {
@@ -143,6 +147,35 @@ onLoad((options) => {
 onReachBottom(() => {
   load()
 })
+
+/** 分享标题带上当前筛选语境，好友点开看到的是同一批商品 */
+const shareTitle = computed(() => {
+  if (appliedKeyword.value) return `「${appliedKeyword.value}」的好物推荐`
+  const category = categories.value.find((item) => item.id === activeCategoryId.value)
+  return category ? `${category.name} · 好物推荐` : `${SHOP_NAME} · 全部商品`
+})
+
+onShareAppMessage(() =>
+  appMessage(
+    shareTitle.value,
+    sharePath('/pages/goods/list', {
+      categoryId: activeCategoryId.value || undefined,
+      keyword: appliedKeyword.value || undefined
+    }),
+    list.value[0]?.mainImage
+  )
+)
+
+onShareTimeline(() =>
+  timelineMessage(
+    shareTitle.value,
+    {
+      categoryId: activeCategoryId.value || undefined,
+      keyword: appliedKeyword.value || undefined
+    },
+    list.value[0]?.mainImage
+  )
+)
 </script>
 
 <template>

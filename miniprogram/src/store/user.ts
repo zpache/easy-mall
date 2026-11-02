@@ -2,7 +2,7 @@ import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
 import { authApi, userApi } from '@/api/user'
 import type { UserProfile } from '@/types/api'
-import { clearToken, getToken, setToken } from '@/utils/storage'
+import { clearToken, clearUid, getToken, setToken, setUid } from '@/utils/storage'
 
 /**
  * 用户状态：token + 资料。
@@ -23,6 +23,8 @@ export const useUserStore = defineStore('user', () => {
 
   async function fetchProfile() {
     profile.value = await userApi.profile()
+    // 分享链接需要当前用户 ID，随资料一起缓存，避免每次分享都依赖 store 是否就绪
+    setUid(profile.value?.id)
     return profile.value
   }
 
@@ -44,6 +46,7 @@ export const useUserStore = defineStore('user', () => {
     token.value = ''
     profile.value = null
     clearToken()
+    clearUid()
   }
 
   let relogining = false

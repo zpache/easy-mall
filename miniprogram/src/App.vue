@@ -7,11 +7,14 @@ import { setUnauthorizedHandler } from '@/api/request'
 import { useUserStore } from '@/store/user'
 import { useCartStore } from '@/store/cart'
 import { useDecorateStore } from '@/store/decorate'
+import { captureInviter } from '@/utils/share'
 import { THEME_VAR_MAP } from '@/composables/useTheme'
 
 const decorateStore = useDecorateStore()
 
-onLaunch(() => {
+onLaunch((options) => {
+  // 冷启动可能来自分享卡片：先落邀请人，再走登录/资料流程
+  captureInviter((options as any)?.query)
   const userStore = useUserStore()
   // 自定义登录态失效（过期/被踢）时，请求层自动静默重登后重试
   setUnauthorizedHandler(() => userStore.silentRelogin())
@@ -30,7 +33,9 @@ onLaunch(() => {
   void decorateStore.ensureTheme(true)
 })
 
-onShow(() => {
+onShow((options) => {
+  // 热启动（小程序在后台时点分享卡片）也要补一次邀请人记录
+  captureInviter((options as any)?.query)
   // 从后台切回前台：按 TTL 校验线上主题，管理端启用新主题后切回来就能同步
   void decorateStore.ensureTheme()
 })
