@@ -31,6 +31,10 @@ export namespace GoodsStockApi {
     goodsName?: string;
     id: number;
     remark?: string;
+    /** SKU ID，商品级流水为空 */
+    skuId?: number;
+    /** 规格值文案 */
+    specText?: string;
     type: 'check' | 'in' | 'out';
   }
 
@@ -38,6 +42,8 @@ export namespace GoodsStockApi {
     goodsId: number;
     qty: number;
     remark?: string;
+    /** SKU ID：多规格商品必填 */
+    skuId?: number;
     type: 'check' | 'in' | 'out';
   }
 

@@ -160,6 +160,7 @@ public class GoodsService extends ServiceImpl<GoodsMapper, Goods> {
                     goods.getSales(),
                     goods.getBaseSales(),
                     goods.getUnit(),
+                    goods.getSpecs(),
                     goods.getDetail(),
                     goods.getStatus(),
                     goods.getSort(),
@@ -214,6 +215,10 @@ public class GoodsService extends ServiceImpl<GoodsMapper, Goods> {
         goods.setStock(form.stock());
         goods.setStockWarn(form.stockWarn() == null ? 0 : form.stockWarn());
         goods.setUnit(form.unit());
+        // 规格定义只由「规格库存」抽屉维护：基础表单不带该字段时保留原值，避免编辑商品把规格清掉
+        if (form.specs() != null) {
+            goods.setSpecs(form.specs());
+        }
         goods.setDetail(form.detail());
         goods.setStatus(form.status());
         // 基础销量：显式传值则以运营填写的为准，留空时新增归零、编辑保留库里原值；真实销量不通过表单修改

@@ -13,7 +13,7 @@ import org.springframework.stereotype.Service;
 public class PaymentConfigService {
 
     private static final String GROUP = SysConfig.GROUP_PAYMENT;
-    private static final int DEFAULT_PAY_TIMEOUT = 30;
+    private static final int DEFAULT_PAY_TIMEOUT = 15;
     private static final int DEFAULT_AUTO_RECEIVE_DAYS = 15;
 
     private final SysConfigService sysConfigService;

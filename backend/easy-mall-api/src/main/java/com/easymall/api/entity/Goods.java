@@ -1,13 +1,16 @@
 package com.easymall.api.entity;
 
 import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 /**
  * 商品。
@@ -45,9 +48,20 @@ public class Goods extends BaseEntity {
 
     private String unit;
 
+    /**
+     * 规格定义 JSON：[{"name":"颜色","values":["红","蓝"]}]。
+     * 为 null 表示单规格商品，直接使用商品表的价格与库存。
+     */
+    private String specs;
+
     private String detail;
 
     private Integer status;
 
     private Integer sort;
+
+    /** SKU 列表：仅商品详情返回，列表接口不填充 */
+    @TableField(exist = false)
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private List<GoodsSku> skus;
 }

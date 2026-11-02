@@ -46,6 +46,9 @@ public record GoodsForm(
 
         String unit,
 
+        /** 规格定义 JSON，为空表示单规格；多规格的价格与库存在「规格库存」抽屉单独维护 */
+        String specs,
+
         String detail,
 
         @NotNull(message = "状态不能为空")

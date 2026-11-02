@@ -31,7 +31,10 @@
     "imageTip": "Select from the material center",
     "imagesTip": "Select from the material center, up to 5 images",
     "baseSales": "Base sales",
-    "baseSalesTip": "Mini program shows base + real sales (auto-incremented on orders)"
+    "baseSalesTip": "Mini program shows base + real sales (auto-incremented on orders)",
+    "skuConfig": "Specs & SKU",
+    "specs": "Specifications",
+    "skuCount": "SKU count"
   },
   "category": {
     "entity": "Category",

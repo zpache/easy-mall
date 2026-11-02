@@ -23,6 +23,8 @@ export namespace GoodsApi {
     price: number;
     sales?: number;
     sort?: number;
+    /** 规格定义 JSON，为空表示单规格商品 */
+    specs?: null | string;
     status: 0 | 1;
     stock: number;
     stockWarn?: number;
@@ -57,6 +59,45 @@ export namespace GoodsApi {
     pages: number;
     records: T[];
     total: number;
+  }
+
+  /** 规格组：如 { name: '颜色', values: ['红','蓝'] } */
+  export interface SpecGroup {
+    name: string;
+    values: string[];
+  }
+
+  /** SKU 行 */
+  export interface Sku {
+    id?: number;
+    skuCode?: string;
+    specText: string;
+    price: number;
+    originalPrice?: null | number;
+    stock: number;
+    sales?: number;
+    image?: null | string;
+    status?: number;
+  }
+
+  export interface SkuConfig {
+    goodsId: number;
+    /** 规格定义 JSON，为空表示单规格 */
+    specs: null | string;
+    skus: Sku[];
+  }
+
+  export interface SkuConfigPayload {
+    specs: null | string;
+    skus: Array<{
+      id?: number;
+      image?: null | string;
+      originalPrice?: null | number;
+      price: number;
+      specText: string;
+      status?: number;
+      stock: number;
+    }>;
   }
 }
 
@@ -93,11 +134,30 @@ async function changeGoodsStatus(id: number, status: number) {
   });
 }
 
+/**
+ * 商品的规格定义与 SKU 列表
+ */
+async function getGoodsSku(goodsId: number) {
+  return requestClient.get<GoodsApi.SkuConfig>(`/goods/${goodsId}/sku`);
+}
+
+/**
+ * 保存规格与 SKU（specs 传 null 表示改回单规格）
+ */
+async function saveGoodsSku(goodsId: number, data: GoodsApi.SkuConfigPayload) {
+  return requestClient.put<GoodsApi.SkuConfig>(
+    `/goods/${goodsId}/sku`,
+    data,
+  );
+}
+
 export {
   changeGoodsStatus,
   createGoods,
   deleteGoods,
   getGoodsDetail,
   getGoodsList,
+  getGoodsSku,
+  saveGoodsSku,
   updateGoods,
 };

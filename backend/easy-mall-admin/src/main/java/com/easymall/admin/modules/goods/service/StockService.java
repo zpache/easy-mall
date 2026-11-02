@@ -8,8 +8,10 @@ import com.easymall.admin.common.api.ResultCode;
 import com.easymall.admin.common.context.UserContext;
 import com.easymall.admin.common.exception.BusinessException;
 import com.easymall.admin.entity.Goods;
+import com.easymall.admin.entity.GoodsSku;
 import com.easymall.admin.entity.StockLog;
 import com.easymall.admin.mapper.GoodsMapper;
+import com.easymall.admin.mapper.GoodsSkuMapper;
 import com.easymall.admin.mapper.StockLogMapper;
 import com.easymall.admin.modules.goods.dto.StockAdjustForm;
 import com.easymall.admin.modules.goods.vo.BatchStockVO;
@@ -44,7 +46,9 @@ public class StockService {
     private static final Set<String> TYPES = Set.of(TYPE_IN, TYPE_OUT, TYPE_CHECK);
 
     private final GoodsService goodsService;
+    private final SkuService skuService;
     private final GoodsMapper goodsMapper;
+    private final GoodsSkuMapper goodsSkuMapper;
     private final StockLogMapper stockLogMapper;
 
     /**
@@ -94,7 +98,21 @@ public class StockService {
         if (!TYPES.contains(type)) {
             throw new BusinessException("调整类型只能为 in（入库）、out（出库）或 check（盘点）");
         }
-        int current = goods.getStock() == null ? 0 : goods.getStock();
+        // 多规格商品必须按 SKU 调整，否则商品汇总库存与 SKU 库存会对不上
+        boolean multiSpec = skuService.hasSpecs(form.goodsId());
+        GoodsSku sku = null;
+        if (multiSpec) {
+            if (form.skuId() == null) {
+                throw new BusinessException("该商品为多规格商品，请选择具体规格后再调整库存");
+            }
+            sku = skuService.requireSku(form.goodsId(), form.skuId());
+        } else if (form.skuId() != null) {
+            throw new BusinessException("该商品为单规格商品，无需指定规格");
+        }
+
+        int current = sku == null
+                ? (goods.getStock() == null ? 0 : goods.getStock())
+                : (sku.getStock() == null ? 0 : sku.getStock());
         int qty = form.qty() == null ? 0 : form.qty();
         int delta;
         switch (type) {
@@ -115,16 +133,39 @@ public class StockService {
         if (delta == 0) {
             throw new BusinessException("库存没有变化，无需调整");
         }
-        // 单条 SQL 内完成判断与更新，避免并发覆盖
+
+        if (sku != null) {
+            // SKU 库存：单条 SQL 内判断与更新
+            var wrapper = Wrappers.<GoodsSku>lambdaUpdate()
+                    .eq(GoodsSku::getId, sku.getId())
+                    .setSql("stock = stock + " + delta);
+            if (delta < 0) {
+                wrapper.ge(GoodsSku::getStock, -delta);
+            }
+            if (goodsSkuMapper.update(null, wrapper) == 0) {
+                throw new BusinessException(ResultCode.DATA_CONFLICT,
+                        "库存不足，当前库存 " + current + "，无法出库 " + qty);
+            }
+        }
+        // 商品汇总库存同步增减（多规格商品为各 SKU 合计）
         if (goodsMapper.adjustStock(form.goodsId(), delta) == 0) {
             throw new BusinessException(ResultCode.DATA_CONFLICT,
                     "库存不足，当前库存 " + current + "，无法出库 " + qty);
         }
+
         Goods latest = goodsService.getById(form.goodsId());
-        int afterStock = latest == null ? current + delta : latest.getStock();
+        int afterStock;
+        if (sku != null) {
+            GoodsSku latestSku = goodsSkuMapper.selectById(sku.getId());
+            afterStock = latestSku == null ? current + delta : latestSku.getStock();
+        } else {
+            afterStock = latest == null ? current + delta : latest.getStock();
+        }
 
         StockLog log = new StockLog();
         log.setGoodsId(form.goodsId());
+        log.setSkuId(sku == null ? null : sku.getId());
+        log.setSpecText(sku == null ? null : sku.getSpecText());
         log.setType(type);
         log.setChangeQty(delta);
         log.setBeforeStock(afterStock - delta);
@@ -157,6 +198,8 @@ public class StockService {
                             log.getGoodsId(),
                             goods == null ? null : goods.getGoodsCode(),
                             goods == null ? null : goods.getName(),
+                            log.getSkuId(),
+                            log.getSpecText(),
                             log.getType(),
                             log.getChangeQty(),
                             log.getBeforeStock(),
@@ -211,6 +254,12 @@ public class StockService {
                     Wrappers.<Goods>lambdaQuery().eq(Goods::getGoodsCode, code).last("LIMIT 1"));
             if (goods == null) {
                 failures.add(new BatchStockVO.Failure(code, null, "商品编码不存在"));
+                continue;
+            }
+            // 多规格商品的总库存由各 SKU 汇总，批量按商品改总和会与 SKU 对不上
+            if (skuService.hasSpecs(goods.getId())) {
+                failures.add(new BatchStockVO.Failure(code, goods.getName(),
+                        "多规格商品请在「商品 - 规格库存」中按 SKU 调整"));
                 continue;
             }
             int target;

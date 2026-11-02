@@ -225,6 +225,7 @@ onUnload(() => {
         <image class="goods__image" :src="item.goodsImage" mode="aspectFill" />
         <view class="goods__body">
           <text class="goods__name ellipsis-2">{{ item.goodsName }}</text>
+          <text v-if="item.specText" class="goods__spec">{{ item.specText }}</text>
           <view class="goods__bottom">
             <text class="price">¥{{ formatPrice(item.price) }}</text>
             <text class="goods__qty">x{{ item.quantity }}</text>
@@ -427,6 +428,15 @@ onUnload(() => {
   &__name {
     font-size: 28rpx;
     line-height: 38rpx;
+  }
+
+  &__spec {
+    align-self: flex-start;
+    padding: 2rpx 10rpx;
+    font-size: 22rpx;
+    color: $text-secondary;
+    background-color: $page-bg;
+    border-radius: 6rpx;
   }
 
   &__bottom {

@@ -54,6 +54,12 @@ public class Goods extends BaseEntity {
 
     private String unit;
 
+    /**
+     * 规格定义 JSON：[{"name":"颜色","values":["红","蓝"]}]。
+     * 为空表示单规格商品；有值时价格与库存由 mall_goods_sku 汇总而来。
+     */
+    private String specs;
+
     /** 富文本详情 */
     private String detail;
 

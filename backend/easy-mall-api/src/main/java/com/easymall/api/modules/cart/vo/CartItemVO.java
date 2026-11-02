@@ -6,6 +6,8 @@ import java.math.BigDecimal;
  * 购物车条目视图（已聚合商品信息）。
  *
  * @param invalid 商品已下架或库存不足时为 true，前端置灰处理
+ * @param skuId     SKU ID，单规格商品为 null
+ * @param specText  规格值文案，如 红色,S；单规格商品为 null
  */
 public record CartItemVO(
         Long id,
@@ -17,6 +19,8 @@ public record CartItemVO(
         Integer quantity,
         Integer checked,
         BigDecimal subtotal,
-        boolean invalid
+        boolean invalid,
+        Long skuId,
+        String specText
 ) {
 }

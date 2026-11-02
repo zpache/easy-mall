@@ -36,7 +36,7 @@ const form = reactive({
   wxpayPublicKey: '',
   wxpayPublicKeyId: '',
   refundNotifyUrl: '',
-  orderPayTimeoutMinutes: 30,
+  orderPayTimeoutMinutes: 15,
   autoReceiveDays: 15,
 });
 
@@ -68,7 +68,7 @@ async function loadConfig() {
     form.notifyUrl = config.notifyUrl ?? '';
     form.wxpayPublicKeyId = config.wxpayPublicKeyId ?? '';
     form.refundNotifyUrl = config.refundNotifyUrl ?? '';
-    form.orderPayTimeoutMinutes = config.orderPayTimeoutMinutes ?? 30;
+    form.orderPayTimeoutMinutes = config.orderPayTimeoutMinutes ?? 15;
     form.autoReceiveDays = config.autoReceiveDays ?? 15;
     apiV3KeySet.value = config.apiV3KeySet;
     privateKeySet.value = config.privateKeySet;
@@ -94,7 +94,7 @@ function buildPayload(): SettingsPaymentApi.PaymentConfigPayload {
     notifyUrl: form.notifyUrl.trim(),
     wxpayPublicKeyId: form.wxpayPublicKeyId.trim(),
     refundNotifyUrl: form.refundNotifyUrl.trim(),
-    orderPayTimeoutMinutes: form.orderPayTimeoutMinutes ?? 30,
+    orderPayTimeoutMinutes: form.orderPayTimeoutMinutes ?? 15,
     autoReceiveDays: form.autoReceiveDays ?? 15,
     apiV3Key: form.apiV3Key.trim() || undefined,
     privateKey: form.privateKey.trim() || undefined,

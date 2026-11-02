@@ -180,6 +180,12 @@ export function useLogColumns(): VxeTableGridColumns {
       width: 100,
     },
     {
+      field: 'specText',
+      formatter: ({ row }) => row.specText || '—',
+      title: $t('goods.goods.specs'),
+      width: 140,
+    },
+    {
       field: 'changeQty',
       formatter: ({ row }) =>
         row.changeQty > 0 ? `+${row.changeQty}` : `${row.changeQty}`,

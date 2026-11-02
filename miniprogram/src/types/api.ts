@@ -23,6 +23,29 @@ export interface Category {
   status: number
 }
 
+/** 规格组：如 { name: '颜色', values: ['红','蓝'] } */
+export interface SpecGroup {
+  name: string
+  values: string[]
+}
+
+/** 商品 SKU：一个规格组合一行，价格与库存以 SKU 为准 */
+export interface GoodsSku {
+  id: number
+  goodsId: number
+  skuCode?: string
+  /** 规格值文案，按规格顺序逗号拼接，如 红色,S */
+  specText: string
+  price: number
+  originalPrice?: null | number
+  stock: number
+  sales?: number
+  /** 规格图，留空回落到商品主图 */
+  image?: null | string
+  /** 1 启用 0 停用 */
+  status: number
+}
+
 export interface Goods {
   id: number
   categoryId: number
@@ -35,6 +58,10 @@ export interface Goods {
   stock: number
   sales: number
   unit?: string
+  /** 规格定义 JSON，为空表示单规格商品 */
+  specs?: null | string
+  /** SKU 列表：仅详情接口返回 */
+  skus?: GoodsSku[]
   detail?: string
   status: number
   sort: number
@@ -57,6 +84,10 @@ export interface CartItem {
   checked: number
   subtotal: number
   invalid: boolean
+  /** SKU ID，单规格商品为空 */
+  skuId?: null | number
+  /** 规格值文案，如 红色,S */
+  specText?: null | string
 }
 
 export interface Address {
@@ -83,6 +114,10 @@ export interface AddressForm {
 export interface OrderItem {
   id: number
   goodsId: number
+  /** SKU ID，单规格商品为空 */
+  skuId?: null | number
+  /** 规格值文案，如 红色,S */
+  specText?: null | string
   goodsName: string
   goodsImage: string
   price: number

@@ -20,6 +20,12 @@ public class StockLog implements Serializable {
 
     private Long goodsId;
 
+    /** SKU ID：多规格商品的流水记录到 SKU 维度，商品级流水为空 */
+    private Long skuId;
+
+    /** 规格值文案，如 红色,S */
+    private String specText;
+
     /** in 入库 / out 出库 / check 盘点 */
     private String type;
 

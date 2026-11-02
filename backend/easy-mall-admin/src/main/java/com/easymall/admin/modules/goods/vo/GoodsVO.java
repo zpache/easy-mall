@@ -27,6 +27,8 @@ public record GoodsVO(
         /** 基础销量（运营维护的展示基数） */
         Integer baseSales,
         String unit,
+        /** 规格定义 JSON，为空表示单规格商品 */
+        String specs,
         String detail,
         Integer status,
         Integer sort,

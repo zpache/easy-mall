@@ -8,8 +8,10 @@ import com.easymall.api.common.api.ResultCode;
 import com.easymall.api.common.exception.BusinessException;
 import com.easymall.api.entity.Category;
 import com.easymall.api.entity.Goods;
+import com.easymall.api.entity.GoodsSku;
 import com.easymall.api.mapper.CategoryMapper;
 import com.easymall.api.mapper.GoodsMapper;
+import com.easymall.api.mapper.GoodsSkuMapper;
 import com.easymall.api.modules.goods.vo.HomeVO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -29,6 +31,7 @@ public class GoodsService {
 
     private final GoodsMapper goodsMapper;
     private final CategoryMapper categoryMapper;
+    private final GoodsSkuMapper goodsSkuMapper;
 
     public PageResult<Goods> pageQuery(long pageNum, long pageSize, Long categoryId, String keyword, String sortBy) {
         LambdaQueryWrapper<Goods> wrapper = Wrappers.<Goods>lambdaQuery()
@@ -49,6 +52,11 @@ public class GoodsService {
         if (!Integer.valueOf(1).equals(goods.getStatus())) {
             throw new BusinessException(ResultCode.GOODS_OFF_SHELF);
         }
+        // 多规格商品：附带启用中的 SKU，前端据此渲染规格选择与价格/库存联动
+        goods.setSkus(goodsSkuMapper.selectList(Wrappers.<GoodsSku>lambdaQuery()
+                .eq(GoodsSku::getGoodsId, id)
+                .eq(GoodsSku::getStatus, 1)
+                .orderByAsc(GoodsSku::getId)));
         return mergeSales(goods);
     }
 

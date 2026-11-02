@@ -26,6 +26,12 @@ public class CartItem implements Serializable {
 
     private Long goodsId;
 
+    /** SKU ID：多规格商品必填，单规格商品为空 */
+    private Long skuId;
+
+    /** 规格值文案快照，如 红色,S；单规格商品为空 */
+    private String specText;
+
     private Integer quantity;
 
     /** 1 选中，0 未选中 */

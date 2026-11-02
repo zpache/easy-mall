@@ -11,6 +11,7 @@ import com.easymall.api.entity.CartItem;
 import com.easymall.api.entity.Coupon;
 import com.easymall.api.entity.CouponUser;
 import com.easymall.api.entity.Goods;
+import com.easymall.api.entity.GoodsSku;
 import com.easymall.api.entity.MallOrder;
 import com.easymall.api.entity.OrderItem;
 import com.easymall.api.entity.OrderPromotion;
@@ -20,6 +21,7 @@ import com.easymall.api.mapper.CartItemMapper;
 import com.easymall.api.mapper.CouponMapper;
 import com.easymall.api.mapper.CouponUserMapper;
 import com.easymall.api.mapper.GoodsMapper;
+import com.easymall.api.mapper.GoodsSkuMapper;
 import com.easymall.api.mapper.MallOrderMapper;
 import com.easymall.api.mapper.OrderItemMapper;
 import com.easymall.api.mapper.OrderPromotionMapper;
@@ -83,6 +85,7 @@ public class OrderService {
     private final OrderItemMapper orderItemMapper;
     private final CartItemMapper cartItemMapper;
     private final GoodsMapper goodsMapper;
+    private final GoodsSkuMapper goodsSkuMapper;
     private final AddressMapper addressMapper;
     private final CouponMapper couponMapper;
     private final CouponUserMapper couponUserMapper;
@@ -122,26 +125,9 @@ public class OrderService {
             if (goods == null || !Integer.valueOf(1).equals(goods.getStatus())) {
                 throw new BusinessException(ResultCode.GOODS_OFF_SHELF, "商品已下架，请重新选择");
             }
-            // 带条件扣减库存，避免并发超卖
-            int affected = goodsMapper.update(null, Wrappers.<Goods>lambdaUpdate()
-                    .eq(Goods::getId, goods.getId())
-                    .ge(Goods::getStock, cartItem.getQuantity())
-                    .setSql("stock = stock - " + cartItem.getQuantity())
-                    .setSql("sales = sales + " + cartItem.getQuantity()));
-            if (affected == 0) {
-                throw new BusinessException(ResultCode.STOCK_NOT_ENOUGH, goods.getName() + " 库存不足");
-            }
-
-            BigDecimal subtotal = goods.getPrice().multiply(BigDecimal.valueOf(cartItem.getQuantity()));
-
-            OrderItem orderItem = new OrderItem();
-            orderItem.setGoodsId(goods.getId());
-            orderItem.setGoodsName(goods.getName());
-            orderItem.setGoodsImage(goods.getMainImage());
-            orderItem.setPrice(goods.getPrice());
-            orderItem.setQuantity(cartItem.getQuantity());
-            orderItem.setTotalAmount(subtotal);
-            orderItems.add(orderItem);
+            // 多规格商品以 SKU 价格与库存为准，单规格商品沿用商品表
+            GoodsSku sku = cartItem.getSkuId() == null ? null : goodsSkuMapper.selectById(cartItem.getSkuId());
+            orderItems.add(deductAndBuildItem(goods, sku, cartItem.getQuantity()));
         }
 
         OrderVO order = insertOrder(userId, address, request.remark(), request.couponUserId(), orderItems);
@@ -167,27 +153,79 @@ public class OrderService {
         if (goods == null || !Integer.valueOf(1).equals(goods.getStatus())) {
             throw new BusinessException(ResultCode.GOODS_OFF_SHELF, "商品已下架，请重新选择");
         }
+        GoodsSku sku = resolveSku(goods, request.skuId());
+        OrderItem orderItem = deductAndBuildItem(goods, sku, request.quantity());
 
-        // 带条件扣减库存，避免并发超卖
+        return insertOrder(userId, address, request.remark(), request.couponUserId(), List.of(orderItem));
+    }
+
+    /**
+     * 解析并校验 SKU：商品存在启用中的 SKU 时 skuId 必填；
+     * 单规格商品忽略误传的 skuId，避免把其他商品的规格挂到本单。
+     */
+    private GoodsSku resolveSku(Goods goods, Long skuId) {
+        long skuCount = goodsSkuMapper.selectCount(Wrappers.<GoodsSku>lambdaQuery()
+                .eq(GoodsSku::getGoodsId, goods.getId())
+                .eq(GoodsSku::getStatus, 1));
+        if (skuCount == 0) {
+            return null;
+        }
+        if (skuId == null) {
+            throw new BusinessException("请选择商品规格");
+        }
+        GoodsSku sku = goodsSkuMapper.selectById(skuId);
+        if (sku == null || !sku.getGoodsId().equals(goods.getId())) {
+            throw new BusinessException("商品规格不存在，请重新选择");
+        }
+        return sku;
+    }
+
+    /**
+     * 带条件扣减库存并构建订单明细：SKU 商品先扣 SKU，再同步扣商品汇总库存；
+     * 任一步库存不足都抛异常回滚整单（含已扣的 SKU 库存）。
+     */
+    private OrderItem deductAndBuildItem(Goods goods, GoodsSku sku, int quantity) {
+        if (sku != null) {
+            if (!Integer.valueOf(1).equals(sku.getStatus())) {
+                throw new BusinessException(ResultCode.GOODS_OFF_SHELF, "商品规格已下架，请重新选择");
+            }
+            int skuAffected = goodsSkuMapper.update(null, Wrappers.<GoodsSku>lambdaUpdate()
+                    .eq(GoodsSku::getId, sku.getId())
+                    .eq(GoodsSku::getStatus, 1)
+                    .ge(GoodsSku::getStock, quantity)
+                    .setSql("stock = stock - " + quantity)
+                    .setSql("sales = sales + " + quantity));
+            if (skuAffected == 0) {
+                throw new BusinessException(ResultCode.STOCK_NOT_ENOUGH,
+                        goods.getName() + skuSuffix(sku) + " 库存不足");
+            }
+        }
+        // 商品级库存：多规格商品为其 SKU 库存合计，保证列表页与库存管理口径一致
         int affected = goodsMapper.update(null, Wrappers.<Goods>lambdaUpdate()
                 .eq(Goods::getId, goods.getId())
-                .ge(Goods::getStock, request.quantity())
-                .setSql("stock = stock - " + request.quantity())
-                .setSql("sales = sales + " + request.quantity()));
+                .ge(Goods::getStock, quantity)
+                .setSql("stock = stock - " + quantity)
+                .setSql("sales = sales + " + quantity));
         if (affected == 0) {
             throw new BusinessException(ResultCode.STOCK_NOT_ENOUGH, goods.getName() + " 库存不足");
         }
 
-        BigDecimal subtotal = goods.getPrice().multiply(BigDecimal.valueOf(request.quantity()));
-        OrderItem orderItem = new OrderItem();
-        orderItem.setGoodsId(goods.getId());
-        orderItem.setGoodsName(goods.getName());
-        orderItem.setGoodsImage(goods.getMainImage());
-        orderItem.setPrice(goods.getPrice());
-        orderItem.setQuantity(request.quantity());
-        orderItem.setTotalAmount(subtotal);
+        BigDecimal price = sku == null ? goods.getPrice() : sku.getPrice();
+        OrderItem item = new OrderItem();
+        item.setGoodsId(goods.getId());
+        item.setSkuId(sku == null ? null : sku.getId());
+        item.setGoodsName(goods.getName());
+        item.setGoodsImage(sku != null && StringUtils.hasText(sku.getImage())
+                ? sku.getImage() : goods.getMainImage());
+        item.setSpecText(sku == null ? null : sku.getSpecText());
+        item.setPrice(price);
+        item.setQuantity(quantity);
+        item.setTotalAmount(price.multiply(BigDecimal.valueOf(quantity)));
+        return item;
+    }
 
-        return insertOrder(userId, address, request.remark(), request.couponUserId(), List.of(orderItem));
+    private String skuSuffix(GoodsSku sku) {
+        return StringUtils.hasText(sku.getSpecText()) ? "（" + sku.getSpecText() + "）" : "";
     }
 
     /**
@@ -514,6 +552,13 @@ public class OrderService {
         List<OrderItem> items = orderItemMapper.selectList(Wrappers.<OrderItem>lambdaQuery()
                 .eq(OrderItem::getOrderId, order.getId()));
         for (OrderItem item : items) {
+            // 多规格商品：先回滚 SKU 库存，再回滚商品汇总库存
+            if (item.getSkuId() != null) {
+                goodsSkuMapper.update(null, Wrappers.<GoodsSku>lambdaUpdate()
+                        .eq(GoodsSku::getId, item.getSkuId())
+                        .setSql("stock = stock + " + item.getQuantity())
+                        .setSql("sales = GREATEST(sales - " + item.getQuantity() + ", 0)"));
+            }
             goodsMapper.update(null, Wrappers.<Goods>lambdaUpdate()
                     .eq(Goods::getId, item.getGoodsId())
                     .setSql("stock = stock + " + item.getQuantity())
@@ -679,9 +724,9 @@ public class OrderService {
      * 结算页满减预估：按购物车已勾选商品金额（或立即购买商品金额）列出每个生效活动的命中情况。
      * 金额口径与下单一致：会员折扣后的商品金额参与满减。
      */
-    public List<ReductionPreviewVO> promotionPreview(Long userId, Long goodsId, Integer quantity) {
+    public List<ReductionPreviewVO> promotionPreview(Long userId, Long goodsId, Integer quantity, Long skuId) {
         BigDecimal totalAmount = goodsId != null && quantity != null && quantity > 0
-                ? singleGoodsTotal(goodsId, quantity)
+                ? singleGoodsTotal(goodsId, quantity, skuId)
                 : checkedCartTotal(userId);
         BigDecimal discountedTotal = totalAmount
                 .subtract(memberDiscountService.calculate(userId, totalAmount).discountAmount())
@@ -781,9 +826,9 @@ public class OrderService {
      * 传入 goodsId + quantity 时改为按立即购买的单个商品金额计算。
      * 可用的排前面，同可用性下抵扣大的优先、到期近的其次。
      */
-    public List<UsableCouponVO> usableCoupons(Long userId, Long goodsId, Integer quantity) {
+    public List<UsableCouponVO> usableCoupons(Long userId, Long goodsId, Integer quantity, Long skuId) {
         BigDecimal totalAmount = goodsId != null && quantity != null && quantity > 0
-                ? singleGoodsTotal(goodsId, quantity)
+                ? singleGoodsTotal(goodsId, quantity, skuId)
                 : checkedCartTotal(userId);
         if (totalAmount.compareTo(BigDecimal.ZERO) <= 0) {
             return List.of();
@@ -836,7 +881,7 @@ public class OrderService {
         return list;
     }
 
-    /** 购物车已勾选商品的合计金额（不含运费），与下单口径一致 */
+    /** 购物车已勾选商品的合计金额（不含运费），与下单口径一致（多规格按 SKU 价格） */
     private BigDecimal checkedCartTotal(Long userId) {
         List<CartItem> cartItems = cartItemMapper.selectList(Wrappers.<CartItem>lambdaQuery()
                 .eq(CartItem::getUserId, userId)
@@ -847,23 +892,39 @@ public class OrderService {
         List<Long> goodsIds = cartItems.stream().map(CartItem::getGoodsId).distinct().toList();
         Map<Long, Goods> goodsMap = goodsMapper.selectByIds(goodsIds).stream()
                 .collect(Collectors.toMap(Goods::getId, Function.identity()));
+        List<Long> skuIds = cartItems.stream().map(CartItem::getSkuId)
+                .filter(java.util.Objects::nonNull).distinct().toList();
+        Map<Long, GoodsSku> skuMap = skuIds.isEmpty()
+                ? Map.of()
+                : goodsSkuMapper.selectByIds(skuIds).stream()
+                .collect(Collectors.toMap(GoodsSku::getId, Function.identity()));
         BigDecimal total = BigDecimal.ZERO;
         for (CartItem cartItem : cartItems) {
             Goods goods = goodsMap.get(cartItem.getGoodsId());
-            if (goods != null) {
-                total = total.add(goods.getPrice().multiply(BigDecimal.valueOf(cartItem.getQuantity())));
+            if (goods == null) {
+                continue;
             }
+            GoodsSku sku = cartItem.getSkuId() == null ? null : skuMap.get(cartItem.getSkuId());
+            BigDecimal price = sku == null ? goods.getPrice() : sku.getPrice();
+            total = total.add(price.multiply(BigDecimal.valueOf(cartItem.getQuantity())));
         }
         return total;
     }
 
-    /** 单个商品在指定数量下的合计金额（立即购买口径），商品缺失按 0 处理 */
-    private BigDecimal singleGoodsTotal(Long goodsId, Integer quantity) {
+    /** 单个商品在指定数量下的合计金额（立即购买口径，多规格按 SKU 价格），商品缺失按 0 处理 */
+    private BigDecimal singleGoodsTotal(Long goodsId, Integer quantity, Long skuId) {
         Goods goods = goodsMapper.selectById(goodsId);
         if (goods == null) {
             return BigDecimal.ZERO;
         }
-        return goods.getPrice().multiply(BigDecimal.valueOf(quantity));
+        BigDecimal price = goods.getPrice();
+        if (skuId != null) {
+            GoodsSku sku = goodsSkuMapper.selectById(skuId);
+            if (sku != null && sku.getGoodsId().equals(goodsId) && sku.getPrice() != null) {
+                price = sku.getPrice();
+            }
+        }
+        return price.multiply(BigDecimal.valueOf(quantity));
     }
 
     private String valueText(Coupon coupon) {

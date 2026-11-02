@@ -24,9 +24,15 @@ public class OrderItem extends BaseEntity {
 
     private Long goodsId;
 
+    /** SKU ID：多规格商品下单时必填，单规格为空 */
+    private Long skuId;
+
     private String goodsName;
 
     private String goodsImage;
+
+    /** 规格值文案快照，如 红色,S；单规格为空 */
+    private String specText;
 
     private BigDecimal price;
 

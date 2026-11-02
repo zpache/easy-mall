@@ -29,8 +29,8 @@ export const useCartStore = defineStore('cart', () => {
     count.value = await cartApi.count()
   }
 
-  async function add(goodsId: number, quantity = 1) {
-    await cartApi.add(goodsId, quantity)
+  async function add(goodsId: number, quantity = 1, skuId?: number) {
+    await cartApi.add(goodsId, quantity, skuId)
     await refreshCount()
   }
 

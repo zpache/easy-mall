@@ -31,7 +31,10 @@
     "imageTip": "从素材中心选取，保证与素材库统一",
     "imagesTip": "从素材中心选取，最多 5 张",
     "baseSales": "基础销量",
-    "baseSalesTip": "小程序展示销量 = 基础销量 + 真实销量（下单自动累加）"
+    "baseSalesTip": "小程序展示销量 = 基础销量 + 真实销量（下单自动累加）",
+    "skuConfig": "规格库存",
+    "specs": "商品规格",
+    "skuCount": "SKU 数"
   },
   "category": {
     "entity": "分类",

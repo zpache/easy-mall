@@ -10,6 +10,10 @@ public record StockLogVO(
         Long goodsId,
         String goodsCode,
         String goodsName,
+        /** SKU ID，商品级流水为 null */
+        Long skuId,
+        /** 规格值文案，商品级流水为 null */
+        String specText,
         String type,
         Integer changeQty,
         Integer beforeStock,

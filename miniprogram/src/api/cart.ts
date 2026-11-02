@@ -6,8 +6,9 @@ export const cartApi = {
 
   count: () => request<number>({ url: '/cart/count' }),
 
-  add: (goodsId: number, quantity = 1) =>
-    request<void>({ url: '/cart', method: 'POST', data: { goodsId, quantity } }),
+  /** 加入购物车：多规格商品必须带 skuId */
+  add: (goodsId: number, quantity = 1, skuId?: number) =>
+    request<void>({ url: '/cart', method: 'POST', data: { goodsId, quantity, skuId } }),
 
   updateQuantity: (id: number, quantity: number) =>
     request<void>({ url: `/cart/${id}/quantity${buildQuery({ quantity })}`, method: 'PUT' }),

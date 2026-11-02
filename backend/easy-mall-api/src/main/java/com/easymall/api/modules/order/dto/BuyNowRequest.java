@@ -10,6 +10,8 @@ import jakarta.validation.constraints.Size;
  */
 public record BuyNowRequest(
         @NotNull(message = "请选择商品") Long goodsId,
+        /** SKU ID：多规格商品必填 */
+        Long skuId,
         @NotNull(message = "请选择购买数量")
         @Min(value = 1, message = "购买数量至少为1")
         @Max(value = 999, message = "购买数量超出限制") Integer quantity,

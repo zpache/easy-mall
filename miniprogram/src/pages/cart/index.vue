@@ -175,6 +175,7 @@ onShow(() => {
                 <image class="item__image" :src="item.mainImage || ''" mode="aspectFill" @tap="toDetail(item)" />
                 <view class="item__body">
                   <text class="item__name ellipsis-2" @tap="toDetail(item)">{{ item.name }}</text>
+                  <text v-if="item.specText" class="item__spec">{{ item.specText }}</text>
                   <text v-if="item.invalid" class="item__invalid-tip">商品已下架或库存不足</text>
                   <view class="item__bottom">
                     <view class="flex items-baseline">
@@ -362,6 +363,15 @@ onShow(() => {
   &__invalid-tip {
     font-size: 22rpx;
     color: $danger;
+  }
+
+  &__spec {
+    align-self: flex-start;
+    padding: 2rpx 10rpx;
+    font-size: 22rpx;
+    color: $text-secondary;
+    background-color: $page-bg;
+    border-radius: 6rpx;
   }
 
   &__bottom {

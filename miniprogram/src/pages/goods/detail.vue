@@ -7,7 +7,7 @@ import { useCartStore } from '@/store/cart'
 import { useUserStore } from '@/store/user'
 import { formatPrice } from '@/utils/format'
 import { navIconUri } from '@/utils/nav-icon-uri'
-import type { Goods, GoodsComment } from '@/types/api'
+import type { Goods, GoodsComment, GoodsSku, SpecGroup } from '@/types/api'
 import { useTheme } from '@/composables/useTheme'
 
 const { theme, themePageStyle } = useTheme()
@@ -43,16 +43,81 @@ const banners = computed(() => {
   return list.length ? list : [goods.value.mainImage]
 })
 
-/** 售罄：库存为 0 时两个动作按钮统一置灰，避免点了没反馈 */
-const soldOut = computed(() => !goods.value || Number(goods.value.stock || 0) <= 0)
+/** 售罄：当前选择（无规格时为商品整体库存）库存为 0 时两个动作按钮统一置灰 */
+const soldOut = computed(() => displayStock.value <= 0)
 
 /** 购物车图标用 lucide 线性图标按主题次文字色渲染，避免 emoji 在安卓端显示成彩色图形 */
 const cartIcon = computed(() => navIconUri('shopping-cart', theme.value.subTextColor))
 
 const cartBadge = computed(() => (cartStore.count > 99 ? '99+' : String(cartStore.count)))
 
+/* ---------------- 多规格 SKU ---------------- */
+
+/** 规格组：由后端返回的 specs JSON 解析，单规格商品为空数组 */
+const specGroups = computed<SpecGroup[]>(() => {
+  const raw = goods.value?.specs
+  if (!raw) return []
+  try {
+    const parsed = JSON.parse(raw)
+    if (!Array.isArray(parsed)) return []
+    return parsed
+      .map((group: any) => ({
+        name: String(group?.name ?? ''),
+        values: Array.isArray(group?.values) ? group.values.map((v: any) => String(v)) : []
+      }))
+      .filter((group: SpecGroup) => group.name && group.values.length > 0)
+  } catch {
+    return []
+  }
+})
+
+/** 已选规格值，下标与 specGroups 一一对应，空串表示未选 */
+const selectedSpecs = ref<string[]>([])
+
+/** 当前选中的 SKU：全部规格选完后按 specText（逗号拼接）匹配 */
+const selectedSku = computed<GoodsSku | null>(() => {
+  if (!specGroups.value.length) return null
+  if (selectedSpecs.value.length !== specGroups.value.length) return null
+  if (selectedSpecs.value.some((value) => !value)) return null
+  const key = selectedSpecs.value.join(',')
+  return (goods.value?.skus ?? []).find((sku) => sku.specText === key) ?? null
+})
+
+const displayPrice = computed(() => selectedSku.value?.price ?? goods.value?.price ?? 0)
+const displayOriginal = computed(() => selectedSku.value?.originalPrice ?? goods.value?.originalPrice ?? null)
+const displayStock = computed(() => selectedSku.value?.stock ?? Number(goods.value?.stock ?? 0))
+/** 规格图优先，未配置时回落到商品主图 */
+const displayImage = computed(() => selectedSku.value?.image || goods.value?.mainImage || '')
+
+/** 已选规格文案，未选完时给「请选择」提示 */
+const specSummary = computed(() => {
+  if (!specGroups.value.length) return ''
+  const parts = selectedSpecs.value.filter(Boolean)
+  return parts.length === specGroups.value.length ? parts.join(' / ') : '请选择规格'
+})
+
+/** 初始化已选值：进入页面默认不预选，强制用户确认规格 */
+function resetSpecSelection() {
+  selectedSpecs.value = specGroups.value.map(() => '')
+}
+
+function pickSpec(groupIndex: number, value: string) {
+  const next = [...selectedSpecs.value]
+  next[groupIndex] = next[groupIndex] === value ? '' : value
+  selectedSpecs.value = next
+}
+
+/** 多规格商品必须选完整规格才能加购/下单 */
+function ensureSpecSelected(): boolean {
+  if (!specGroups.value.length) return true
+  if (selectedSku.value) return true
+  uni.showToast({ title: '请选择完整的商品规格', icon: 'none' })
+  return false
+}
+
 async function load() {
   goods.value = await goodsApi.detail(goodsId.value)
+  resetSpecSelection()
   uni.setNavigationBarTitle({ title: goods.value.name })
 }
 
@@ -101,23 +166,26 @@ async function requireLogin(): Promise<boolean> {
 }
 
 async function addToCart() {
+  if (!ensureSpecSelected()) return
   if (soldOut.value) {
     uni.showToast({ title: '商品已售罄', icon: 'none' })
     return
   }
   if (!(await requireLogin())) return
-  await cartStore.add(goodsId.value, 1)
+  await cartStore.add(goodsId.value, 1, selectedSku.value?.id)
   uni.showToast({ title: '已加入购物车', icon: 'none' })
 }
 
 async function buyNow() {
+  if (!ensureSpecSelected()) return
   if (soldOut.value) {
     uni.showToast({ title: '商品已售罄', icon: 'none' })
     return
   }
   if (!(await requireLogin())) return
   // 立即购买走独立直接下单链路：只结算当前商品，不往购物车加记录
-  uni.navigateTo({ url: `/pages/order/confirm?mode=buyNow&goodsId=${goodsId.value}&quantity=1` })
+  const skuQuery = selectedSku.value ? `&skuId=${selectedSku.value.id}` : ''
+  uni.navigateTo({ url: `/pages/order/confirm?mode=buyNow&goodsId=${goodsId.value}&quantity=1${skuQuery}` })
 }
 
 function goCart() {
@@ -153,13 +221,33 @@ onLoad((options) => {
     <view class="info">
       <view class="flex items-baseline">
         <text class="price-symbol price">¥</text>
-        <text class="price text-48rpx">{{ formatPrice(goods.price) }}</text>
-        <text v-if="goods.originalPrice" class="price-origin">¥{{ formatPrice(goods.originalPrice) }}</text>
+        <text class="price text-48rpx">{{ formatPrice(displayPrice) }}</text>
+        <text v-if="displayOriginal" class="price-origin">¥{{ formatPrice(displayOriginal) }}</text>
       </view>
       <text class="info__name">{{ goods.name }}</text>
       <text v-if="goods.subtitle" class="info__subtitle">{{ goods.subtitle }}</text>
+
+      <!-- 多规格：按规格组选择规格值，价格与库存随已选组合联动 -->
+      <view v-if="specGroups.length" class="specs">
+        <view v-for="(group, gi) in specGroups" :key="group.name" class="specs__row">
+          <text class="specs__name">{{ group.name }}</text>
+          <view class="specs__values">
+            <text
+              v-for="value in group.values"
+              :key="value"
+              class="specs__value"
+              :class="{ 'specs__value--on': selectedSpecs[gi] === value }"
+              @tap="pickSpec(gi, value)"
+            >
+              {{ value }}
+            </text>
+          </view>
+        </view>
+        <text v-if="selectedSku" class="specs__picked">已选：{{ specSummary }}</text>
+      </view>
+
       <view class="info__meta">
-        <text>库存 {{ goods.stock }}</text>
+        <text>库存 {{ displayStock }}</text>
         <text>已售 {{ goods.sales || 0 }}</text>
         <text>{{ goods.unit || '件' }}</text>
       </view>
@@ -325,6 +413,62 @@ onLoad((options) => {
     margin-top: 20rpx;
     font-size: 24rpx;
     color: $text-placeholder;
+  }
+}
+
+.specs {
+  padding: 20rpx;
+  margin-top: 20rpx;
+  background-color: $page-bg;
+  border-radius: 12rpx;
+
+  &__row {
+    display: flex;
+    gap: 16rpx;
+    align-items: flex-start;
+    margin-bottom: 16rpx;
+
+    &:last-child {
+      margin-bottom: 0;
+    }
+  }
+
+  &__name {
+    flex: none;
+    width: 110rpx;
+    font-size: 26rpx;
+    line-height: 56rpx;
+    color: $text-secondary;
+  }
+
+  &__values {
+    display: flex;
+    flex: 1;
+    flex-wrap: wrap;
+    gap: 16rpx;
+  }
+
+  &__value {
+    padding: 0 24rpx;
+    font-size: 26rpx;
+    line-height: 56rpx;
+    color: $text-main;
+    background-color: #fff;
+    border: 2rpx solid transparent;
+    border-radius: 8rpx;
+
+    &--on {
+      color: $price;
+      background-color: rgba(255, 90, 31, 0.08);
+      border-color: $price;
+    }
+  }
+
+  &__picked {
+    display: block;
+    margin-top: 12rpx;
+    font-size: 24rpx;
+    color: $text-secondary;
   }
 }
 

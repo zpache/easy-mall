@@ -12,16 +12,16 @@ export const orderApi = {
       loading: true
     }),
 
-  /** 立即购买下单：不走购物车，不影响购物车数据 */
-  buyNow: (data: { goodsId: number, quantity: number, addressId: number, remark?: string, couponUserId?: number }) =>
+  /** 立即购买下单：不走购物车，不影响购物车数据；多规格商品必须带 skuId */
+  buyNow: (data: { goodsId: number, quantity: number, addressId: number, skuId?: number, remark?: string, couponUserId?: number }) =>
     request<Order>({ url: '/orders/buy-now', method: 'POST', data, loading: true }),
 
-  /** 结算页可用优惠券：默认按购物车已勾选商品计算；立即购买时按 goodsId+quantity 计算 */
-  usableCoupons: (params?: { goodsId?: number, quantity?: number }) =>
+  /** 结算页可用优惠券：默认按购物车已勾选商品计算；立即购买时按 goodsId+quantity[+skuId] 计算 */
+  usableCoupons: (params?: { goodsId?: number, quantity?: number, skuId?: number }) =>
     request<UsableCoupon[]>({ url: `/orders/coupons${buildQuery(params ?? {})}` }),
 
   /** 结算页满减预估：口径同可用优惠券，usable=false 表示未达门槛 */
-  promotionPreview: (params?: { goodsId?: number, quantity?: number }) =>
+  promotionPreview: (params?: { goodsId?: number, quantity?: number, skuId?: number }) =>
     request<PromotionPreview[]>({ url: `/orders/promotions${buildQuery(params ?? {})}` }),
 
   /** 运费预览：按收货地址与商品总额，deliverable=false 表示该地区不配送 */

@@ -287,7 +287,11 @@ export function useColumns<T = GoodsApi.Goods>(
           onClick: onActionClick,
         },
         name: 'CellOperation',
-        options: ['edit', 'delete'],
+        options: [
+          { code: 'sku', text: $t('goods.goods.skuConfig') },
+          'edit',
+          'delete',
+        ],
       },
       field: 'operation',
       fixed: 'right',

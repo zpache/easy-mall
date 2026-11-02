@@ -45,7 +45,7 @@ public class PaymentConfigService {
     private static final String KEY_PAY_TIMEOUT = "orderPayTimeoutMinutes";
     private static final String KEY_AUTO_RECEIVE_DAYS = "autoReceiveDays";
 
-    private static final int DEFAULT_PAY_TIMEOUT = 30;
+    private static final int DEFAULT_PAY_TIMEOUT = 15;
     private static final int DEFAULT_AUTO_RECEIVE_DAYS = 15;
     private static final int API_V3_KEY_LENGTH = 32;
 

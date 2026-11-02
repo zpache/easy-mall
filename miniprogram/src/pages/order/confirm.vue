@@ -8,7 +8,7 @@ import { orderApi } from '@/api/order'
 import { useCartStore } from '@/store/cart'
 import { useUserStore } from '@/store/user'
 import { formatPrice } from '@/utils/format'
-import type { Address, CartItem, FreightPreview, Goods, Order, PromotionPreview } from '@/types/api'
+import type { Address, CartItem, FreightPreview, Goods, GoodsSku, Order, PromotionPreview } from '@/types/api'
 import type { UsableCoupon } from '@/types/coupon'
 import { useTheme } from '@/composables/useTheme'
 
@@ -27,6 +27,17 @@ const freight = ref<FreightPreview | null>(null)
 const isBuyNow = ref(false)
 const buyNowGoods = ref<Goods | null>(null)
 const buyNowQuantity = ref(1)
+/** 立即购买选中的 SKU（多规格商品必填），价格与库存以它为准 */
+const buyNowSkuId = ref<number | null>(null)
+
+const buyNowSku = computed<GoodsSku | null>(() => {
+  if (!buyNowSkuId.value || !buyNowGoods.value?.skus) return null
+  return buyNowGoods.value.skus.find((sku) => sku.id === buyNowSkuId.value) ?? null
+})
+
+/** 立即购买单价：有 SKU 用 SKU 价，否则商品价 */
+const buyNowPrice = computed(() => Number(buyNowSku.value?.price ?? buyNowGoods.value?.price ?? 0))
+const buyNowStock = computed(() => Number(buyNowSku.value?.stock ?? buyNowGoods.value?.stock ?? 0))
 
 /** 结算页可用优惠券：服务端按购物车已勾选商品（或立即购买商品）实时计算 */
 const coupons = ref<UsableCoupon[]>([])
@@ -42,20 +53,22 @@ const items = computed<CartItem[]>(() => {
       id: buyNowGoods.value.id,
       goodsId: buyNowGoods.value.id,
       name: buyNowGoods.value.name,
-      mainImage: buyNowGoods.value.mainImage,
-      price: buyNowGoods.value.price,
-      stock: buyNowGoods.value.stock,
+      mainImage: buyNowSku.value?.image || buyNowGoods.value.mainImage,
+      price: buyNowPrice.value,
+      stock: buyNowStock.value,
       quantity: buyNowQuantity.value,
       checked: 1,
-      subtotal: Number(buyNowGoods.value.price) * buyNowQuantity.value,
-      invalid: false
+      subtotal: buyNowPrice.value * buyNowQuantity.value,
+      invalid: false,
+      skuId: buyNowSkuId.value,
+      specText: buyNowSku.value?.specText ?? null
     }]
   }
   return cartStore.checkedItems
 })
 const total = computed(() => {
   if (isBuyNow.value && buyNowGoods.value) {
-    return Number(buyNowGoods.value.price) * buyNowQuantity.value
+    return buyNowPrice.value * buyNowQuantity.value
   }
   return cartStore.checkedAmount
 })
@@ -130,7 +143,7 @@ async function loadPromotions() {
   try {
     // 立即购买按单个商品算满减，购物车结算按勾选商品金额算满减
     const params = isBuyNow.value && buyNowGoods.value
-      ? { goodsId: buyNowGoods.value.id, quantity: buyNowQuantity.value }
+      ? { goodsId: buyNowGoods.value.id, quantity: buyNowQuantity.value, skuId: buyNowSkuId.value ?? undefined }
       : undefined
     promotions.value = await orderApi.promotionPreview(params)
   } catch {
@@ -148,7 +161,7 @@ async function loadCoupons() {
   try {
     // 立即购买按单个商品金额算券，购物车结算按勾选商品金额算券
     const params = isBuyNow.value && buyNowGoods.value
-      ? { goodsId: buyNowGoods.value.id, quantity: buyNowQuantity.value }
+      ? { goodsId: buyNowGoods.value.id, quantity: buyNowQuantity.value, skuId: buyNowSkuId.value ?? undefined }
       : undefined
     coupons.value = await orderApi.usableCoupons(params)
     // 默认选中抵扣最大的可用券（接口已按可用优先、抵扣从大到小排序）
@@ -199,6 +212,7 @@ async function submit() {
         goodsId: buyNowGoods.value.id,
         quantity: buyNowQuantity.value,
         addressId: address.value.id,
+        skuId: buyNowSkuId.value ?? undefined,
         remark: remark.value || undefined,
         couponUserId: selectedCouponUserId.value ?? undefined
       })
@@ -224,6 +238,9 @@ onLoad(async (options) => {
   if (options?.mode === 'buyNow' && goodsId) {
     isBuyNow.value = true
     buyNowQuantity.value = Math.max(Number(options?.quantity ?? 1), 1)
+    // 多规格商品从商详带过来的 SKU，价格/库存以它为准
+    const skuId = Number(options?.skuId ?? 0)
+    buyNowSkuId.value = skuId > 0 ? skuId : null
     const goods = await goodsApi.detail(goodsId)
     // 已下架商品按空态处理，避免填完信息提交时才被后端拒绝
     if (goods && goods.status === 1) {
@@ -275,6 +292,7 @@ onUnload(() => {
         <image class="goods__image" :src="item.mainImage || ''" mode="aspectFill" />
         <view class="goods__body">
           <text class="goods__name ellipsis-2">{{ item.name }}</text>
+          <text v-if="item.specText" class="goods__spec">{{ item.specText }}</text>
           <view class="goods__bottom">
             <text class="price">¥{{ formatPrice(item.price) }}</text>
             <text class="goods__qty">x{{ item.quantity }}</text>
@@ -473,6 +491,15 @@ onUnload(() => {
     display: flex;
     align-items: center;
     justify-content: space-between;
+  }
+
+  &__spec {
+    align-self: flex-start;
+    padding: 2rpx 10rpx;
+    font-size: 22rpx;
+    color: $text-secondary;
+    background-color: $page-bg;
+    border-radius: 6rpx;
   }
 
   &__qty {

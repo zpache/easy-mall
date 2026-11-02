@@ -20,9 +20,15 @@ import { $t } from '#/locales';
 
 import { useColumns, useGridFormSchema } from './data';
 import Form from './modules/form.vue';
+import SkuForm from './modules/sku.vue';
 
 const [FormDrawer, formDrawerApi] = useVbenDrawer({
   connectedComponent: Form,
+  destroyOnClose: true,
+});
+
+const [SkuDrawer, skuDrawerApi] = useVbenDrawer({
+  connectedComponent: SkuForm,
   destroyOnClose: true,
 });
 
@@ -70,6 +76,10 @@ function onActionClick(e: OnActionClickParams<GoodsApi.Goods>) {
       formDrawerApi.setData(e.row).open();
       break;
     }
+    case 'sku': {
+      skuDrawerApi.setData(e.row).open();
+      break;
+    }
   }
 }
 
@@ -112,6 +122,7 @@ function refreshGrid() {
 <template>
   <Page auto-content-height>
     <FormDrawer @success="refreshGrid" />
+    <SkuDrawer @success="refreshGrid" />
     <Grid :table-title="$t('goods.goods.list')">
       <template #toolbar-tools>
         <ElButton type="primary" @click="onCreate">

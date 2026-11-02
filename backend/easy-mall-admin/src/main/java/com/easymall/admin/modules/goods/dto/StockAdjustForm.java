@@ -15,6 +15,9 @@ public record StockAdjustForm(
         @NotNull(message = "请选择商品")
         Long goodsId,
 
+        /** SKU ID：多规格商品必填，按 SKU 维度调整库存；单规格商品不传 */
+        Long skuId,
+
         @NotBlank(message = "请选择调整类型")
         String type,
 
