@@ -26,6 +26,7 @@ export namespace GoodsStockApi {
     changeQty: number;
     createdAt: string;
     createdBy?: number;
+    goodsCode?: string;
     goodsId: number;
     goodsName?: string;
     id: number;

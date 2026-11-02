@@ -17,9 +17,11 @@ const emit = defineEmits<{ success: [] }>();
 
 const current = ref<null | GoodsStockApi.Stock>(null);
 
-const getTitle = computed(
-  () => `${$t('goods.stock.adjust')} · ${current.value?.name ?? ''}`,
-);
+const getTitle = computed(() => {
+  const goods = current.value;
+  const label = goods?.goodsCode ? `${goods.goodsCode} · ${goods.name}` : (goods?.name ?? '');
+  return `${$t('goods.stock.adjust')} · ${label}`;
+});
 
 const [Form, formApi] = useVbenForm({
   layout: 'vertical',
@@ -61,7 +63,7 @@ const [Drawer, drawerApi] = useVbenDrawer({
     formApi.resetForm();
     if (data) {
       formApi.setValues({
-        goodsName: `${data.name}（${$t('goods.stock.stock')}：${data.stock}）`,
+        goodsName: `${data.goodsCode ? `${data.goodsCode} · ` : ''}${data.name}（${$t('goods.stock.stock')}：${data.stock}）`,
         qty: undefined,
         remark: undefined,
         type: 'in',

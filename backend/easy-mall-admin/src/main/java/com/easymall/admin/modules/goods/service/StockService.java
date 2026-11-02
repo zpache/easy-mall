@@ -145,22 +145,26 @@ public class StockService {
         Page<StockLog> page = stockLogMapper.selectPage(Page.of(pageNum, pageSize), wrapper);
         List<Long> goodsIds = page.getRecords().stream().map(StockLog::getGoodsId)
                 .filter(Objects::nonNull).distinct().toList();
-        Map<Long, String> nameMap = goodsIds.isEmpty()
+        Map<Long, Goods> goodsMap = goodsIds.isEmpty()
                 ? Map.of()
                 : goodsService.listByIds(goodsIds).stream()
-                .collect(Collectors.toMap(Goods::getId, Goods::getName, (a, b) -> a, () -> new java.util.LinkedHashMap<>()));
+                .collect(Collectors.toMap(Goods::getId, Function.identity(), (a, b) -> a, () -> new java.util.LinkedHashMap<>()));
         List<StockLogVO> records = page.getRecords().stream()
-                .map(log -> new StockLogVO(
-                        log.getId(),
-                        log.getGoodsId(),
-                        nameMap.get(log.getGoodsId()),
-                        log.getType(),
-                        log.getChangeQty(),
-                        log.getBeforeStock(),
-                        log.getAfterStock(),
-                        log.getRemark(),
-                        log.getCreatedAt(),
-                        log.getCreatedBy()))
+                .map(log -> {
+                    Goods goods = goodsMap.get(log.getGoodsId());
+                    return new StockLogVO(
+                            log.getId(),
+                            log.getGoodsId(),
+                            goods == null ? null : goods.getGoodsCode(),
+                            goods == null ? null : goods.getName(),
+                            log.getType(),
+                            log.getChangeQty(),
+                            log.getBeforeStock(),
+                            log.getAfterStock(),
+                            log.getRemark(),
+                            log.getCreatedAt(),
+                            log.getCreatedBy());
+                })
                 .toList();
         return new PageResult<>(records, page.getTotal(), page.getCurrent(), page.getSize(), page.getPages());
     }

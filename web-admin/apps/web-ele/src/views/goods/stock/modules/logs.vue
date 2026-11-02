@@ -14,9 +14,11 @@ import { useLogColumns } from '../data';
 
 const current = ref<null | GoodsStockApi.Stock>(null);
 
-const getTitle = computed(
-  () => `${$t('goods.stock.logs')} · ${current.value?.name ?? ''}`,
-);
+const getTitle = computed(() => {
+  const goods = current.value;
+  const label = goods?.goodsCode ? `${goods.goodsCode} · ${goods.name}` : (goods?.name ?? '');
+  return `${$t('goods.stock.logs')} · ${label}`;
+});
 
 const [Grid, gridApi] = useVbenVxeGrid({
   gridOptions: {
