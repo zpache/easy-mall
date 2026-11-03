@@ -49,6 +49,7 @@ public class MemberPointService {
     private final PointsLogMapper pointsLogMapper;
     private final MallOrderMapper orderMapper;
     private final SysConfigService sysConfigService;
+    private final InviteService inviteService;
 
     /**
      * 订单支付成功后发放会员权益。
@@ -90,6 +91,8 @@ public class MemberPointService {
             recordPointsLog(order, points);
         }
         refreshLevel(order.getUserId());
+        // 邀请链路：被邀请人首单支付成功，追加邀请人首单奖励（同事务，失败只记日志）
+        inviteService.settleFirstOrder(order.getUserId());
         return true;
     }
 

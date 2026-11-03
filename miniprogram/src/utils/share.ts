@@ -37,12 +37,29 @@ export interface ShareTimelineMessage {
  */
 export function captureInviter(query?: Record<string, any> | null): void {
   if (!query) return
-  const inviter = String(query.inviter ?? query.inviterId ?? query.shareUid ?? '').trim()
+  const inviter = String(query.inviter ?? query.inviterId ?? query.shareUid ?? query.inv ?? '').trim()
   if (!/^\d+$/.test(inviter)) return
   const self = getUid()
   if (self && String(self) === inviter) return
   if (uni.getStorageSync(INVITER_KEY)) return
   uni.setStorageSync(INVITER_KEY, Number(inviter))
+}
+
+/**
+ * 解析小程序码 scene 参数（getwxacodeunlimit 落地时 query.scene 为 URL 编码的 a=1&b=2）。
+ * 返回 null 表示没有 scene；解析结果可直接交给 captureInviter / 当业务参数用。
+ */
+export function parseScene(scene?: string): Record<string, string> | null {
+  if (!scene) return null
+  const decoded = decodeURIComponent(scene)
+  if (!decoded.includes('=')) return null
+  const params: Record<string, string> = {}
+  for (const pair of decoded.split('&')) {
+    const index = pair.indexOf('=')
+    if (index <= 0) continue
+    params[pair.slice(0, index).trim()] = pair.slice(index + 1).trim()
+  }
+  return Object.keys(params).length ? params : null
 }
 
 /** 当前设备记录的邀请人（0 表示没有） */

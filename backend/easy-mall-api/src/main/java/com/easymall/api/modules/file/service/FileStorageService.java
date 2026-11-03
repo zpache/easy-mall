@@ -96,6 +96,48 @@ public class FileStorageService {
         return root;
     }
 
+    /**
+     * 查找已生成的小程序码缓存，命中返回可访问地址，未命中返回 null。
+     */
+    public String findQrcode(String key) {
+        Path target = qrcodePath(key);
+        if (!Files.exists(target)) {
+            return null;
+        }
+        return buildUrl(root.relativize(target).toString().replace('\\', '/'));
+    }
+
+    /**
+     * 保存小程序码（确定性文件名 qrcode/{key}.png），返回可访问地址。
+     * 同 key 重复生成时直接复用旧文件，避免反复调用微信接口。
+     */
+    public String storeQrcode(String key, byte[] data) {
+        Path target = qrcodePath(key);
+        try {
+            Files.createDirectories(target.getParent());
+            if (!Files.exists(target)) {
+                Files.write(target, data);
+            }
+        } catch (IOException e) {
+            log.error("保存小程序码失败: {}", key, e);
+            throw new BusinessException(ResultCode.FILE_SAVE_FAILED);
+        }
+        return buildUrlOf(target);
+    }
+
+    private Path qrcodePath(String key) {
+        // key 只允许文件名字符，防目录穿越
+        if (!key.matches("[A-Za-z0-9_-]{1,64}")) {
+            throw new BusinessException(ResultCode.PARAM_ERROR);
+        }
+        return root.resolve("qrcode/" + key + ".png").normalize();
+    }
+
+    private String buildUrlOf(Path target) {
+        String relativePath = root.relativize(target).toString().replace('\\', '/');
+        return buildUrl(relativePath);
+    }
+
     private String buildUrl(String relativePath) {
         String path = "/files/" + relativePath;
         if (StringUtils.hasText(publicBase)) {

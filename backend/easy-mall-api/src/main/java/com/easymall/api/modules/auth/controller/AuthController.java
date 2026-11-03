@@ -37,7 +37,7 @@ public class AuthController {
     @SecurityRequirements
     @PostMapping("/login")
     public Result<LoginVO> login(@Valid @RequestBody WxLoginRequest request) {
-        return Result.ok(wxAuthService.login(request.code()));
+        return Result.ok(wxAuthService.login(request.code(), request.inviterId()));
     }
 
     @Operation(summary = "退出登录（服务端销毁登录态）")

@@ -3,6 +3,7 @@ import { defineStore } from 'pinia'
 import { authApi, userApi } from '@/api/user'
 import type { UserProfile } from '@/types/api'
 import { clearToken, clearUid, getToken, setToken, setUid } from '@/utils/storage'
+import { getInviter } from '@/utils/share'
 
 /**
  * 用户状态：token + 资料。
@@ -12,10 +13,10 @@ export const useUserStore = defineStore('user', () => {
   const profile = ref<UserProfile | null>(null)
   const isLogin = computed(() => !!token.value)
 
-  /** 微信静默登录：wx.login 拿 code -> 后端换 token */
+  /** 微信静默登录：wx.login 拿 code -> 后端换 token；带邀请人做拉新归因 */
   async function login() {
     const code = await getWxCode()
-    const result = await authApi.login(code)
+    const result = await authApi.login(code, getInviter() || undefined)
     token.value = result.accessToken
     setToken(result.accessToken)
     await fetchProfile()

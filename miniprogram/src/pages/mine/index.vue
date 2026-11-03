@@ -90,6 +90,11 @@ async function toAddress() {
   uni.navigateTo({ url: '/pages/address/list' })
 }
 
+async function toInvite() {
+  if (!(await ensureLogin())) return
+  uni.navigateTo({ url: '/pages/mine/invite' })
+}
+
 async function toCoupons() {
   if (!(await ensureLogin())) return
   uni.navigateTo({ url: '/pages/coupon/index' })
@@ -189,6 +194,9 @@ onShareTimeline(() => timelineMessage(shareTitle.value))
     <view class="card card--menu">
       <view class="cell cell-arrow" @tap="toAddress">
         <text>收货地址</text>
+      </view>
+      <view class="cell cell-arrow" @tap="toInvite">
+        <text>邀请好友</text>
       </view>
       <!-- 分享转发：个人中心也放一个入口，不用教用户去右上角菜单找 -->
       <button class="cell share-cell" open-type="share" hover-class="share-cell--hover" :hover-stay-time="80">

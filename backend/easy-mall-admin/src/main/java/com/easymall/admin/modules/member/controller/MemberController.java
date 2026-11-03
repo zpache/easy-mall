@@ -4,7 +4,9 @@ import com.easymall.admin.common.api.PageResult;
 import com.easymall.admin.common.api.Result;
 import com.easymall.admin.modules.member.dto.MemberTagForm;
 import com.easymall.admin.modules.member.dto.PointsAdjustForm;
+import com.easymall.admin.modules.member.service.InviteService;
 import com.easymall.admin.modules.member.service.MemberService;
+import com.easymall.admin.modules.member.vo.InviteRecordVO;
 import com.easymall.admin.modules.member.vo.MemberVO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -28,6 +30,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class MemberController {
 
     private final MemberService memberService;
+    private final InviteService inviteService;
 
     @Operation(summary = "分页查询会员（关键词 / 等级 / 来源渠道 / 标签）")
     @GetMapping
@@ -58,5 +61,14 @@ public class MemberController {
     public Result<Void> adjustPoints(@PathVariable Long id, @Valid @RequestBody PointsAdjustForm form) {
         memberService.adjustPoints(id, form.change(), form.remark());
         return Result.ok();
+    }
+
+    @Operation(summary = "分页查询邀请记录（状态 / 关键词）")
+    @GetMapping("/invites")
+    public Result<PageResult<InviteRecordVO>> invites(@RequestParam(defaultValue = "1") long pageNum,
+                                                      @RequestParam(defaultValue = "10") long pageSize,
+                                                      @RequestParam(required = false) Integer status,
+                                                      @RequestParam(required = false) String keyword) {
+        return Result.ok(inviteService.pageQuery(pageNum, pageSize, status, keyword));
     }
 }

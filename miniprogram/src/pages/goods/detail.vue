@@ -3,6 +3,8 @@ import { computed, ref } from 'vue'
 import { onLoad, onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
 import { goodsApi } from '@/api/goods'
 import { commentApi } from '@/api/comment'
+import { favoriteApi } from '@/api/favorite'
+import { browseApi } from '@/api/browse'
 import { useCartStore } from '@/store/cart'
 import { useUserStore } from '@/store/user'
 import { formatPrice } from '@/utils/format'
@@ -11,10 +13,13 @@ import {
   appMessage,
   captureInviter,
   enableShareMenu,
+  parseScene,
   SHOP_NAME,
   sharePath,
   timelineMessage
 } from '@/utils/share'
+import { shareApi } from '@/api/share'
+import SharePoster from '@/components/share-poster.vue'
 import type { Goods, GoodsComment, GoodsSku, SpecGroup } from '@/types/api'
 import { useTheme } from '@/composables/useTheme'
 
@@ -45,6 +50,11 @@ const tabCount = computed(() => (commentCount.value > 99 ? '99+' : String(commen
 const cartStore = useCartStore()
 const userStore = useUserStore()
 
+/** 分享面板 / 海报弹层 */
+const sharePanelVisible = ref(false)
+const posterVisible = ref(false)
+const qrcodeUrl = ref('')
+
 const banners = computed(() => {
   if (!goods.value) return []
   const list = (goods.value.images || '').split(',').map((item) => item.trim()).filter(Boolean)
@@ -59,6 +69,9 @@ const cartIcon = computed(() => navIconUri('shopping-cart', theme.value.subTextC
 
 /** 分享图标与购物车保持同一套线性图标与配色 */
 const shareIcon = computed(() => navIconUri('share-2', theme.value.subTextColor))
+
+/** 收藏心形：已收藏填色（实心），未收藏线性 */
+const favIcon = computed(() => navIconUri('heart', theme.value.subTextColor))
 
 const cartBadge = computed(() => (cartStore.count > 99 ? '99+' : String(cartStore.count)))
 
@@ -136,6 +149,11 @@ async function load() {
   goods.value = await goodsApi.detail(goodsId.value)
   resetSpecSelection()
   uni.setNavigationBarTitle({ title: goods.value.name })
+  // 已登录时顺带拉收藏初始态 + 上报浏览足迹（fire-and-forget，失败不打断详情）
+  if (userStore.isLogin) {
+    favoriteApi.status(goodsId.value).then((fav) => (isFavorited.value = fav)).catch(() => undefined)
+    browseApi.record(goodsId.value).catch(() => undefined)
+  }
 }
 
 /**
@@ -209,11 +227,43 @@ function goCart() {
   uni.switchTab({ url: '/pages/cart/index' })
 }
 
+/* ---------------- 收藏 ---------------- */
+
+const isFavorited = ref(false)
+
+async function toggleFavorite() {
+  if (!userStore.isLogin) {
+    uni.navigateTo({ url: '/pages/login/index' })
+    return
+  }
+  if (!goodsId.value) return
+  try {
+    isFavorited.value = await favoriteApi.toggle(goodsId.value)
+    uni.showToast({ title: isFavorited.value ? '已收藏' : '已取消收藏', icon: 'none' })
+  } catch {
+    // 错误提示由请求层统一 toast
+  }
+}
+
+async function makePoster() {
+  try {
+    // 小程序码由后端按「商品 + 邀请人」生成并缓存，重复生成不重复调微信接口
+    qrcodeUrl.value = await shareApi.goodsQrcode(goodsId.value)
+    sharePanelVisible.value = false
+    posterVisible.value = true
+  } catch {
+    // 请求层已 toast 具体原因
+  }
+}
+
 onLoad((options) => {
-  // 分享卡片进入：记录邀请人（用于后续拉新归因），并打开朋友圈分享入口
-  captureInviter(options)
+  // 分享卡片 / 小程序码进入：记录邀请人（scene 是 URL 编码的 id=1&inv=2），并打开朋友圈入口
+  const sceneParams = parseScene(options?.scene)
+  captureInviter({ ...options, ...sceneParams })
   enableShareMenu()
-  goodsId.value = Number(options?.id ?? 0)
+  // 小程序码落地时商品 id 在 scene 里
+  const sceneId = sceneParams ? Number(sceneParams.id) : 0
+  goodsId.value = Number(options?.id ?? 0) || (sceneId > 0 ? sceneId : 0)
   if (goodsId.value) {
     load()
     // 评价与商品详情并行拉取，互不阻塞
@@ -375,6 +425,17 @@ onShareTimeline(() =>
     </view>
 
     <view class="bar">
+      <view
+        class="bar__cart"
+        hover-class="bar__cart--hover"
+        :hover-stay-time="80"
+        @tap="toggleFavorite"
+      >
+        <view class="bar__cart-icon-wrap">
+          <image class="bar__cart-icon" :src="favIcon" mode="aspectFit" />
+        </view>
+        <text class="bar__cart-label">{{ isFavorited ? '已收藏' : '收藏' }}</text>
+      </view>
       <view class="bar__cart" hover-class="bar__cart--hover" :hover-stay-time="80" @tap="goCart">
         <view class="bar__cart-icon-wrap">
           <image class="bar__cart-icon" :src="cartIcon" mode="aspectFit" />
@@ -382,11 +443,11 @@ onShareTimeline(() =>
         </view>
         <text class="bar__cart-label">购物车</text>
       </view>
-      <!-- 分享转发：button open-type=share 直接唤起微信转发面板 -->
-      <button class="bar__share" open-type="share" hover-class="bar__share--hover" :hover-stay-time="80">
+      <!-- 分享：弹出面板（转发给好友 / 生成分享海报），朋友圈走右上角菜单 -->
+      <view class="bar__share" hover-class="bar__share--hover" :hover-stay-time="80" @tap="sharePanelVisible = true">
         <image class="bar__share-icon" :src="shareIcon" mode="aspectFit" />
         <text class="bar__share-label">分享</text>
-      </button>
+      </view>
       <view class="bar__actions">
         <view
           class="bar__btn bar__btn--cart"
@@ -408,6 +469,35 @@ onShareTimeline(() =>
         </view>
       </view>
     </view>
+
+    <!-- 分享面板：转发 / 海报 -->
+    <view v-if="sharePanelVisible" class="share-mask" @tap="sharePanelVisible = false">
+      <view class="share-panel" @tap.stop>
+        <view class="share-panel__head">分享到</view>
+        <!-- open-type=share 触发本页 onShareAppMessage -->
+        <button class="share-panel__item" open-type="share" hover-class="share-panel__item--hover">
+          <text class="share-panel__icon">💬</text>
+          <text class="share-panel__label">转发给好友</text>
+        </button>
+        <view class="share-panel__item" hover-class="share-panel__item--hover" @tap="makePoster">
+          <text class="share-panel__icon">🖼️</text>
+          <text class="share-panel__label">生成分享海报</text>
+        </view>
+        <text class="share-panel__tip">分享到朋友圈请点右上角「…」菜单</text>
+        <view class="share-panel__cancel" hover-class="share-panel__item--hover" @tap="sharePanelVisible = false">
+          取消
+        </view>
+      </view>
+    </view>
+
+    <!-- 分享海报 -->
+    <SharePoster
+      v-model:visible="posterVisible"
+      :title="goods?.name || ''"
+      :price-text="`¥${formatPrice(displayPrice)}`"
+      :image="displayImage"
+      :qrcode-url="qrcodeUrl"
+    />
   </view>
 </template>
 
@@ -891,6 +981,86 @@ onShareTimeline(() =>
     color: #fff;
     background-color: #d9d9d9;
     box-shadow: none;
+  }
+}
+
+/* ---------------- 分享面板 ---------------- */
+
+.share-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 999;
+  display: flex;
+  align-items: flex-end;
+  background-color: rgba(0, 0, 0, 0.5);
+}
+
+.share-panel {
+  width: 100%;
+  padding: 24rpx 24rpx calc(24rpx + env(safe-area-inset-bottom));
+  background-color: #fff;
+  border-radius: 24rpx 24rpx 0 0;
+
+  &__head {
+    padding-bottom: 20rpx;
+    font-size: 28rpx;
+    font-weight: 600;
+    color: $text-main;
+    text-align: center;
+  }
+
+  &__item {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    margin: 0;
+    padding: 26rpx 24rpx;
+    font-size: 30rpx;
+    line-height: normal;
+    color: $text-main;
+    text-align: left;
+    background-color: $page-bg;
+    border: none;
+    border-radius: 16rpx;
+
+    /* button 形态的「转发给好友」去掉默认外观 */
+    &::after {
+      border: none;
+    }
+
+    & + & {
+      margin-top: 16rpx;
+    }
+
+    &--hover {
+      opacity: 0.7;
+    }
+  }
+
+  &__icon {
+    font-size: 40rpx;
+  }
+
+  &__label {
+    margin-left: 20rpx;
+  }
+
+  &__tip {
+    display: block;
+    margin-top: 20rpx;
+    font-size: 22rpx;
+    color: $text-placeholder;
+    text-align: center;
+  }
+
+  &__cancel {
+    margin-top: 20rpx;
+    padding: 24rpx 0;
+    font-size: 30rpx;
+    color: $text-secondary;
+    text-align: center;
+    background-color: $page-bg;
+    border-radius: 16rpx;
   }
 }
 </style>

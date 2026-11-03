@@ -82,5 +82,19 @@
     "searchPlaceholder": "标签名称…",
     "selectPlaceholder": "选择标签…",
     "setTitle": "设置标签"
+  },
+  "invite": {
+    "createdAt": "邀请时间",
+    "inviter": "邀请人",
+    "keyword": "关键词",
+    "list": "邀请记录",
+    "member": "被邀请人",
+    "orderPoints": "首单奖励积分",
+    "orderedAt": "首单完成时间",
+    "registerPoints": "注册奖励积分",
+    "searchPlaceholder": "昵称 / 手机号 / 会员 ID…",
+    "status": "状态",
+    "statusOrdered": "已完成首单",
+    "statusRegistered": "已注册未下单"
   }
 }

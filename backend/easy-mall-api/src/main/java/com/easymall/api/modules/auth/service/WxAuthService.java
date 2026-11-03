@@ -9,6 +9,7 @@ import com.easymall.api.mapper.AppUserMapper;
 import com.easymall.api.modules.auth.config.WxProperties;
 import com.easymall.api.modules.auth.dto.WxSessionResponse;
 import com.easymall.api.modules.auth.vo.LoginVO;
+import com.easymall.api.modules.member.service.InviteService;
 import com.easymall.api.security.LoginSessionService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -28,14 +29,24 @@ public class WxAuthService {
     private final WxProperties wxProperties;
     private final AppUserMapper appUserMapper;
     private final LoginSessionService loginSessionService;
+    private final InviteService inviteService;
     private final ObjectMapper objectMapper;
     private final RestClient restClient = RestClient.create();
 
     public LoginVO login(String code) {
+        return login(code, null);
+    }
+
+    /**
+     * 登录/注册。inviterId 仅在新用户注册时生效：分享卡片带邀请人进入，
+     * 首次建号即绑定邀请关系（老用户带 inviter 登录不补绑）。
+     */
+    public LoginVO login(String code, Long inviterId) {
         String openid = resolveOpenid(code);
 
         AppUser user = appUserMapper.selectOne(
                 Wrappers.<AppUser>lambdaQuery().eq(AppUser::getOpenid, openid));
+        boolean newUser = false;
         if (user == null) {
             user = new AppUser();
             user.setOpenid(openid);
@@ -43,9 +54,14 @@ public class WxAuthService {
             user.setGender(0);
             user.setStatus(1);
             appUserMapper.insert(user);
+            newUser = true;
         }
         if (!Integer.valueOf(1).equals(user.getStatus())) {
             throw new BusinessException(ResultCode.USER_DISABLED);
+        }
+
+        if (newUser) {
+            inviteService.bindOnRegister(inviterId, user.getId());
         }
 
         LoginUser loginUser = new LoginUser(user.getId(), user.getOpenid(), user.getNickname());

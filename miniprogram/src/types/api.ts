@@ -326,3 +326,25 @@ export interface CommentSubmitItem {
   content?: string
   images?: string[]
 }
+
+/** 收藏列表项：goodsStatus 1 上架 / 0 下架或已删除（仍保留展示） */
+export interface FavoriteItem {
+  favoritedAt: string
+  goodsId: number
+  goodsName: string
+  goodsStatus: number
+  mainImage: string
+  originalPrice?: null | number
+  price: number
+}
+
+/** 浏览足迹列表项：按最近浏览时间倒序 */
+export interface BrowseItem {
+  browsedAt: string
+  goodsId: number
+  goodsName: string
+  goodsStatus: number
+  mainImage: string
+  originalPrice?: null | number
+  price: number
+}

@@ -82,5 +82,19 @@
     "searchPlaceholder": "Tag name…",
     "selectPlaceholder": "Select tags…",
     "setTitle": "Set Tags"
+  },
+  "invite": {
+    "createdAt": "Invited At",
+    "inviter": "Inviter",
+    "keyword": "Keyword",
+    "list": "Invite Records",
+    "member": "Invitee",
+    "orderPoints": "First-Order Points",
+    "orderedAt": "First Order At",
+    "registerPoints": "Register Points",
+    "searchPlaceholder": "Nickname / Phone / Member ID...",
+    "status": "Status",
+    "statusOrdered": "First Order Done",
+    "statusRegistered": "Registered"
   }
 }

@@ -34,6 +34,12 @@
       }
     },
     {
+      "path": "pages/mine/invite",
+      "style": {
+        "navigationBarTitleText": "邀请好友"
+      }
+    },
+    {
       "path": "pages/search/index",
       "style": {
         "navigationBarTitleText": "搜索"

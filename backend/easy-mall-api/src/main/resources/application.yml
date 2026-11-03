@@ -68,6 +68,8 @@ easy-mall:
       - /pay/wxpay/notify
       # 头像等本地上传文件：image 组件无法携带 token，静态资源放开
       - /files/**
+      # 商品分享海报小程序码：未登录也可生成，scene 里的邀请人仅登录后携带
+      - /share/qrcode/**
   wx:
     app-id: ${WX_APP_ID:}
     app-secret: ${WX_APP_SECRET:}
