@@ -100,6 +100,16 @@ async function toCoupons() {
   uni.navigateTo({ url: '/pages/coupon/index' })
 }
 
+async function toFavorites() {
+  if (!(await ensureLogin())) return
+  uni.navigateTo({ url: '/pages/favorite/index' })
+}
+
+async function toBrowseHistory() {
+  if (!(await ensureLogin())) return
+  uni.navigateTo({ url: '/pages/browse/index' })
+}
+
 async function logout() {
   const res = await uni.showModal({ title: '提示', content: '确定退出登录吗？' })
   if (res.confirm) {
@@ -192,6 +202,12 @@ onShareTimeline(() => timelineMessage(shareTitle.value))
     </view>
 
     <view class="card card--menu">
+      <view class="cell cell-arrow" @tap="toFavorites">
+        <text>我的收藏</text>
+      </view>
+      <view class="cell cell-arrow" @tap="toBrowseHistory">
+        <text>浏览足迹</text>
+      </view>
       <view class="cell cell-arrow" @tap="toAddress">
         <text>收货地址</text>
       </view>

@@ -14,9 +14,9 @@ const items = ref<FavoriteItem[]>([])
 const loading = ref(true)
 const pageNum = ref(1)
 const finished = ref(false)
+const total = ref(0)
 
 const totalText = computed(() => `共 ${total.value} 件收藏`)
-const total = ref(0)
 
 async function load(reset = false) {
   if (reset) {

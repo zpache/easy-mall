@@ -101,6 +101,18 @@
       }
     },
     {
+      "path": "pages/favorite/index",
+      "style": {
+        "navigationBarTitleText": "我的收藏"
+      }
+    },
+    {
+      "path": "pages/browse/index",
+      "style": {
+        "navigationBarTitleText": "浏览足迹"
+      }
+    },
+    {
       "path": "pages/login/index",
       "style": {
         "navigationBarTitleText": "登录"
