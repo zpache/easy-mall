@@ -27,15 +27,19 @@ const uriCache: Record<string, string> = {}
 /**
  * 图标名 -> SVG data URI（微信小程序 image 支持 base64 svg）。
  * 颜色参与缓存 key，选中/未选中各缓存一份。
+ *
+ * @param filled true 时用主色填充图标（如已收藏的实心爱心），
+ *               描边宽度收细，避免填充后轮廓发糊
  */
-export function navIconUri(name?: string, color = '#909399'): string {
+export function navIconUri(name?: string, color = '#909399', filled = false): string {
   const body = navIconBody(name)
   if (!body) return ''
-  const key = `${name}|${color}`
+  const key = `${name}|${color}|${filled ? 'fill' : 'line'}`
   if (uriCache[key]) return uriCache[key]
   const svg =
-    '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" ' +
-    `stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">` +
+    '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" ' +
+    `fill="${filled ? color : 'none'}" ` +
+    `stroke="${color}" stroke-width="${filled ? 1.5 : 2}" stroke-linecap="round" stroke-linejoin="round">` +
     `${body.replace(/CURRENT_COLOR/g, color)}</svg>`
   const uri = `data:image/svg+xml;base64,${base64(svg)}`
   uriCache[key] = uri

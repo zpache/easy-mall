@@ -70,8 +70,15 @@ const cartIcon = computed(() => navIconUri('shopping-cart', theme.value.subTextC
 /** 分享图标与购物车保持同一套线性图标与配色 */
 const shareIcon = computed(() => navIconUri('share-2', theme.value.subTextColor))
 
-/** 收藏心形：已收藏填色（实心），未收藏线性 */
-const favIcon = computed(() => navIconUri('heart', theme.value.subTextColor))
+/** 当前商品是否已收藏（详情加载后拉取，底栏心形按钮与文案都依赖它） */
+const isFavorited = ref(false)
+
+/** 收藏心形：已收藏用主色实心，未收藏用次文字色线性，状态一眼可辨 */
+const favIcon = computed(() =>
+  isFavorited.value
+    ? navIconUri('heart', theme.value.primaryColor, true)
+    : navIconUri('heart', theme.value.subTextColor)
+)
 
 const cartBadge = computed(() => (cartStore.count > 99 ? '99+' : String(cartStore.count)))
 
@@ -228,8 +235,6 @@ function goCart() {
 }
 
 /* ---------------- 收藏 ---------------- */
-
-const isFavorited = ref(false)
 
 async function toggleFavorite() {
   if (!userStore.isLogin) {
