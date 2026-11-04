@@ -17,6 +17,13 @@
     <packaging>pom</packaging>
     <name>easy-mall</name>
     <description>easy-mall 微商城后端（单体应用，多模块）</description>
+    <licenses>
+        <license>
+            <name>Apache License, Version 2.0</name>
+            <url>https://www.apache.org/licenses/LICENSE-2.0</url>
+            <distribution>repo</distribution>
+        </license>
+    </licenses>
 
     <modules>
         <module>easy-mall-admin</module>

@@ -1,11 +1,17 @@
 # easy-mall 微商城
 
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+
 一个前后端分离的微商城项目，包含 **Web 管理后台**（运营端）与 **微信小程序商城**（用户端），两个后端服务共享一个 MySQL 库。
 
 - 后端：Spring Boot 4.1.2 单体应用（Maven 父工程 + 2 个可独立启动的模块）
 - 管理后台前端：Vben Admin v5.7.0（web-ele）· Vue 3 · Element Plus · 动态菜单 + RBAC
 - 小程序端：uni-app + Vue3 + TypeScript + Vite + Pinia + SCSS
 - 数据库：MySQL 8（两个后端服务共用同一个库）
+
+> **关于数据库脚本**：本仓库**只公开代码，不包含 `db/` 目录**（建库建表脚本与增量迁移均不在仓库内）。
+> 想完整跑起来需要数据库结构与初始化脚本，请**联系作者获取**（issue 或邮件），脚本按单独约定提供。
+> 仅浏览代码、二次开发前端/业务逻辑不受影响。
 
 ## 功能总览
 
@@ -33,9 +39,7 @@ easy-mall/
 │   └── easy-mall-api/           # 小程序接口服务，端口 8082，context-path=/api
 ├── web-admin/                   # 管理后台前端（Vben Admin 5 · web-ele），见 web-admin/README.md
 ├── miniprogram/                 # 小程序端（uni-app）
-└── db/
-    ├── easy_mall.sql            # 建库建表 + 演示数据（基础版）
-    └── migrations/              # 增量迁移脚本（全部幂等，可重复执行）
+└── （db/ 数据库脚本不在仓库内，请联系作者获取）
 ```
 
 ### 后端模块内部分层
@@ -80,20 +84,12 @@ com.easymall.{admin|api}
 | 文件 | sys_file（COS 对象键、访问地址、大小、场景） |
 | 小程序 | cart_item、user_address |
 
-增量迁移脚本（老库按序执行即可，全部幂等）：
+增量迁移脚本（老库按序执行即可，全部幂等）**不在本仓库内**，与建库脚本一并由作者线下提供：
 
-| 脚本 | 内容 |
-| --- | --- |
-| `20261026_add_audit_columns.sql` | 全表补 created_by / updated_by / version 审计字段 |
-| `20261027_system_module.sql` | 系统管理五张表 + 种子数据 |
-| `20261028_dynamic_menu.sql` | 工作台菜单入库并授权 |
-| `20261029_goods_module.sql` | 品牌/库存表、商品管理菜单 |
-| `20261030_order_module.sql` | 订单发货/售后字段、售后/评价表、订单管理菜单 |
-| `20261031_member_module.sql` | 会员等级/积分/标签表、会员字段、会员管理菜单 |
-| `20261101_rename_tables.sql` | 表名规范化（订单 o_、会员 m_ 前缀） |
-| `20261102_marketing_module.sql` | 优惠券/领券/拼团秒杀/签到/满减表、营销中心菜单 |
-| `20261103_decorate_module.sql` | 装修页面表、商城装修菜单、演示首页 |
-| `20261104_cos_upload.sql` | 上传文件记录表（COS 直传回执） |
+- `easy_mall.sql`：建库建表 + 演示数据（基础版）
+- `migrations/*.sql`：按日期命名的增量脚本（系统管理、动态菜单、商品/订单/会员/营销/装修等模块）
+
+索取方式见文首「关于数据库脚本」，或直接提 issue 说明用途。
 
 ## 技术栈与版本
 
@@ -124,13 +120,16 @@ java -version   # 应显示 25.x
 
 ### 2. 初始化数据库
 
+> 数据库脚本**不随仓库分发**。请先向作者索取 `easy_mall.sql` 与 `db/migrations/`，放到项目根目录的 `db/` 下
+> （该目录已加入 `.gitignore`，只留在本地、不会被误提交）。
+
 ```bash
 mysql -uroot -p < db/easy_mall.sql
 # 再按序执行全部迁移
 for f in db/migrations/*.sql; do mysql -uroot -p easy_mall < "$f"; done
 ```
 
-基础脚本会创建 `easy_mall` 库并写入演示数据；迁移补齐系统管理、动态菜单、商品/订单/会员模块与菜单授权。默认管理员：**admin / admin123**。
+基础脚本会创建 `easy_mall` 库并写入演示数据；迁移补齐系统管理、动态菜单、商品/订单/会员模块与菜单授权。默认管理员：**admin / admin123**（首次登录后请立即改密码）。
 
 > `easy_mall.sql` 开头是 `DROP TABLE IF EXISTS`，**重复执行会清空数据**，只适合初始化；有数据的库只跑 `db/migrations/` 增量脚本。
 
@@ -455,3 +454,25 @@ admin 使用 Spring Security 无状态鉴权（token 12 小时），api 使用 M
 4. 文件上传（对象存储）、商品图片管理
 5. 服务端权限闭环：`/system/*` 等读接口补 `@PreAuthorize`，按钮权限码纳入权限 authorities
 6. 小程序 tabBar 图标替换为正式设计稿、真实微信支付接入
+
+## 开源协议
+
+本项目代码采用 **Apache License 2.0** 授权，全文见 [LICENSE](LICENSE)，第三方组件与例外说明见 [NOTICE](NOTICE)。
+
+简单说：
+
+| 你可以 | 你需要 |
+| --- | --- |
+| 商用、修改、分发、私有化部署 | 保留版权声明、LICENSE 与 NOTICE |
+| 闭源二次开发（不必回馈代码） | 修改过的文件注明「已修改」 |
+| 用于自己的项目或产品 | 不得使用「easy-mall」名称/Logo 暗示官方背书 |
+
+**不在授权范围内**：
+
+- **数据库结构与初始化脚本**（建库建表、迁移脚本、演示数据）不随仓库分发，需联系作者获取并遵守单独约定；fork 后自行设计数据库结构不受限制
+- **商标**：「easy-mall」名称与 Logo 不随代码授权（Apache-2.0 第 6 条）
+- **商业支持**：需要闭源集成、部署实施或数据库脚本，请联系作者
+
+贡献说明：提交 PR 即表示同意以 Apache-2.0 授权你的贡献，请在提交信息中附 `Signed-off-by`（DCO）。
+
+> 本项目按「现状」提供，不附带任何明示或默示担保。商城涉及支付、订单与会员数据，上线前请自行完成安全评估与合规审查。

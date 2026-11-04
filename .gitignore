@@ -46,5 +46,11 @@ logs/
 ### 本地上传文件（装修素材等）
 uploads/
 
+### 数据库脚本（建库脚本 + 迁移，不随开源仓库分发，仅本地保留）
+db/
+*.sql
+!**/src/test/resources/*.sql
+!**/src/main/resources/*.sql
+
 ### 本地环境变量覆盖（含本机局域网 IP 等，禁止提交）
 **/.env*.local
