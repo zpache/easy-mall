@@ -1,6 +1,8 @@
 package com.easymall.api.modules.order.service;
 
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.easymall.api.common.api.PageResult;
 import com.easymall.api.common.api.ResultCode;
 import com.easymall.api.common.exception.BusinessException;
 import com.easymall.api.entity.MallOrder;
@@ -9,6 +11,7 @@ import com.easymall.api.mapper.MallOrderMapper;
 import com.easymall.api.mapper.OrderRefundMapper;
 import com.easymall.api.modules.order.dto.RefundApplyForm;
 import com.easymall.api.modules.order.vo.RefundApplyVO;
+import com.easymall.api.modules.order.vo.RefundRecordVO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -19,7 +22,11 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /**
  * 售后申请：小程序端发起，落到 o_order_refund 待审核，后台审核 → 原路退款。
@@ -94,5 +101,64 @@ public class RefundService {
     private String generateRefundNo() {
         return "RF" + LocalDateTime.now().format(NO_FORMATTER)
                 + String.format("%04d", ThreadLocalRandom.current().nextInt(10000));
+    }
+
+    /**
+     * 我的售后分页：status 为空查全部，其余按售后单状态过滤。
+     */
+    public PageResult<RefundRecordVO> pageMy(Long userId, long pageNum, long pageSize, Integer status) {
+        Page<OrderRefund> page = refundMapper.selectPage(Page.of(pageNum, pageSize),
+                Wrappers.<OrderRefund>lambdaQuery()
+                        .eq(OrderRefund::getUserId, userId)
+                        .eq(status != null, OrderRefund::getStatus, status)
+                        .orderByDesc(OrderRefund::getAppliedAt)
+                        .orderByDesc(OrderRefund::getId));
+        Map<Long, MallOrder> orderMap = loadOrders(page.getRecords());
+        return PageResult.of(page, refund -> RefundRecordVO.of(refund, orderMap.get(refund.getOrderId())));
+    }
+
+    /**
+     * 售后详情（含进度）：只能看自己的售后单。
+     */
+    public RefundRecordVO detail(Long userId, Long id) {
+        OrderRefund refund = refundMapper.selectById(id);
+        if (refund == null || !refund.getUserId().equals(userId)) {
+            throw new BusinessException(ResultCode.NOT_FOUND, "售后单不存在");
+        }
+        return RefundRecordVO.of(refund, orderMapper.selectById(refund.getOrderId()));
+    }
+
+    /**
+     * 撤销售后申请：仅待审核可撤销，撤销后订单售后状态还原为「无售后」，可重新申请。
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public void cancel(Long userId, Long id) {
+        OrderRefund refund = refundMapper.selectById(id);
+        if (refund == null || !refund.getUserId().equals(userId)) {
+            throw new BusinessException(ResultCode.NOT_FOUND, "售后单不存在");
+        }
+        if (!Objects.equals(refund.getStatus(), OrderRefund.STATUS_PENDING)) {
+            throw new BusinessException(ResultCode.DATA_CONFLICT, "只有待商家审核的售后单可以撤销");
+        }
+        refund.setStatus(OrderRefund.STATUS_CANCELLED);
+        refund.setHandledAt(LocalDateTime.now());
+        if (refundMapper.updateById(refund) <= 0) {
+            throw new BusinessException(ResultCode.DATA_CONFLICT, "撤销失败，请刷新后重试");
+        }
+        // 订单售后标记还原为无售后：用户随后可重新发起申请
+        orderMapper.update(null, Wrappers.<MallOrder>lambdaUpdate()
+                .eq(MallOrder::getId, refund.getOrderId())
+                .set(MallOrder::getRefundStatus, 0));
+        log.info("用户撤销售后申请: orderNo={}, refundNo={}", refund.getOrderNo(), refund.getRefundNo());
+    }
+
+    private Map<Long, MallOrder> loadOrders(List<OrderRefund> refunds) {
+        List<Long> orderIds = refunds.stream().map(OrderRefund::getOrderId)
+                .filter(Objects::nonNull).distinct().toList();
+        if (orderIds.isEmpty()) {
+            return Map.of();
+        }
+        return orderMapper.selectList(Wrappers.<MallOrder>lambdaQuery().in(MallOrder::getId, orderIds))
+                .stream().collect(Collectors.toMap(MallOrder::getId, Function.identity(), (a, b) -> a));
     }
 }

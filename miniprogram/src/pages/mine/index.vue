@@ -90,6 +90,10 @@ async function toAddress() {
   uni.navigateTo({ url: '/pages/address/list' })
 }
 
+function toRefunds() {
+  uni.navigateTo({ url: '/pages/order/refund-list' })
+}
+
 async function toInvite() {
   if (!(await ensureLogin())) return
   uni.navigateTo({ url: '/pages/mine/invite' })
@@ -210,6 +214,9 @@ onShareTimeline(() => timelineMessage(shareTitle.value))
       </view>
       <view class="cell cell-arrow" @tap="toAddress">
         <text>收货地址</text>
+      </view>
+      <view class="cell cell-arrow" @tap="toRefunds">
+        <text>售后/退款</text>
       </view>
       <view class="cell cell-arrow" @tap="toInvite">
         <text>邀请好友</text>

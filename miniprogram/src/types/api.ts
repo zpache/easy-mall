@@ -248,6 +248,32 @@ export interface RefundApplyResult {
   appliedAt: string
 }
 
+/**
+ * 售后记录（列表与详情共用）。
+ * status：0 待审核 / 1 已同意待退款 / 2 已拒绝 / 3 已退款 / 4 已撤销
+ */
+export interface RefundRecord {
+  id: number
+  refundNo: string
+  orderId: number
+  orderNo: string
+  /** 本次退款金额（服务端按实付−已退计算） */
+  amount: number
+  orderPayAmount: number
+  /** refund 仅退款 / return 退货退款 */
+  type: string
+  typeText: string
+  reason: string
+  status: number
+  statusText: string
+  /** 商家审核备注（拒绝原因 / 同意说明） */
+  auditRemark: null | string
+  appliedAt: string
+  handledAt: null | string
+  /** 微信退款单号，到账后可在微信支付账单核对 */
+  wxRefundNo: null | string
+}
+
 /** 运费预览：deliverable=false 时该地区不配送，freightAmount 无效 */
 export interface FreightPreview {
   freightAmount: number

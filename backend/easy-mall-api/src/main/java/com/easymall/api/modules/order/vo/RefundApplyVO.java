@@ -24,6 +24,7 @@ public record RefundApplyVO(
             case 1 -> "商家已同意，等待退款";
             case 2 -> "商家已拒绝";
             case 3 -> "已退款";
+            case 4 -> "已撤销";
             default -> "未知";
         };
     }

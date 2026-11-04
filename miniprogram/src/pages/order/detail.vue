@@ -204,8 +204,9 @@ async function applyRefund() {
     content: ''
   })
   if (!res.confirm) return
+  let result
   try {
-    await orderApi.applyRefund({
+    result = await orderApi.applyRefund({
       orderId: orderId.value,
       reason: (res as any).content || '',
       type: 'refund'
@@ -216,6 +217,13 @@ async function applyRefund() {
   uni.showToast({ title: '已提交，等待商家处理', icon: 'none' })
   uni.$emit('order:refresh')
   load()
+  // 直接带到售后进度页，用户能立刻看到「待商家审核」的时间线
+  uni.navigateTo({ url: `/pages/order/refund-detail?id=${result.id}` })
+}
+
+/** 查看售后进度：订单上有退款标记时，跳到售后列表（订单 VO 未带售后单 id） */
+function goRefundList() {
+  uni.navigateTo({ url: '/pages/order/refund-list' })
 }
 
 function goGoods(goodsId: number) {
@@ -270,7 +278,7 @@ onUnload(stopTicking)
         <text v-if="countdownText" class="status__countdown">
           剩余 {{ countdownText }} 自动关闭
         </text>
-        <text v-if="order.refundStatusText" class="status__refund">{{ order.refundStatusText }}</text>
+        <text v-if="order.refundStatusText" class="status__refund" @tap="goRefundList">{{ order.refundStatusText }} ›</text>
         <text v-if="statusTip" class="status__tip">{{ statusTip }}</text>
       </view>
 

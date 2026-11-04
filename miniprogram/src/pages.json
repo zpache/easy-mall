@@ -89,6 +89,18 @@
       }
     },
     {
+      "path": "pages/order/refund-list",
+      "style": {
+        "navigationBarTitleText": "售后/退款"
+      }
+    },
+    {
+      "path": "pages/order/refund-detail",
+      "style": {
+        "navigationBarTitleText": "售后进度"
+      }
+    },
+    {
       "path": "pages/address/list",
       "style": {
         "navigationBarTitleText": "收货地址"

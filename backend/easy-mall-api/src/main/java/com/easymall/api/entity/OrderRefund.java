@@ -25,6 +25,8 @@ public class OrderRefund extends BaseEntity {
     public static final int STATUS_REJECTED = 2;
     /** 已退款 */
     public static final int STATUS_REFUNDED = 3;
+    /** 用户主动撤销（仅待审核可撤销；仅小程序端产生） */
+    public static final int STATUS_CANCELLED = 4;
 
     @TableId(type = IdType.AUTO)
     private Long id;

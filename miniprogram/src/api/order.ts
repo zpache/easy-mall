@@ -1,5 +1,5 @@
 import { buildQuery, request } from './request'
-import type { FreightPreview, LogisticsTrace, Order, PageResult, PrepayResult, PromotionPreview, RefundApplyResult } from '@/types/api'
+import type { FreightPreview, LogisticsTrace, Order, PageResult, PrepayResult, PromotionPreview, RefundApplyResult, RefundRecord } from '@/types/api'
 import type { UsableCoupon } from '@/types/coupon'
 
 export const orderApi = {
@@ -58,5 +58,16 @@ export const orderApi = {
 
   /** 申请退款：金额由服务端按「实付 − 已退」计算 */
   applyRefund: (data: { orderId: number, reason?: string, type?: string }) =>
-    request<RefundApplyResult>({ url: '/refunds/apply', method: 'POST', data, loading: true })
+    request<RefundApplyResult>({ url: '/refunds/apply', method: 'POST', data, loading: true }),
+
+  /** 我的售后分页：status 为空查全部 */
+  refundList: (pageNum = 1, pageSize = 10, status?: number) =>
+    request<PageResult<RefundRecord>>({ url: `/refunds${buildQuery({ pageNum, pageSize, status })}` }),
+
+  /** 售后详情（含进度时间线字段） */
+  refundDetail: (id: number) => request<RefundRecord>({ url: `/refunds/${id}` }),
+
+  /** 撤销售后申请：仅待商家审核的可撤销 */
+  cancelRefund: (id: number) =>
+    request<void>({ url: `/refunds/${id}/cancel`, method: 'PUT', loading: true })
 }
