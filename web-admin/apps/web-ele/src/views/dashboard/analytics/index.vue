@@ -197,8 +197,9 @@ onMounted(() => {
 
 <template>
   <div class="p-4">
-    <AnalysisOverview :items="overviewItems" />
-    <div class="mb-3 mt-5 flex items-center gap-2">
+    <!-- 紧凑模式：压缩卡片内边距，让「四个指标卡 + 订单趋势」在同一屏内完整呈现 -->
+    <AnalysisOverview class="overview-compact" :items="overviewItems" />
+    <div class="mb-3 mt-4 flex items-center gap-2">
       <span class="text-sm text-gray-500">统计范围</span>
       <ElRadioGroup v-model="trendDays" size="small" @change="onDaysChange">
         <ElRadioButton :value="7">近 7 天</ElRadioButton>
@@ -213,7 +214,7 @@ onMounted(() => {
           <span class="text-xs text-gray-400">按下单时间，已排除取消订单</span>
         </div>
       </template>
-      <EchartsUI ref="trendChartRef" height="320px" />
+      <EchartsUI ref="trendChartRef" height="300px" />
     </ElCard>
     <ElCard shadow="never" class="mb-4">
       <template #header>
@@ -235,3 +236,27 @@ onMounted(() => {
     </ElCard>
   </div>
 </template>
+
+<style scoped lang="scss">
+/* 指标卡紧凑化：CardHeader 原 p-5、CardContent/CardFooter 原 p-6，纵向留白偏大。
+   这里只在本页压缩，公共组件 AnalysisOverview 保持原样，其他页面不受影响。 */
+.overview-compact {
+  gap: 12px;
+
+  // 卡片头部：上下留白收窄，标题与数值之间不再多一层空隙
+  :deep(.p-5) {
+    gap: 0;
+    padding: 12px 16px 0;
+  }
+
+  // 数值行与底部说明行：左右 16px，纵向只留必要间距
+  :deep(.p-6) {
+    padding: 6px 16px 0;
+  }
+
+  // 卡片最后一个面板（底部说明行）补回下内边距，避免文字贴边
+  :deep(.p-6:last-child) {
+    padding-bottom: 12px;
+  }
+}
+</style>
