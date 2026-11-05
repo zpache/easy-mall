@@ -1,15 +1,18 @@
 package com.easymall.admin.modules.order.service;
 
 import com.easymall.admin.common.exception.BusinessException;
+import com.easymall.admin.entity.DeliveryCompany;
 import com.easymall.admin.entity.Order;
 import com.easymall.admin.entity.SysConfig;
 import com.easymall.admin.modules.order.vo.LogisticsTraceVO;
+import com.easymall.admin.modules.setting.service.DeliveryCompanyService;
 import com.easymall.admin.modules.setting.service.SysConfigService;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestClient;
 
 import java.nio.charset.StandardCharsets;
@@ -18,13 +21,15 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * 物流查询：快递100 实时查询（poll/query.do）。
  * <p>
- * 1. 快递公司名映射为快递100 公司编码（发货表单预设的常见快递）；
- * 2. 编码映射不到时调用快递100「单号识别」按单号自动判断；
- * 3. 查询签名为 MD5(param + key + customer) 大写；每次调用消耗一次查询额度，
+ * 1. 快递公司编码取订单上的快照（发货时由快递公司表解析写入）；
+ * 2. 老订单没有快照时按公司名查「商城设置 → 快递公司」，仍未命中才调快递100「单号识别」；
+ * 3. 只有顺丰、EMS 这类公司在查询时会校验收件人手机号后四位，其余快递不传，少一次信息外传；
+ * 4. 查询签名为 MD5(param + key + customer) 大写；每次调用消耗一次查询额度，
  *    本期不做轨迹缓存，额度吃紧时再加落库缓存。
  */
 @Slf4j
@@ -35,18 +40,11 @@ public class LogisticsService {
     private static final String QUERY_URL = "https://poll.kuaidi100.com/poll/query.do";
     private static final String AUTONUMBER_URL = "https://www.kuaidi100.com/autonumber/autoComNum";
 
-    /** 发货表单预设快递公司 → 快递100 公司编码 */
-    private static final Map<String, String> COMPANY_CODES = Map.of(
-            "顺丰速运", "shunfeng",
-            "京东物流", "jd",
-            "中通快递", "zhongtong",
-            "圆通速递", "yuantong",
-            "申通快递", "shentong",
-            "韵达快递", "yunda",
-            "邮政 EMS", "ems",
-            "极兔速递", "jtexpress");
+    /** 即使公司表里没配，这几个编码也必须带手机号后四位，否则查不到轨迹 */
+    private static final Set<String> PHONE_REQUIRED_CODES = Set.of("shunfeng", "ems");
 
     private final SysConfigService sysConfigService;
+    private final DeliveryCompanyService deliveryCompanyService;
     private final ObjectMapper objectMapper;
 
     /**
@@ -66,14 +64,22 @@ public class LogisticsService {
         }
 
         String company = order.getDeliveryCompany() == null ? "" : order.getDeliveryCompany().trim();
-        String companyCode = COMPANY_CODES.get(company);
-        if (companyCode == null) {
-            // 未命中预设映射（自定义快递公司），按单号自动识别
+        DeliveryCompany configured = deliveryCompanyService.resolveByName(company);
+        String companyCode = order.getDeliveryCompanyCode();
+        if (!StringUtils.hasText(companyCode)) {
+            companyCode = configured == null ? null : configured.getCode();
+        }
+        if (!StringUtils.hasText(companyCode)) {
+            // 自定义快递（未在快递公司表里维护），按单号自动识别
             companyCode = autoDetectCompany(order.getDeliveryNo());
         }
 
-        return query(company, companyCode, order.getDeliveryNo(), phoneTail(order.getReceiverPhone()),
-                customer, apiKey);
+        boolean phoneRequired = configured != null
+                ? Integer.valueOf(1).equals(configured.getPhoneRequired())
+                : PHONE_REQUIRED_CODES.contains(companyCode);
+        String phone = phoneRequired ? phoneTail(order.getReceiverPhone()) : "";
+
+        return query(company, companyCode, order.getDeliveryNo(), phone, customer, apiKey);
     }
 
     /* ---------------- private ---------------- */

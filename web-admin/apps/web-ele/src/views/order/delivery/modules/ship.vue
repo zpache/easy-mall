@@ -7,6 +7,7 @@ import { useVbenDrawer } from '@vben/common-ui';
 
 import { useVbenForm } from '#/adapter/form';
 import { deliverOrder } from '#/api/order/order';
+import { getDeliveryCompanies } from '#/api/settings/delivery';
 import { $t } from '#/locales';
 
 import { formatMoney, formatTime, summaryGoods } from '../../list/data';
@@ -14,6 +15,9 @@ import { formatMoney, formatTime, summaryGoods } from '../../list/data';
 const emit = defineEmits<{ success: [] }>();
 
 const current = ref<null | OrderApi.Order>(null);
+
+/** 发货下拉的快递公司来自「商城设置 → 快递公司」，只取启用的 */
+const companyOptions = ref<{ label: string; value: string }[]>([]);
 
 const [Form, formApi] = useVbenForm({
   layout: 'vertical',
@@ -41,16 +45,7 @@ const [Form, formApi] = useVbenForm({
       componentProps: {
         allowCreate: true,
         filterable: true,
-        options: [
-          { label: '顺丰速运', value: '顺丰速运' },
-          { label: '京东物流', value: '京东物流' },
-          { label: '中通快递', value: '中通快递' },
-          { label: '圆通速递', value: '圆通速递' },
-          { label: '申通快递', value: '申通快递' },
-          { label: '韵达快递', value: '韵达快递' },
-          { label: '邮政 EMS', value: '邮政 EMS' },
-          { label: '极兔速递', value: '极兔速递' },
-        ],
+        options: [] as { label: string; value: string }[],
         placeholder: $t('order.delivery.companyPlaceholder'),
       },
       fieldName: 'deliveryCompany',
@@ -69,6 +64,25 @@ const [Form, formApi] = useVbenForm({
   ],
   showDefaultActions: false,
 });
+
+/** 拉取启用的快递公司；失败时只提示，不阻塞发货（仍可手填） */
+async function loadCompanyOptions() {
+  try {
+    const list = await getDeliveryCompanies({ status: 1 });
+    companyOptions.value = list.map((item) => ({
+      label: item.name,
+      value: item.name,
+    }));
+  } catch {
+    companyOptions.value = [];
+  }
+  formApi.updateSchema([
+    {
+      componentProps: { options: companyOptions.value },
+      fieldName: 'deliveryCompany',
+    },
+  ]);
+}
 
 const orderInfo = computed(() => {
   const order = current.value;
@@ -97,13 +111,15 @@ const [Drawer, drawerApi] = useVbenDrawer({
       drawerApi.lock(false);
     }
   },
-  onOpenChange(isOpen) {
+  async onOpenChange(isOpen) {
     if (!isOpen) {
       return;
     }
     const data = drawerApi.getData<OrderApi.Order>();
     current.value = data && data.id ? data : null;
     formApi.resetForm();
+    // 先拉快递公司再写入回显值：updateSchema 会重建字段，放在 setValues 之后会把值清掉
+    await loadCompanyOptions();
     if (data?.id) {
       formApi.setValues({
         deliveryCompany: data.deliveryCompany,

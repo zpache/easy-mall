@@ -87,6 +87,9 @@ public class MallOrder extends BaseEntity {
     /** 发货快递公司（后台发货时写入） */
     private String deliveryCompany;
 
+    /** 快递公司编码快照（快递100 comCode），发货时由后台写入 */
+    private String deliveryCompanyCode;
+
     /** 发货快递单号 */
     private String deliveryNo;
 

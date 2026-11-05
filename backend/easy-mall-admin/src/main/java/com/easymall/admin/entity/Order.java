@@ -107,6 +107,9 @@ public class Order extends BaseEntity {
 
     private String deliveryCompany;
 
+    /** 快递公司编码快照（快递100 comCode）：发货时按公司名从快递公司表解析后落库，改名不影响历史订单 */
+    private String deliveryCompanyCode;
+
     private String deliveryNo;
 
     private String remark;

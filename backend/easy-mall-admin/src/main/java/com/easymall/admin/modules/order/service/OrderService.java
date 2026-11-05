@@ -23,6 +23,7 @@ import com.easymall.admin.modules.order.dto.DeliverForm;
 import com.easymall.admin.modules.order.vo.BatchDeliverVO;
 import com.easymall.admin.modules.order.vo.OrderVO;
 import com.easymall.admin.modules.pay.service.WxPayCloseService;
+import com.easymall.admin.modules.setting.service.DeliveryCompanyService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -53,6 +54,7 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
     private final CouponUserMapper couponUserMapper;
     private final WxPayCloseService wxPayCloseService;
     private final WxSubscribeService wxSubscribeService;
+    private final DeliveryCompanyService deliveryCompanyService;
 
     /**
      * 订单分页：支持订单号 / 收货人 / 手机号模糊搜索，状态、售后状态与下单日期区间过滤。
@@ -109,6 +111,8 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
         }
         order.setStatus(Order.STATUS_UNRECEIVED);
         order.setDeliveryCompany(form.deliveryCompany());
+        // 编码快照：命中快递公司表就存下来，之后查轨迹不用再按名字匹配，公司改名也不影响历史订单
+        order.setDeliveryCompanyCode(deliveryCompanyService.resolveCode(form.deliveryCompany()));
         order.setDeliveryNo(form.deliveryNo());
         order.setDeliveryTime(LocalDateTime.now());
         if (!updateById(order)) {

@@ -1,8 +1,11 @@
 package com.easymall.api.modules.order.service;
 
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.easymall.api.common.exception.BusinessException;
+import com.easymall.api.entity.DeliveryCompany;
 import com.easymall.api.entity.MallOrder;
 import com.easymall.api.entity.SysConfig;
+import com.easymall.api.mapper.DeliveryCompanyMapper;
 import com.easymall.api.modules.order.vo.LogisticsTraceVO;
 import com.easymall.api.modules.setting.service.SysConfigService;
 import tools.jackson.databind.JsonNode;
@@ -11,6 +14,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestClient;
 
 import java.nio.charset.StandardCharsets;
@@ -19,13 +23,17 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /**
  * 物流查询：快递100 实时查询（poll/query.do），与 admin 端同口径。
  * <p>
- * 1. 快递公司名映射为快递100 公司编码（后台发货表单预设的常见快递）；
- * 2. 编码映射不到时调用快递100「单号识别」按单号自动判断；
- * 3. 查询签名为 MD5(param + key + customer) 大写；每次调用消耗一次查询额度。
+ * 1. 快递公司编码取订单上的快照（发货时由快递公司表解析写入）；
+ * 2. 老订单没有快照时按公司名查「商城设置 → 快递公司」（60 秒缓存），仍未命中才调「单号识别」；
+ * 3. 只有顺丰、EMS 这类公司在查询时会校验收件人手机号后四位，其余快递不传；
+ * 4. 查询签名为 MD5(param + key + customer) 大写；每次调用消耗一次查询额度。
  */
 @Slf4j
 @Service
@@ -35,19 +43,18 @@ public class LogisticsService {
     private static final String QUERY_URL = "https://poll.kuaidi100.com/poll/query.do";
     private static final String AUTONUMBER_URL = "https://www.kuaidi100.com/autonumber/autoComNum";
 
-    /** 后台发货表单预设快递公司 → 快递100 公司编码 */
-    private static final Map<String, String> COMPANY_CODES = Map.of(
-            "顺丰速运", "shunfeng",
-            "京东物流", "jd",
-            "中通快递", "zhongtong",
-            "圆通速递", "yuantong",
-            "申通快递", "shentong",
-            "韵达快递", "yunda",
-            "邮政 EMS", "ems",
-            "极兔速递", "jtexpress");
+    /** 即使公司表里没配，这几个编码也必须带手机号后四位，否则查不到轨迹 */
+    private static final Set<String> PHONE_REQUIRED_CODES = Set.of("shunfeng", "ems");
+
+    private static final long CACHE_TTL_MS = 60_000L;
 
     private final SysConfigService sysConfigService;
+    private final DeliveryCompanyMapper deliveryCompanyMapper;
     private final ObjectMapper objectMapper;
+
+    /** 名称 → 快递公司，60 秒进程内缓存（名单几乎不变，避免每次查轨迹都查库） */
+    private volatile Map<String, DeliveryCompany> companyCache = Map.of();
+    private volatile long cacheExpireAt = 0L;
 
     /**
      * 查询本人订单的物流轨迹。
@@ -65,17 +72,44 @@ public class LogisticsService {
         }
 
         String company = order.getDeliveryCompany() == null ? "" : order.getDeliveryCompany().trim();
-        String companyCode = COMPANY_CODES.get(company);
-        if (companyCode == null) {
-            // 未命中预设映射（自定义快递公司），按单号自动识别
+        DeliveryCompany configured = resolveByName(company);
+        String companyCode = order.getDeliveryCompanyCode();
+        if (!StringUtils.hasText(companyCode)) {
+            companyCode = configured == null ? null : configured.getCode();
+        }
+        if (!StringUtils.hasText(companyCode)) {
+            // 自定义快递（未在快递公司表里维护），按单号自动识别
             companyCode = autoDetectCompany(order.getDeliveryNo());
         }
 
-        return query(company, companyCode, order.getDeliveryNo(), phoneTail(order.getReceiverPhone()),
-                customer, apiKey);
+        boolean phoneRequired = configured != null
+                ? Integer.valueOf(1).equals(configured.getPhoneRequired())
+                : PHONE_REQUIRED_CODES.contains(companyCode);
+        String phone = phoneRequired ? phoneTail(order.getReceiverPhone()) : "";
+
+        return query(company, companyCode, order.getDeliveryNo(), phone, customer, apiKey);
     }
 
     /* ---------------- private ---------------- */
+
+    private Map<String, DeliveryCompany> loadCompanyCache() {
+        if (System.currentTimeMillis() < cacheExpireAt) {
+            return companyCache;
+        }
+        List<DeliveryCompany> all = deliveryCompanyMapper.selectList(
+                Wrappers.<DeliveryCompany>lambdaQuery().eq(DeliveryCompany::getStatus, 1));
+        companyCache = all.stream().collect(Collectors.toMap(
+                DeliveryCompany::getName, Function.identity(), (a, b) -> a));
+        cacheExpireAt = System.currentTimeMillis() + CACHE_TTL_MS;
+        return companyCache;
+    }
+
+    private DeliveryCompany resolveByName(String name) {
+        if (!StringUtils.hasText(name)) {
+            return null;
+        }
+        return loadCompanyCache().get(name.trim());
+    }
 
     /** 顺丰等快递要求手机号后四位校验 */
     private String phoneTail(String phone) {
