@@ -59,7 +59,7 @@ async function loadNotifications() {
       getMessages({ onlyUnread: true, pageNum: 1, pageSize: 10 }),
       getUnreadCount(),
     ]);
-    notifications.value = page.records.map(toNotificationItem);
+    notifications.value = page.items.map(toNotificationItem);
     unread.value = count.count;
   } catch {
     // 网络抖动时保持现状，下次轮询重试

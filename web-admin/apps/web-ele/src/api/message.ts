@@ -25,6 +25,12 @@ export namespace MessageApi {
     total: number;
   }
 
+  /** vxe-grid 需要 items + total，接口原始结构是 records + total，这里做一层转换 */
+  export interface PagedResult<T> {
+    items: T[];
+    total: number;
+  }
+
   export interface Query {
     onlyUnread?: boolean;
     pageNum?: number;
@@ -33,12 +39,19 @@ export namespace MessageApi {
   }
 }
 
-/** 消息分页 */
-export async function getMessages(params: MessageApi.Query) {
-  return requestClient.get<MessageApi.PageResult<MessageApi.Message>>(
-    '/messages',
-    { params },
-  );
+/**
+ * 消息分页
+ * <p>
+ * 注意返回的是 { items, total }：列表页 vxe-grid 的 proxyConfig 全局按 items 取数据，
+ * 直接返回后端的 records 会导致表格空白（铃铛弹层用的是同一份数据）。
+ */
+export async function getMessages(
+  params: MessageApi.Query,
+): Promise<MessageApi.PagedResult<MessageApi.Message>> {
+  const result = await requestClient.get<
+    MessageApi.PageResult<MessageApi.Message>
+  >('/messages', { params });
+  return { items: result.records, total: result.total };
 }
 
 /** 未读条数（铃铛角标） */
