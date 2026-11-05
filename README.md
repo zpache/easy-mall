@@ -13,6 +13,24 @@
 > 想完整跑起来需要数据库结构与初始化脚本，请**联系作者获取**（issue 或邮件），脚本按单独约定提供。
 > 仅浏览代码、二次开发前端/业务逻辑不受影响。
 
+## 界面预览
+
+**管理后台**（Vben Admin · Vue 3 · Element Plus）
+
+| 数据分析 | 订单管理 |
+| :---: | :---: |
+| ![数据分析](docs/screenshots/admin-dashboard.png) | ![订单管理](docs/screenshots/admin-orders.png) |
+| 今日订单/销售额环比、订单趋势、商品销量 TOP10、会员增长 | 多条件筛选、订单详情、发货与售后状态联动 |
+
+| 商城装修 | 权限管理 |
+| :---: | :---: |
+| ![商城装修](docs/screenshots/admin-decorator.jpg) | ![权限管理](docs/screenshots/admin-rbac.png) |
+| 三栏可视化设计器：组件库 / 手机画布 / 属性面板 | 部门、用户、角色、菜单四级 RBAC，动态路由下发 |
+
+**小程序商城**（uni-app · Vue 3 · TypeScript）
+
+![小程序首页](docs/screenshots/miniapp-home.jpg)
+
 ## 功能总览
 
 **管理后台**（按菜单分组，菜单与路由由后端动态下发，按角色授权）
