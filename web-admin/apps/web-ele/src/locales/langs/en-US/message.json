@@ -1,0 +1,19 @@
+{
+  "all": "All",
+  "content": "Content",
+  "createdAt": "Time",
+  "list": "Messages",
+  "read": "Read",
+  "readAll": "Mark All Read",
+  "readAllSuccess": "All messages marked as read",
+  "readBy": "Handled By",
+  "status": "Status",
+  "title": "Title",
+  "type": "Type",
+  "typeComment": "New Comment",
+  "typeOrderPaid": "New Order",
+  "typeRefundApply": "Refund Request",
+  "typeStockWarn": "Stock Alert",
+  "typeSystem": "System",
+  "unread": "Unread"
+}

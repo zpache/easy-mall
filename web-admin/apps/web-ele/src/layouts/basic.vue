@@ -1,6 +1,8 @@
 <script lang="ts" setup>
 import type { NotificationItem } from '@vben/layouts';
 
+import type { MessageApi } from '#/api/message';
+
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 
@@ -15,50 +17,58 @@ import {
 import { preferences, usePreferences } from '@vben/preferences';
 import { useAccessStore, useUserStore } from '@vben/stores';
 
-import { getStockList } from '#/api/goods/stock';
+import {
+  getMessages,
+  getUnreadCount,
+  readAllMessages,
+  readMessage,
+} from '#/api/message';
 import { $t } from '#/locales';
 import { useAuthStore } from '#/store';
 import LoginForm from '#/views/_core/authentication/login.vue';
 
-/** 库存预警跳转页 */
-const STOCK_PAGE = '/goods/stock';
-/** 轮询间隔：60s 拉一次预警数量，避免更频繁的无效请求 */
+/** 消息中心页面：铃铛里的「查看全部」落到这里 */
+const MESSAGE_PAGE = '/message';
+/** 轮询间隔：60s 拉一次未读数与最新未读列表 */
 const POLL_INTERVAL = 60_000;
 
 const notifications = ref<NotificationItem[]>([]);
-/** 预警商品总数，铃铛角标显示该数字 */
-const warnTotal = ref(0);
+/** 未读条数，铃铛角标。来源是真实的消息表，不是库存预警数量 */
+const unread = ref(0);
 let pollTimer: null | ReturnType<typeof setInterval> = null;
 
+function toNotificationItem(message: MessageApi.Message): NotificationItem {
+  return {
+    id: message.id,
+    avatar: preferences.app.defaultAvatar,
+    date: (message.createdAt ?? '').replace('T', ' ').slice(0, 16),
+    isRead: message.read,
+    message: message.content ?? '',
+    title: message.title,
+    link: message.link,
+  };
+}
+
 /**
- * 拉取库存预警：角标 = 预警商品数，列表最多展示 10 条（弹层里看全量请点「查看全部」进库存管理）。
- * 失败静默：角标保持上次数据，不弹错误打断使用。
+ * 只拉未读消息：确认过的会从列表消失，角标同步归零。
+ * 失败静默：保留上次数据，不弹错误打断后台操作。
  */
-async function loadWarnings() {
+async function loadNotifications() {
   try {
-    const { items, total } = await getStockList({
-      lowStock: true,
-      pageNum: 1,
-      pageSize: 10,
-    });
-    warnTotal.value = total;
-    notifications.value = items.map((item) => ({
-      id: `stock-${item.goodsId}`,
-      avatar: item.mainImage || preferences.app.defaultAvatar,
-      date: (item.updatedAt ?? '').replace('T', ' ').slice(0, 16),
-      isRead: false,
-      message: `当前库存 ${item.stock}${item.unit ?? '件'}，低于预警值 ${item.stockWarn}`,
-      title: `「${item.name}」库存不足`,
-      link: STOCK_PAGE,
-    }));
+    const [page, count] = await Promise.all([
+      getMessages({ onlyUnread: true, pageNum: 1, pageSize: 10 }),
+      getUnreadCount(),
+    ]);
+    notifications.value = page.records.map(toNotificationItem);
+    unread.value = count.count;
   } catch {
-    // 静默降级，保留下次轮询重试
+    // 网络抖动时保持现状，下次轮询重试
   }
 }
 
 onMounted(() => {
-  loadWarnings();
-  pollTimer = setInterval(loadWarnings, POLL_INTERVAL);
+  loadNotifications();
+  pollTimer = setInterval(loadNotifications, POLL_INTERVAL);
 });
 
 onUnmounted(() => {
@@ -93,31 +103,38 @@ async function handleLogout() {
   await authStore.logout(false);
 }
 
-function handleNoticeClear() {
-  notifications.value = [];
-}
-
-function markRead(id: number | string) {
-  const item = notifications.value.find((item) => item.id === id);
-  if (item) {
-    item.isRead = true;
+/**
+ * 单条已读：已读是全局的，谁确认了这条消息所有人都不会再看到，
+ * 所以本地先移除 + 角标减一，接口失败再回滚重拉。
+ */
+async function markRead(id: number | string) {
+  notifications.value = notifications.value.filter((item) => item.id !== id);
+  unread.value = Math.max(0, unread.value - 1);
+  try {
+    await readMessage(Number(id));
+  } catch {
+    loadNotifications();
   }
 }
 
-function remove(id: number | string) {
-  notifications.value = notifications.value.filter((item) => item.id !== id);
-}
-
-function handleMakeAll() {
-  notifications.value.forEach((item) => (item.isRead = true));
+/** 全部已读 */
+async function markAllRead() {
+  try {
+    await readAllMessages();
+  } finally {
+    notifications.value = [];
+    unread.value = 0;
+  }
 }
 
 function viewAll() {
-  router.push(STOCK_PAGE);
+  router.push(MESSAGE_PAGE);
 }
 
 const handleClick = (item: NotificationItem) => {
-  // 如果通知项有链接，点击时跳转
+  if (item.id !== undefined) {
+    markRead(item.id);
+  }
   if (item.link) {
     navigateTo(item.link, item.query, item.state);
   }
@@ -196,12 +213,12 @@ watch(
     </template>
     <template #notification>
       <Notification
-        :count="warnTotal"
+        :count="unread"
         :notifications="notifications"
-        @clear="handleNoticeClear"
-        @read="(item) => item.id && markRead(item.id)"
-        @remove="(item) => item.id && remove(item.id)"
-        @make-all="handleMakeAll"
+        @clear="markAllRead"
+        @make-all="markAllRead"
+        @read="(item) => item.id !== undefined && markRead(item.id)"
+        @remove="(item) => item.id !== undefined && markRead(item.id)"
         @on-click="handleClick"
         @view-all="viewAll"
       />

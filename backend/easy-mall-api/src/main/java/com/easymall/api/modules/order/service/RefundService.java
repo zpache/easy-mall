@@ -6,9 +6,11 @@ import com.easymall.api.common.api.PageResult;
 import com.easymall.api.common.api.ResultCode;
 import com.easymall.api.common.exception.BusinessException;
 import com.easymall.api.entity.MallOrder;
+import com.easymall.api.entity.Message;
 import com.easymall.api.entity.OrderRefund;
 import com.easymall.api.mapper.MallOrderMapper;
 import com.easymall.api.mapper.OrderRefundMapper;
+import com.easymall.api.modules.message.service.MessageWriter;
 import com.easymall.api.modules.order.dto.RefundApplyForm;
 import com.easymall.api.modules.order.vo.RefundApplyVO;
 import com.easymall.api.modules.order.vo.RefundRecordVO;
@@ -46,6 +48,7 @@ public class RefundService {
 
     private final OrderRefundMapper refundMapper;
     private final MallOrderMapper orderMapper;
+    private final MessageWriter messageWriter;
 
     @Transactional(rollbackFor = Exception.class)
     public RefundApplyVO apply(Long userId, RefundApplyForm form) {
@@ -94,6 +97,20 @@ public class RefundService {
                 .set(MallOrder::getRefundStatus, REFUND_PROCESSING));
 
         log.info("用户申请退款: orderNo={}, refundNo={}, 金额={}", order.getOrderNo(), refund.getRefundNo(), remain);
+        // 通知后台审核：消息写失败不影响售后单本身
+        try {
+            messageWriter.publish(
+                    Message.TYPE_REFUND_APPLY,
+                    Message.LEVEL_WARN,
+                    "新的退款申请",
+                    "订单 " + order.getOrderNo() + " 申请退款 ¥" + remain + "，原因：" + refund.getReason(),
+                    "refund",
+                    refund.getId(),
+                    "/order/refund",
+                    Message.TYPE_REFUND_APPLY + ":" + refund.getId());
+        } catch (Exception e) {
+            log.warn("写入退款申请消息失败: refundNo={}", refund.getRefundNo(), e);
+        }
         return new RefundApplyVO(refund.getId(), refund.getRefundNo(), refund.getAmount(),
                 refund.getStatus(), RefundApplyVO.statusText(refund.getStatus()), refund.getAppliedAt());
     }

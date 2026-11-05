@@ -13,6 +13,7 @@ import com.easymall.api.entity.CouponUser;
 import com.easymall.api.entity.Goods;
 import com.easymall.api.entity.GoodsSku;
 import com.easymall.api.entity.MallOrder;
+import com.easymall.api.entity.Message;
 import com.easymall.api.entity.OrderItem;
 import com.easymall.api.entity.OrderPromotion;
 import com.easymall.api.entity.Reduction;
@@ -28,6 +29,7 @@ import com.easymall.api.mapper.OrderPromotionMapper;
 import com.easymall.api.mapper.ReductionMapper;
 import com.easymall.api.modules.freight.service.FreightService;
 import com.easymall.api.modules.comment.service.CommentService;
+import com.easymall.api.modules.message.service.MessageWriter;
 import com.easymall.api.modules.order.dto.BuyNowRequest;
 import com.easymall.api.modules.order.dto.OrderCreateRequest;
 import com.easymall.api.modules.order.vo.OrderVO;
@@ -96,6 +98,7 @@ public class OrderService {
     private final MemberPointService memberPointService;
     private final MemberDiscountService memberDiscountService;
     private final CommentService commentService;
+    private final MessageWriter messageWriter;
     /**
      * 微信关单用 ObjectProvider 延迟解析：WxPayService 构造器依赖本类，直接注入会形成循环依赖。
      */
@@ -452,6 +455,20 @@ public class OrderService {
             memberPointService.awardForOrder(order);
         } catch (Exception e) {
             log.error("支付回调后积分发放失败，等待补发任务重试: orderNo={}", orderNo, e);
+        }
+        // 通知运营发货：消息只是提醒，写失败不能影响入账
+        try {
+            messageWriter.publish(
+                    Message.TYPE_ORDER_PAID,
+                    Message.LEVEL_INFO,
+                    "新订单待发货",
+                    "订单 " + order.getOrderNo() + " 已支付 ¥" + order.getPayAmount() + "，请及时发货",
+                    "order",
+                    order.getId(),
+                    "/order/delivery",
+                    Message.TYPE_ORDER_PAID + ":" + order.getId());
+        } catch (Exception e) {
+            log.warn("写入待发货消息失败: orderNo={}", orderNo, e);
         }
         log.info("微信支付入账成功: orderNo={}, transactionId={}, 金额={}分", orderNo, transactionId, paidFen);
         return true;

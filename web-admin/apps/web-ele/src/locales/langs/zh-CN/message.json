@@ -1,0 +1,19 @@
+{
+  "all": "全部",
+  "content": "内容",
+  "createdAt": "时间",
+  "list": "消息中心",
+  "read": "已读",
+  "readAll": "全部已读",
+  "readAllSuccess": "已全部标记为已读",
+  "readBy": "处理人",
+  "status": "状态",
+  "title": "标题",
+  "type": "类型",
+  "typeComment": "新评价",
+  "typeOrderPaid": "新订单",
+  "typeRefundApply": "售后申请",
+  "typeStockWarn": "库存预警",
+  "typeSystem": "系统消息",
+  "unread": "未读"
+}

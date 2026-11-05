@@ -8,6 +8,7 @@ import com.easymall.api.common.api.ResultCode;
 import com.easymall.api.common.exception.BusinessException;
 import com.easymall.api.entity.AppUser;
 import com.easymall.api.entity.MallOrder;
+import com.easymall.api.entity.Message;
 import com.easymall.api.entity.OrderComment;
 import com.easymall.api.entity.OrderItem;
 import com.easymall.api.mapper.AppUserMapper;
@@ -17,6 +18,7 @@ import com.easymall.api.mapper.OrderItemMapper;
 import com.easymall.api.modules.comment.dto.CommentCreateForm;
 import com.easymall.api.modules.comment.vo.CommentVO;
 import com.easymall.api.modules.comment.vo.GoodsCommentVO;
+import com.easymall.api.modules.message.service.MessageWriter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DuplicateKeyException;
@@ -51,6 +53,7 @@ public class CommentService {
     private final MallOrderMapper orderMapper;
     private final OrderItemMapper orderItemMapper;
     private final AppUserMapper userMapper;
+    private final MessageWriter messageWriter;
 
     /**
      * 提交评价。
@@ -121,6 +124,22 @@ public class CommentService {
                 throw new BusinessException(ResultCode.COMMENT_ALREADY_DONE, orderItem.getGoodsName() + " 已经评价过了");
             }
             created++;
+        }
+        // 通知后台审核评价：一次提交多件商品只发一条汇总消息
+        if (created > 0) {
+            try {
+                messageWriter.publish(
+                        Message.TYPE_COMMENT,
+                        Message.LEVEL_INFO,
+                        "收到新评价",
+                        "订单 " + order.getOrderNo() + " 新增 " + created + " 条评价，待审核",
+                        "order",
+                        order.getId(),
+                        "/order/comment",
+                        Message.TYPE_COMMENT + ":" + order.getId());
+            } catch (Exception e) {
+                log.warn("写入评价消息失败: orderNo={}", order.getOrderNo(), e);
+            }
         }
         return created;
     }
