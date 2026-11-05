@@ -13,12 +13,16 @@ import {
   ElFormItem,
   ElInput,
   ElInputNumber,
+  ElLink,
   ElMessage,
   ElMessageBox,
+  ElOption,
+  ElSelect,
   ElSwitch,
   ElTable,
   ElTableColumn,
   ElTag,
+  ElTooltip,
 } from 'element-plus';
 
 import {
@@ -27,6 +31,49 @@ import {
   getDeliveryCompanies,
   updateDeliveryCompany,
 } from '#/api/settings/delivery';
+
+/** 快递100 官方编码表（编码一律小写，如 shunfeng） */
+const CODE_DOC_URL =
+  'https://www.kuaidi100.com/ecommerce/api/index.html?name=42';
+/** 接口文档里的编码表，做备用入口 */
+const CODE_DOC_API_URL =
+  'https://api.kuaidi100.com/document/603cb649a62a19500e19866b';
+
+/**
+ * 常用快递编码速查：取自快递100 官方编码表。
+ * 选中后名称与编码一起填入，避免手打把 shunfeng 写成 sf 之类查不到轨迹。
+ */
+const COMMON_CODES: { code: string; name: string }[] = [
+  { name: '顺丰速运', code: 'shunfeng' },
+  { name: '京东物流', code: 'jd' },
+  { name: '中通快递', code: 'zhongtong' },
+  { name: '圆通速递', code: 'yuantong' },
+  { name: '申通快递', code: 'shentong' },
+  { name: '韵达快递', code: 'yunda' },
+  { name: '邮政 EMS', code: 'ems' },
+  { name: '极兔速递', code: 'jtexpress' },
+  { name: '德邦快递', code: 'debangkuaidi' },
+  { name: '德邦物流', code: 'debangwuliu' },
+  { name: '百世快递', code: 'huitongkuaidi' },
+  { name: '邮政快递包裹', code: 'youzhengguonei' },
+  { name: '邮政标准快递', code: 'youzhengbk' },
+  { name: '天天快递', code: 'tiantian' },
+  { name: '宅急送', code: 'zhaijisong' },
+  { name: '优速快递', code: 'youshuwuliu' },
+  { name: '跨越速运', code: 'kuayue' },
+  { name: '安能快运', code: 'annengwuliu' },
+  { name: '顺心捷达', code: 'sxjdfreight' },
+  { name: '中通快运', code: 'zhongtongkuaiyun' },
+  { name: '圆通快运', code: 'yuantongkuaiyun' },
+  { name: '韵达快运', code: 'yundakuaiyun' },
+  { name: '顺丰快运', code: 'shunfengkuaiyun' },
+  { name: '百世快运', code: 'baishiwuliu' },
+  { name: '联邦快递', code: 'lianbangkuaidi' },
+  { name: 'DHL', code: 'dhl' },
+  { name: 'FedEx', code: 'fedex' },
+  { name: 'UPS', code: 'ups' },
+  { name: 'TNT', code: 'tnt' },
+];
 
 const list = ref<SettingsDeliveryApi.DeliveryCompany[]>([]);
 const loading = ref(false);
@@ -44,6 +91,18 @@ const form = reactive({
   status: 1,
   remark: '',
 });
+
+/** 速查下拉当前选中的编码，只用于一键填充，不提交 */
+const quickCode = ref('');
+
+function onQuickPick(code: string) {
+  const hit = COMMON_CODES.find((item) => item.code === code);
+  if (!hit) {
+    return;
+  }
+  form.name = hit.name;
+  form.code = hit.code;
+}
 
 async function loadList() {
   loading.value = true;
@@ -64,6 +123,7 @@ function resetForm() {
   form.sort = (list.value.length + 1) * 10;
   form.status = 1;
   form.remark = '';
+  quickCode.value = '';
 }
 
 function onCreate() {
@@ -79,6 +139,7 @@ function onEdit(row: SettingsDeliveryApi.DeliveryCompany) {
   form.sort = row.sort;
   form.status = row.status;
   form.remark = row.remark ?? '';
+  quickCode.value = row.code;
   dialogVisible.value = true;
 }
 
@@ -87,15 +148,21 @@ async function onSave() {
     ElMessage.warning('请填写快递公司名称');
     return;
   }
-  if (!form.code.trim()) {
+  const code = form.code.trim();
+  if (!code) {
     ElMessage.warning('请填写快递100 公司编码');
+    return;
+  }
+  // 官方编码一律小写字母/数字，写成 SF、顺丰 之类查轨迹会直接失败
+  if (!/^[a-z0-9]+$/.test(code)) {
+    ElMessage.warning('编码只能是小写字母或数字，请对照快递100 官方编码表填写');
     return;
   }
   saving.value = true;
   try {
     const payload: SettingsDeliveryApi.DeliveryCompanyPayload = {
       name: form.name.trim(),
-      code: form.code.trim(),
+      code,
       phoneRequired: form.phoneRequired,
       sort: form.sort ?? 0,
       status: form.status,
@@ -156,6 +223,14 @@ async function onToggleStatus(
           <span class="header-tip">
             发货弹窗的下拉与物流轨迹查询的编码解析都读这份名单；新增快递无需改代码发版
           </span>
+          <ElLink
+            type="primary"
+            :href="CODE_DOC_URL"
+            target="_blank"
+            class="header-link"
+          >
+            快递100 官方编码表 ↗
+          </ElLink>
           <ElButton type="primary" size="small" @click="onCreate">
             新增快递公司
           </ElButton>
@@ -222,6 +297,26 @@ async function onToggleStatus(
       :close-on-click-modal="false"
     >
       <ElForm label-width="120px">
+        <ElFormItem label="常用快递">
+          <ElSelect
+            v-model="quickCode"
+            filterable
+            clearable
+            placeholder="搜索公司名或编码，选中后自动填入下面两项"
+            class="!w-full"
+            @change="onQuickPick"
+          >
+            <ElOption
+              v-for="item in COMMON_CODES"
+              :key="item.code"
+              :label="`${item.name}（${item.code}）`"
+              :value="item.code"
+            />
+          </ElSelect>
+          <div class="form-tip">
+            常见快递的官方编码已内置，选一下即可；表里没有的再手工填下面两项
+          </div>
+        </ElFormItem>
         <ElFormItem label="公司名称" required>
           <ElInput
             v-model="form.name"
@@ -229,20 +324,51 @@ async function onToggleStatus(
             maxlength="50"
           />
         </ElFormItem>
-        <ElFormItem label="快递100 编码" required>
+        <ElFormItem required>
+          <template #label>
+            <span class="label-with-help">
+              快递100 编码
+              <ElTooltip
+                placement="top"
+                content="编码是快递100 侧的公司标识，不是快递单号。一律小写字母或数字，如 shunfeng、zhongtong。填错会导致查不到物流轨迹。"
+              >
+                <span class="help-icon">?</span>
+              </ElTooltip>
+            </span>
+          </template>
           <ElInput
             v-model="form.code"
-            placeholder="如 shunfeng"
+            placeholder="如 shunfeng（小写，无空格）"
             maxlength="32"
-          />
-          <div class="form-tip">
-            快递100 的公司编码，查询轨迹时使用；可对照快递100 官方编码表填写
+          >
+            <template #append>
+              <ElLink
+                type="primary"
+                :href="CODE_DOC_URL"
+                target="_blank"
+                :underline="false"
+              >
+                查编码
+              </ElLink>
+            </template>
+          </ElInput>
+          <div class="form-tip form-tip-block">
+            在哪查：快递100 官方「常用快递公司编码」表（点右侧「查编码」或上方链接），
+            搜公司名就能看到对应编码；也可在快递100 接口文档「快递公司编码」章节查全量。
+            <ElLink
+              type="primary"
+              :href="CODE_DOC_API_URL"
+              target="_blank"
+              :underline="false"
+            >
+              接口文档
+            </ElLink>
           </div>
         </ElFormItem>
         <ElFormItem label="手机号后四位">
           <ElSwitch v-model="form.phoneRequired" />
           <span class="form-tip">
-            顺丰、EMS、京东等部分快递查询时必须校验收件人手机号后四位
+            顺丰、EMS 查询时必须校验收件人手机号后四位；其余快递不传，减少信息外传
           </span>
         </ElFormItem>
         <ElFormItem label="排序">
@@ -300,6 +426,39 @@ async function onToggleStatus(
   margin-left: 12px;
   font-size: 12px;
   color: #909399;
+}
+
+/* 整行提示（较长的说明文字），不跟输入框挤在一行 */
+.form-tip-block {
+  display: block;
+  width: 100%;
+  margin: 4px 0 0;
+  line-height: 1.6;
+}
+
+.header-link {
+  font-size: 12px;
+  margin-right: 4px;
+}
+
+.label-with-help {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.help-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  font-size: 11px;
+  line-height: 1;
+  color: #909399;
+  cursor: help;
+  border: 1px solid currentcolor;
+  border-radius: 50%;
 }
 
 .code-text {
