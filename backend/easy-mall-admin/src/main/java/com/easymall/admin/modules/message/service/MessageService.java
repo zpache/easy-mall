@@ -16,7 +16,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * 消息中心：发布、列表、未读数、已读。
@@ -34,9 +37,11 @@ public class MessageService {
 
     /**
      * 发布一条消息。dedupKey 重复时直接忽略（支付回调重放、定时任务重复扫描都会走到这里）。
+     *
+     * @return true 真正写入了；false 命中 dedup_key 被跳过
      */
-    public void publish(String type, String level, String title, String content,
-                        String bizType, Long bizId, String link, String dedupKey) {
+    public boolean publish(String type, String level, String title, String content,
+                           String bizType, Long bizId, String link, String dedupKey) {
         Message message = new Message();
         message.setType(type);
         message.setLevel(StringUtils.hasText(level) ? level : Message.LEVEL_INFO);
@@ -49,10 +54,45 @@ public class MessageService {
         message.setIsRead(0);
         try {
             messageMapper.insert(message);
+            return true;
         } catch (DuplicateKeyException e) {
             // uk_message_dedup 兜底：同一事件已经推送过，不重复打扰
             log.debug("消息已存在，跳过：{}", dedupKey);
+            return false;
         }
+    }
+
+    /**
+     * 指定类型下「已经提醒过」的业务 ID 集合：since 之后产生的，或者至今仍未读的。
+     * <p>
+     * 定时任务用它做批量去重：一条未读的老提醒也算提醒过，
+     * 否则 5 分钟一轮的扫描会把同一个商品反复写进铃铛。
+     */
+    public Set<Long> notifiedBizIds(String type, LocalDateTime since) {
+        List<Message> list = messageMapper.selectList(Wrappers.<Message>lambdaQuery()
+                .eq(Message::getType, type)
+                .isNotNull(Message::getBizId)
+                .and(w -> w.ge(Message::getCreatedAt, since).or().eq(Message::getIsRead, 0))
+                .select(Message::getBizId));
+        return list.stream().map(Message::getBizId).collect(Collectors.toSet());
+    }
+
+    /**
+     * 自动消除：类型下所有未读、且业务 ID 不在 keepBizIds 里的消息置为已读。
+     * <p>
+     * read_by 留空表示「系统自动消除」，与管理员手动确认区分开。
+     * 库存补足或商品下架后，旧的库存预警走这里清掉，铃铛里不会留假警报。
+     *
+     * @return 本次消除的条数
+     */
+    public int autoResolve(String type, Collection<Long> keepBizIds) {
+        boolean keep = keepBizIds != null && !keepBizIds.isEmpty();
+        return messageMapper.update(null, Wrappers.<Message>lambdaUpdate()
+                .eq(Message::getType, type)
+                .eq(Message::getIsRead, 0)
+                .notIn(keep, Message::getBizId, keepBizIds)
+                .set(Message::getIsRead, 1)
+                .set(Message::getReadAt, LocalDateTime.now()));
     }
 
     /**
