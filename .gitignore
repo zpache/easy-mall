@@ -38,6 +38,8 @@ application-local.yml
 application-local.yaml
 **/application-local.yml
 !**/application-local.yml.example
+application-prod.yml
+**/application-prod.yml
 
 ### Log ###
 logs/
