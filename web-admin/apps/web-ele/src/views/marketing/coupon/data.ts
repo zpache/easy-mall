@@ -3,6 +3,8 @@ import type { OnActionClickFn, VxeTableGridColumns } from '#/adapter/vxe-table';
 import type { MarketingCouponApi } from '#/api/marketing/coupon';
 
 import { z } from '#/adapter/form';
+import { usePermission } from '#/composables/use-permission';
+import { MARKETING_PERMISSIONS } from '#/constants/permissions';
 import { $t } from '#/locales';
 
 /** 券类型标签配置 */
@@ -201,6 +203,11 @@ export function useColumns<T = MarketingCouponApi.Coupon>(
   onActionClick: OnActionClickFn<T>,
   onStatusChange?: (newStatus: any, row: T) => PromiseLike<boolean | undefined>,
 ): VxeTableGridColumns {
+  const { can } = usePermission();
+  const canGrant = can(MARKETING_PERMISSIONS.couponGrant);
+  const canEdit = can(MARKETING_PERMISSIONS.couponUpdate);
+  const canDelete = can(MARKETING_PERMISSIONS.couponDelete);
+  const canStatus = can(MARKETING_PERMISSIONS.couponStatus);
   return [
     { field: 'name', minWidth: 180, title: $t('marketing.coupon.name') },
     {
@@ -246,7 +253,7 @@ export function useColumns<T = MarketingCouponApi.Coupon>(
     {
       cellRender: {
         attrs: { beforeChange: onStatusChange },
-        name: onStatusChange ? 'CellSwitch' : 'CellTag',
+        name: canStatus && onStatusChange ? 'CellSwitch' : 'CellTag',
       },
       field: 'status',
       title: $t('marketing.coupon.status'),
@@ -262,14 +269,15 @@ export function useColumns<T = MarketingCouponApi.Coupon>(
         },
         name: 'CellOperation',
         options: [
-          { code: 'grant', text: $t('marketing.coupon.grant') },
-          'edit',
-          'delete',
+          { code: 'grant', show: canGrant, text: $t('marketing.coupon.grant') },
+          { code: 'edit', show: canEdit },
+          { code: 'delete', show: canDelete },
         ],
       },
       field: 'operation',
       fixed: 'right',
       title: $t('marketing.coupon.operation'),
+      visible: canGrant || canEdit || canDelete,
       width: 200,
     },
   ];

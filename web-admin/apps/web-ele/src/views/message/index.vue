@@ -7,6 +7,7 @@ import { ElButton, ElMessage } from 'element-plus';
 
 import { useVbenVxeGrid } from '#/adapter/vxe-table';
 import { getMessages, readAllMessages } from '#/api/message';
+import { SYSTEM_PERMISSIONS } from '#/constants/permissions';
 import { $t } from '#/locales';
 
 import { useColumns, useGridFormSchema } from './data';
@@ -57,7 +58,13 @@ async function handleReadAll() {
   <Page auto-content-height>
     <Grid :table-title="$t('message.list')">
       <template #toolbar-tools>
-        <ElButton class="mr-2" plain type="primary" @click="handleReadAll">
+        <ElButton
+          v-access:code="SYSTEM_PERMISSIONS.messageReadAll"
+          class="mr-2"
+          plain
+          type="primary"
+          @click="handleReadAll"
+        >
           {{ $t('message.readAll') }}
         </ElButton>
       </template>

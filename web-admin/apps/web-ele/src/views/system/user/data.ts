@@ -5,6 +5,8 @@ import type { SystemUserApi } from '#/api/system/user';
 import { z } from '#/adapter/form';
 import { getDeptList } from '#/api/system/dept';
 import { getRoleOptions } from '#/api/system/role';
+import { usePermission } from '#/composables/use-permission';
+import { SYSTEM_PERMISSIONS } from '#/constants/permissions';
 import { $t } from '#/locales';
 
 /**
@@ -126,6 +128,11 @@ export function useColumns<T = SystemUserApi.SystemUser>(
   onActionClick: OnActionClickFn<T>,
   onStatusChange?: (newStatus: any, row: T) => PromiseLike<boolean | undefined>,
 ): VxeTableGridColumns {
+  const { can } = usePermission();
+  const canUpdate = can(SYSTEM_PERMISSIONS.userUpdate);
+  const canResetPassword = can(SYSTEM_PERMISSIONS.userResetPassword);
+  const canDelete = can(SYSTEM_PERMISSIONS.userDelete);
+  const canStatus = can(SYSTEM_PERMISSIONS.userStatus);
   return [
     {
       field: 'username',
@@ -157,7 +164,7 @@ export function useColumns<T = SystemUserApi.SystemUser>(
     {
       cellRender: {
         attrs: { beforeChange: onStatusChange },
-        name: onStatusChange ? 'CellSwitch' : 'CellTag',
+        name: canStatus && onStatusChange ? 'CellSwitch' : 'CellTag',
       },
       field: 'status',
       title: $t('system.user.status'),
@@ -178,14 +185,15 @@ export function useColumns<T = SystemUserApi.SystemUser>(
         },
         name: 'CellOperation',
         options: [
-          'edit',
-          { code: 'resetPassword', text: '重置密码' },
-          'delete',
+          { code: 'edit', show: canUpdate },
+          { code: 'resetPassword', show: canResetPassword, text: '重置密码' },
+          { code: 'delete', show: canDelete },
         ],
       },
       field: 'operation',
       fixed: 'right',
       title: $t('system.user.operation'),
+      visible: canUpdate || canResetPassword || canDelete,
       width: 220,
     },
   ];

@@ -10,6 +10,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -35,6 +36,7 @@ public class MemberTagController {
 
     @Operation(summary = "分页查询标签（含会员数）")
     @GetMapping
+    @PreAuthorize("hasAuthority('member:tag:list')")
     public Result<PageResult<TagVO>> page(@RequestParam(defaultValue = "1") long pageNum,
                                           @RequestParam(defaultValue = "10") long pageSize,
                                           @RequestParam(required = false) String keyword) {
@@ -43,24 +45,28 @@ public class MemberTagController {
 
     @Operation(summary = "全部标签（打标下拉用）")
     @GetMapping("/options")
+    @PreAuthorize("hasAnyAuthority('member:tag:list', 'member:member:list')")
     public Result<List<TagVO>> options() {
         return Result.ok(tagService.listAll());
     }
 
     @Operation(summary = "新增标签")
     @PostMapping
+    @PreAuthorize("hasAuthority('member:tag:create')")
     public Result<MemberTag> create(@Valid @RequestBody TagForm form) {
         return Result.ok(tagService.create(form));
     }
 
     @Operation(summary = "编辑标签")
     @PutMapping("/{id}")
+    @PreAuthorize("hasAuthority('member:tag:update')")
     public Result<MemberTag> update(@PathVariable Long id, @Valid @RequestBody TagForm form) {
         return Result.ok(tagService.update(id, form));
     }
 
     @Operation(summary = "删除标签（同时解除会员关联）")
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAuthority('member:tag:delete')")
     public Result<Void> delete(@PathVariable Long id) {
         tagService.delete(id);
         return Result.ok();

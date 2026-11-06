@@ -21,6 +21,7 @@ import {
 
 import { deleteMaterial, getMaterials, renameMaterial } from '#/api/decorate/material';
 import { uploadImageApi } from '#/api/upload';
+import { DECORATE_PERMISSIONS } from '#/constants/permissions';
 
 interface MaterialItem extends MaterialApi.Material {
   /** 上传完成后本地补充 */
@@ -168,7 +169,13 @@ onMounted(load);
           :show-file-list="false"
           accept="image/jpeg,image/png,image/gif,image/webp,image/bmp"
         >
-          <ElButton :loading="uploading" type="primary">上传素材</ElButton>
+          <ElButton
+            v-access:code="DECORATE_PERMISSIONS.materialUpload"
+            :loading="uploading"
+            type="primary"
+          >
+            上传素材
+          </ElButton>
         </ElUpload>
       </div>
 
@@ -183,8 +190,23 @@ onMounted(load);
           <div class="cell__meta">{{ formatSize(item.size) }} · {{ item.createdAt?.slice(0, 10) }}</div>
           <div class="cell__actions">
             <ElButton size="small" text type="primary" @click="onCopy(item)">复制链接</ElButton>
-            <ElButton size="small" text @click="onRename(item)">重命名</ElButton>
-            <ElButton size="small" text type="danger" @click="onDelete(item)">删除</ElButton>
+            <ElButton
+              v-access:code="DECORATE_PERMISSIONS.materialUpdate"
+              size="small"
+              text
+              @click="onRename(item)"
+            >
+              重命名
+            </ElButton>
+            <ElButton
+              v-access:code="DECORATE_PERMISSIONS.materialDelete"
+              size="small"
+              text
+              type="danger"
+              @click="onDelete(item)"
+            >
+              删除
+            </ElButton>
           </div>
         </div>
       </div>

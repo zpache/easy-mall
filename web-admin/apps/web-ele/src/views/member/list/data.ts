@@ -4,6 +4,8 @@ import type { MemberApi } from '#/api/member/member';
 
 import { reactive } from 'vue';
 
+import { usePermission } from '#/composables/use-permission';
+import { MEMBER_PERMISSIONS } from '#/constants/permissions';
 import { $t } from '#/locales';
 
 import { useSourceOptions } from './options';
@@ -90,6 +92,9 @@ export function setTagOptions(
 export function useColumns<T = MemberApi.Member>(
   onActionClick: OnActionClickFn<T>,
 ): VxeTableGridColumns {
+  const { can } = usePermission();
+  const canPoints = can(MEMBER_PERMISSIONS.memberPoints);
+  const canTags = can(MEMBER_PERMISSIONS.memberTag);
   return [
     {
       field: 'avatar',
@@ -171,13 +176,14 @@ export function useColumns<T = MemberApi.Member>(
         },
         name: 'CellOperation',
         options: [
-          { code: 'points', text: $t('member.list.adjustPoints') },
-          { code: 'tags', text: $t('member.list.setTag') },
+          { code: 'points', show: canPoints, text: $t('member.list.adjustPoints') },
+          { code: 'tags', show: canTags, text: $t('member.list.setTag') },
         ],
       },
       field: 'operation',
       fixed: 'right',
       title: $t('member.list.operation'),
+      visible: canPoints || canTags,
       width: 160,
     },
   ];

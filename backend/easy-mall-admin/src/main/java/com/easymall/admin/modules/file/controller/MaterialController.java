@@ -7,6 +7,7 @@ import com.easymall.admin.modules.file.vo.MaterialVO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -31,6 +32,8 @@ public class MaterialController {
 
     @Operation(summary = "分页查询素材")
     @GetMapping
+    @PreAuthorize("hasAnyAuthority('decorate:material:list', 'decorate:page:create', "
+            + "'decorate:page:update', 'decorate:nav:update', 'decorate:theme:create', 'decorate:theme:update')")
     public Result<PageResult<MaterialVO>> page(@RequestParam(defaultValue = "1") long pageNum,
                                                @RequestParam(defaultValue = "20") long pageSize,
                                                @RequestParam(required = false) String keyword,
@@ -41,12 +44,14 @@ public class MaterialController {
 
     @Operation(summary = "重命名素材")
     @PutMapping("/{id}")
+    @PreAuthorize("hasAuthority('decorate:material:update')")
     public Result<MaterialVO> rename(@PathVariable Long id, @RequestBody Map<String, String> body) {
         return Result.ok(materialService.rename(id, body.get("name")));
     }
 
     @Operation(summary = "删除素材（仅移除素材库记录）")
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAuthority('decorate:material:delete')")
     public Result<Void> delete(@PathVariable Long id) {
         materialService.delete(id);
         return Result.ok();

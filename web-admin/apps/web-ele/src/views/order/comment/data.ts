@@ -2,6 +2,8 @@ import type { VbenFormSchema } from '#/adapter/form';
 import type { OnActionClickFn, VxeTableGridColumns } from '#/adapter/vxe-table';
 import type { OrderCommentApi } from '#/api/order/comment';
 
+import { usePermission } from '#/composables/use-permission';
+import { ORDER_PERMISSIONS } from '#/constants/permissions';
 import { $t } from '#/locales';
 
 import { formatTime } from '../list/data';
@@ -75,6 +77,11 @@ export function useColumns<T = OrderCommentApi.Comment>(
   onActionClick: OnActionClickFn<T>,
   onVisibleChange: (newValue: number, row: T) => PromiseLike<boolean | undefined>,
 ): VxeTableGridColumns {
+  const { can } = usePermission();
+  const canAudit = can(ORDER_PERMISSIONS.commentAudit);
+  const canReply = can(ORDER_PERMISSIONS.commentReply);
+  const canDelete = can(ORDER_PERMISSIONS.commentDelete);
+  const canVisible = can(ORDER_PERMISSIONS.commentVisible);
   return [
     {
       cellRender: {
@@ -132,7 +139,7 @@ export function useColumns<T = OrderCommentApi.Comment>(
     {
       cellRender: {
         attrs: { beforeChange: onVisibleChange },
-        name: 'CellSwitch',
+        name: canVisible ? 'CellSwitch' : 'CellTag',
       },
       field: 'isShow',
       title: $t('order.comment.isShow'),
@@ -157,16 +164,18 @@ export function useColumns<T = OrderCommentApi.Comment>(
           {
             code: 'audit',
             // 仅待审核的记录可审核；已通过/已拒绝不能再改判，避免误操作覆盖审核结论
-            show: (row: OrderCommentApi.Comment) => row.auditStatus === 0,
+            show: (row: OrderCommentApi.Comment) =>
+              canAudit && row.auditStatus === 0,
             text: $t('order.comment.auditAction'),
           },
-          { code: 'reply', text: $t('order.comment.replyAction') },
-          { code: 'delete', text: $t('order.comment.delete') },
+          { code: 'reply', show: canReply, text: $t('order.comment.replyAction') },
+          { code: 'delete', show: canDelete, text: $t('order.comment.delete') },
         ],
       },
       field: 'operation',
       fixed: 'right',
       title: $t('order.comment.operation'),
+      visible: canAudit || canReply || canDelete,
       width: 200,
     },
   ];

@@ -34,27 +34,29 @@ public class DeptController {
 
     @Operation(summary = "部门树")
     @GetMapping("/list")
+    @PreAuthorize("hasAnyAuthority('system:dept:list', 'system:dept:create', 'system:dept:update', "
+            + "'system:user:list', 'system:user:create', 'system:user:update')")
     public Result<List<DeptVO>> list() {
         return Result.ok(deptService.listTree());
     }
 
     @Operation(summary = "新增部门")
     @PostMapping
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('system:dept:create')")
     public Result<SysDept> create(@Valid @RequestBody DeptForm form) {
         return Result.ok(deptService.create(form));
     }
 
     @Operation(summary = "编辑部门")
     @PutMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('system:dept:update')")
     public Result<SysDept> update(@PathVariable Long id, @Valid @RequestBody DeptForm form) {
         return Result.ok(deptService.update(id, form));
     }
 
     @Operation(summary = "删除部门")
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('system:dept:delete')")
     public Result<Void> delete(@PathVariable Long id) {
         deptService.delete(id);
         return Result.ok();

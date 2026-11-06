@@ -20,6 +20,7 @@ import {
   deleteDecoratePage,
   getDecoratePages,
 } from '#/api/decorate/page';
+import { DECORATE_PERMISSIONS } from '#/constants/permissions';
 import { $t } from '#/locales';
 
 import PreviewQrcode from '../editor/components/preview-qrcode.vue';
@@ -128,7 +129,11 @@ async function onCreate(values: DecorateApi.PagePayload) {
     />
     <Grid table-title="装修页面">
       <template #toolbar-tools>
-        <ElButton type="primary" @click="formModalApi.setData(null).open()">
+        <ElButton
+          v-access:code="DECORATE_PERMISSIONS.pageCreate"
+          type="primary"
+          @click="formModalApi.setData(null).open()"
+        >
           <Plus class="size-5" />
           新建页面
         </ElButton>

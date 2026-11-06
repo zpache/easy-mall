@@ -11,6 +11,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -35,18 +36,27 @@ public class FileUploadController {
 
     @Operation(summary = "获取上传凭证（COS 临时密钥 / 本地模式标识）")
     @PostMapping("/credential")
+    @PreAuthorize("hasAnyAuthority('file:upload', 'goods:goods:create', 'goods:goods:update', " +
+            "'decorate:page:create', 'decorate:page:update', 'decorate:nav:update', " +
+            "'decorate:theme:create', 'decorate:theme:update', 'decorate:material:upload')")
     public Result<UploadCredentialVO> credential() {
         return Result.ok(uploadService.credential());
     }
 
     @Operation(summary = "回传直传结果，登记 objectKey")
     @PostMapping("/complete")
+    @PreAuthorize("hasAnyAuthority('file:upload', 'goods:goods:create', 'goods:goods:update', " +
+            "'decorate:page:create', 'decorate:page:update', 'decorate:nav:update', " +
+            "'decorate:theme:create', 'decorate:theme:update', 'decorate:material:upload')")
     public Result<UploadedFileVO> complete(@Valid @RequestBody FileCompleteForm form) {
         return Result.ok(uploadService.complete(form));
     }
 
     @Operation(summary = "上传图片（仅本地存储模式）")
     @PostMapping("/image")
+    @PreAuthorize("hasAnyAuthority('file:upload', 'goods:goods:create', 'goods:goods:update', " +
+            "'decorate:page:create', 'decorate:page:update', 'decorate:nav:update', " +
+            "'decorate:theme:create', 'decorate:theme:update', 'decorate:material:upload')")
     public Result<ImageUploadVO> uploadImage(@RequestParam("file") MultipartFile file) {
         return Result.ok(fileStorageService.storeImage(file));
     }

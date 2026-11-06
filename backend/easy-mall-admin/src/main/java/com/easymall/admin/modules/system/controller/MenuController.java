@@ -37,6 +37,8 @@ public class MenuController {
 
     @Operation(summary = "菜单树")
     @GetMapping("/list")
+    @PreAuthorize("hasAnyAuthority('system:menu:list', 'system:menu:create', "
+            + "'system:menu:update', 'system:role:create', 'system:role:update')")
     public Result<List<MenuVO>> list() {
         return Result.ok(menuService.listTree());
     }
@@ -55,6 +57,7 @@ public class MenuController {
 
     @Operation(summary = "校验路由名称是否存在")
     @GetMapping("/name-exists")
+    @PreAuthorize("hasAuthority('system:menu:list')")
     public Result<Boolean> nameExists(@RequestParam String name,
                                       @RequestParam(required = false) Long id) {
         return Result.ok(menuService.nameExists(name, id));
@@ -62,6 +65,7 @@ public class MenuController {
 
     @Operation(summary = "校验路由地址是否存在")
     @GetMapping("/path-exists")
+    @PreAuthorize("hasAuthority('system:menu:list')")
     public Result<Boolean> pathExists(@RequestParam String path,
                                       @RequestParam(required = false) Long id) {
         return Result.ok(menuService.pathExists(path, id));
@@ -69,21 +73,21 @@ public class MenuController {
 
     @Operation(summary = "新增菜单")
     @PostMapping
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('system:menu:create')")
     public Result<SysMenu> create(@Valid @RequestBody MenuForm form) {
         return Result.ok(menuService.create(form));
     }
 
     @Operation(summary = "编辑菜单")
     @PutMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('system:menu:update')")
     public Result<SysMenu> update(@PathVariable Long id, @Valid @RequestBody MenuForm form) {
         return Result.ok(menuService.update(id, form));
     }
 
     @Operation(summary = "删除菜单")
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('system:menu:delete')")
     public Result<Void> delete(@PathVariable Long id) {
         menuService.delete(id);
         return Result.ok();

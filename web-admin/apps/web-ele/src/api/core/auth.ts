@@ -45,7 +45,7 @@ export async function logoutApi() {
 }
 
 /**
- * 获取用户权限码（后端 /user/codes，当前返回空数组，菜单按角色过滤）
+ * 获取用户权限码（后端 /user/codes，包含已授权的菜单与按钮 auth_code）
  */
 export async function getAccessCodesApi() {
   return requestClient.get<string[]>('/user/codes');

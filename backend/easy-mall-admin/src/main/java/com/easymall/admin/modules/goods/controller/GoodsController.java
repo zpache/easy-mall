@@ -10,6 +10,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -33,6 +34,7 @@ public class GoodsController {
 
     @Operation(summary = "分页查询商品")
     @GetMapping
+    @PreAuthorize("hasAuthority('goods:goods:list')")
     public Result<PageResult<GoodsVO>> page(@RequestParam(defaultValue = "1") long pageNum,
                                             @RequestParam(defaultValue = "10") long pageSize,
                                             @RequestParam(required = false) String keyword,
@@ -44,24 +46,28 @@ public class GoodsController {
 
     @Operation(summary = "商品详情")
     @GetMapping("/{id}")
+    @PreAuthorize("hasAuthority('goods:goods:list')")
     public Result<GoodsVO> detail(@PathVariable Long id) {
         return Result.ok(goodsService.detail(id));
     }
 
     @Operation(summary = "新增商品")
     @PostMapping
+    @PreAuthorize("hasAuthority('goods:goods:create')")
     public Result<Goods> create(@Valid @RequestBody GoodsForm form) {
         return Result.ok(goodsService.create(form));
     }
 
     @Operation(summary = "编辑商品")
     @PutMapping("/{id}")
+    @PreAuthorize("hasAuthority('goods:goods:update')")
     public Result<Goods> update(@PathVariable Long id, @Valid @RequestBody GoodsForm form) {
         return Result.ok(goodsService.update(id, form));
     }
 
     @Operation(summary = "上架/下架")
     @PutMapping("/{id}/status")
+    @PreAuthorize("hasAuthority('goods:goods:status')")
     public Result<Void> updateStatus(@PathVariable Long id, @RequestParam Integer status) {
         goodsService.updateStatus(id, status);
         return Result.ok();
@@ -69,6 +75,7 @@ public class GoodsController {
 
     @Operation(summary = "删除商品")
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAuthority('goods:goods:delete')")
     public Result<Void> delete(@PathVariable Long id) {
         goodsService.delete(id);
         return Result.ok();

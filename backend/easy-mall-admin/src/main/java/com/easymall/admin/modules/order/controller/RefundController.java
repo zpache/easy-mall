@@ -9,6 +9,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -30,6 +31,7 @@ public class RefundController {
 
     @Operation(summary = "分页查询售后单")
     @GetMapping
+    @PreAuthorize("hasAuthority('order:refund:list')")
     public Result<PageResult<RefundVO>> page(@RequestParam(defaultValue = "1") long pageNum,
                                              @RequestParam(defaultValue = "10") long pageSize,
                                              @RequestParam(required = false) String keyword,
@@ -40,6 +42,7 @@ public class RefundController {
 
     @Operation(summary = "审核售后单（同意 / 拒绝）")
     @PutMapping("/{id}/audit")
+    @PreAuthorize("hasAuthority('order:refund:audit')")
     public Result<Void> audit(@PathVariable Long id, @Valid @RequestBody RefundAuditForm form) {
         refundService.audit(id, form);
         return Result.ok();
@@ -47,6 +50,7 @@ public class RefundController {
 
     @Operation(summary = "确认退款（打款完成）")
     @PutMapping("/{id}/confirm")
+    @PreAuthorize("hasAuthority('order:refund:confirm')")
     public Result<Void> confirm(@PathVariable Long id) {
         refundService.confirm(id);
         return Result.ok();

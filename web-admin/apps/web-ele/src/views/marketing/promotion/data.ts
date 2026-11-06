@@ -3,6 +3,8 @@ import type { OnActionClickFn, VxeTableGridColumns } from '#/adapter/vxe-table';
 import type { MarketingPromotionApi } from '#/api/marketing/promotion';
 
 import { z } from '#/adapter/form';
+import { usePermission } from '#/composables/use-permission';
+import { MARKETING_PERMISSIONS } from '#/constants/permissions';
 import { $t } from '#/locales';
 
 /** 活动类型标签配置 */
@@ -188,6 +190,10 @@ export function useColumns<T = MarketingPromotionApi.Promotion>(
   onActionClick: OnActionClickFn<T>,
   onStatusChange?: (newStatus: any, row: T) => PromiseLike<boolean | undefined>,
 ): VxeTableGridColumns {
+  const { can } = usePermission();
+  const canEdit = can(MARKETING_PERMISSIONS.promotionUpdate);
+  const canDelete = can(MARKETING_PERMISSIONS.promotionDelete);
+  const canStatus = can(MARKETING_PERMISSIONS.promotionStatus);
   return [
     { field: 'name', minWidth: 170, title: $t('marketing.promotion.name') },
     {
@@ -229,7 +235,7 @@ export function useColumns<T = MarketingPromotionApi.Promotion>(
     {
       cellRender: {
         attrs: { beforeChange: onStatusChange },
-        name: onStatusChange ? 'CellSwitch' : 'CellTag',
+        name: canStatus && onStatusChange ? 'CellSwitch' : 'CellTag',
       },
       field: 'status',
       title: $t('marketing.promotion.status'),
@@ -244,11 +250,15 @@ export function useColumns<T = MarketingPromotionApi.Promotion>(
           onClick: onActionClick,
         },
         name: 'CellOperation',
-        options: ['edit', 'delete'],
+        options: [
+          { code: 'edit', show: canEdit },
+          { code: 'delete', show: canDelete },
+        ],
       },
       field: 'operation',
       fixed: 'right',
       title: $t('marketing.promotion.operation'),
+      visible: canEdit || canDelete,
       width: 150,
     },
   ];

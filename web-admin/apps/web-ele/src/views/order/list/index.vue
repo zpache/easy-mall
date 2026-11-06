@@ -18,6 +18,7 @@ import {
   exportOrders,
   getOrderList,
 } from '#/api/order/order';
+import { ORDER_PERMISSIONS } from '#/constants/permissions';
 import { $t } from '#/locales';
 
 import Ship from '../delivery/modules/ship.vue';
@@ -143,6 +144,7 @@ async function onExport() {
     <Grid :table-title="$t('order.order.list')">
       <template #toolbar-tools>
         <ElButton
+          v-access:code="ORDER_PERMISSIONS.export"
           v-loading="exporting"
           class="mr-2"
           type="primary"

@@ -12,6 +12,7 @@ import { ElButton, ElMessage, ElMessageBox } from 'element-plus';
 
 import { useVbenVxeGrid } from '#/adapter/vxe-table';
 import { deleteMenu, getMenuList } from '#/api/system/menu';
+import { SYSTEM_PERMISSIONS } from '#/constants/permissions';
 import { $t } from '#/locales';
 
 import { useColumns } from './data';
@@ -94,7 +95,11 @@ function onCreate() {
     <FormDrawer @success="gridApi.query()" />
     <Grid :table-title="$t('system.menu.title')">
       <template #toolbar-tools>
-        <ElButton type="primary" @click="onCreate">
+        <ElButton
+          v-access:code="SYSTEM_PERMISSIONS.menuCreate"
+          type="primary"
+          @click="onCreate"
+        >
           <Plus class="size-5" />
           {{ $t('ui.actionTitle.create', [$t('system.menu.name')]) }}
         </ElButton>

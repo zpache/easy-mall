@@ -10,6 +10,7 @@ import { getWidget } from '../../widgets';
 const props = defineProps<{
   component: CanvasComponent;
   index: number;
+  readonly?: boolean;
   selected: boolean;
 }>();
 
@@ -29,16 +30,16 @@ const definition = computed(() => getWidget(props.component.type));
   <div
     class="canvas-item"
     :class="{ selected, hidden: !component.visible }"
-    draggable="true"
+    :draggable="!readonly"
     @click.stop="emit('select', component.id)"
-    @dragstart.stop="emit('dragstart', index)"
+    @dragstart.stop="!readonly && emit('dragstart', index)"
   >
     <div class="label">
       <span class="name">{{ definition?.name }}</span>
       <span v-if="!component.visible" class="hidden-tag">已隐藏</span>
     </div>
 
-    <div class="toolbar" @click.stop>
+    <div v-if="!readonly" class="toolbar" @click.stop>
       <button title="上移" @click="emit('move', component.id, -1)">
         <IconifyIcon icon="lucide:chevron-up" />
       </button>

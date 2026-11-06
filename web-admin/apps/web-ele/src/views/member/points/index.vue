@@ -25,6 +25,7 @@ import {
   getPointsRule,
   updatePointsRule,
 } from '#/api/member/points';
+import { MEMBER_PERMISSIONS } from '#/constants/permissions';
 import { $t } from '#/locales';
 
 import AdjustDrawer from '../list/modules/points.vue';
@@ -105,7 +106,11 @@ async function saveRule() {
     <Grid :table-title="$t('member.points.list')">
       <template #toolbar-tools>
         <ElButton @click="openRule">积分规则</ElButton>
-        <ElButton type="primary" @click="onAdjust">
+        <ElButton
+          v-access:code="MEMBER_PERMISSIONS.memberPoints"
+          type="primary"
+          @click="onAdjust"
+        >
           <Plus class="size-5" />
           {{ $t('member.points.adjustAny') }}
         </ElButton>
@@ -137,7 +142,12 @@ async function saveRule() {
       </div>
       <template #footer>
         <ElButton @click="ruleVisible = false">取消</ElButton>
-        <ElButton type="primary" :loading="ruleSaving" @click="saveRule">
+        <ElButton
+          v-access:code="MEMBER_PERMISSIONS.pointsUpdate"
+          type="primary"
+          :loading="ruleSaving"
+          @click="saveRule"
+        >
           保存
         </ElButton>
       </template>

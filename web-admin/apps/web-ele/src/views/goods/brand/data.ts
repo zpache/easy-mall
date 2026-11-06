@@ -3,6 +3,8 @@ import type { OnActionClickFn, VxeTableGridColumns } from '#/adapter/vxe-table';
 import type { GoodsBrandApi } from '#/api/goods/brand';
 
 import { z } from '#/adapter/form';
+import { usePermission } from '#/composables/use-permission';
+import { GOODS_PERMISSIONS } from '#/constants/permissions';
 import { $t } from '#/locales';
 
 /**
@@ -88,6 +90,10 @@ export function useColumns<T = GoodsBrandApi.Brand>(
   onActionClick: OnActionClickFn<T>,
   onStatusChange?: (newStatus: any, row: T) => PromiseLike<boolean | undefined>,
 ): VxeTableGridColumns {
+  const { can } = usePermission();
+  const canEdit = can(GOODS_PERMISSIONS.brandUpdate);
+  const canDelete = can(GOODS_PERMISSIONS.brandDelete);
+  const canStatus = can(GOODS_PERMISSIONS.brandStatus);
   return [
     {
       cellRender: {
@@ -111,7 +117,7 @@ export function useColumns<T = GoodsBrandApi.Brand>(
     {
       cellRender: {
         attrs: { beforeChange: onStatusChange },
-        name: onStatusChange ? 'CellSwitch' : 'CellTag',
+        name: canStatus && onStatusChange ? 'CellSwitch' : 'CellTag',
       },
       field: 'status',
       title: $t('goods.brand.status'),
@@ -140,11 +146,15 @@ export function useColumns<T = GoodsBrandApi.Brand>(
           onClick: onActionClick,
         },
         name: 'CellOperation',
-        options: ['edit', 'delete'],
+        options: [
+          { code: 'edit', show: canEdit },
+          { code: 'delete', show: canDelete },
+        ],
       },
       field: 'operation',
       fixed: 'right',
       title: $t('goods.brand.operation'),
+      visible: canEdit || canDelete,
       width: 150,
     },
   ];

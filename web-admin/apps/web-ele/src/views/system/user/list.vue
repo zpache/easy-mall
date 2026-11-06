@@ -25,6 +25,7 @@ import {
   getUserList,
   resetUserPassword,
 } from '#/api/system/user';
+import { SYSTEM_PERMISSIONS } from '#/constants/permissions';
 import { $t } from '#/locales';
 
 import { useColumns, useGridFormSchema } from './data';
@@ -181,7 +182,11 @@ function onCreate() {
       <div class="min-w-0 flex-1">
         <Grid :table-title="$t('system.user.list')">
           <template #toolbar-tools>
-            <ElButton type="primary" @click="onCreate">
+            <ElButton
+              v-access:code="SYSTEM_PERMISSIONS.userCreate"
+              type="primary"
+              @click="onCreate"
+            >
               <Plus class="size-5" />
               {{ $t('ui.actionTitle.create', [$t('system.user.name')]) }}
             </ElButton>

@@ -16,6 +16,7 @@ import {
   deleteRole,
   getRoleList,
 } from '#/api/system/role';
+import { SYSTEM_PERMISSIONS } from '#/constants/permissions';
 import { $t } from '#/locales';
 
 import { useColumns, useGridFormSchema } from './data';
@@ -114,7 +115,11 @@ function onCreate() {
     <FormDrawer @success="gridApi.query()" />
     <Grid :table-title="$t('system.role.list')">
       <template #toolbar-tools>
-        <ElButton type="primary" @click="onCreate">
+        <ElButton
+          v-access:code="SYSTEM_PERMISSIONS.roleCreate"
+          type="primary"
+          @click="onCreate"
+        >
           <Plus class="size-5" />
           {{ $t('ui.actionTitle.create', [$t('system.role.name')]) }}
         </ElButton>

@@ -13,6 +13,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -48,6 +49,7 @@ public class OrderController {
 
     @Operation(summary = "分页查询订单")
     @GetMapping
+    @PreAuthorize("hasAnyAuthority('order:order:list', 'order:order:deliver')")
     public Result<PageResult<OrderVO>> page(@RequestParam(defaultValue = "1") long pageNum,
                                             @RequestParam(defaultValue = "10") long pageSize,
                                             @RequestParam(required = false) String keyword,
@@ -63,18 +65,21 @@ public class OrderController {
 
     @Operation(summary = "订单详情")
     @GetMapping("/{id}")
+    @PreAuthorize("hasAuthority('order:order:detail')")
     public Result<OrderVO> detail(@PathVariable Long id) {
         return Result.ok(orderService.detail(id));
     }
 
     @Operation(summary = "订单物流轨迹（快递100 实时查询）")
     @GetMapping("/{id}/logistics")
+    @PreAuthorize("hasAuthority('order:order:logistics')")
     public Result<LogisticsTraceVO> logistics(@PathVariable Long id) {
         return Result.ok(logisticsService.trace(orderService.requireEntity(id)));
     }
 
     @Operation(summary = "订单发货")
     @PutMapping("/{id}/deliver")
+    @PreAuthorize("hasAuthority('order:order:ship')")
     public Result<Void> deliver(@PathVariable Long id, @Valid @RequestBody DeliverForm form) {
         orderService.deliver(id, form);
         return Result.ok();
@@ -82,6 +87,7 @@ public class OrderController {
 
     @Operation(summary = "关闭订单")
     @PutMapping("/{id}/close")
+    @PreAuthorize("hasAuthority('order:order:close')")
     public Result<Void> close(@PathVariable Long id,
                               @RequestParam(required = false) String reason) {
         orderService.close(id, reason);
@@ -90,6 +96,7 @@ public class OrderController {
 
     @Operation(summary = "订单导出（xlsx，沿用列表筛选条件，上限 5000 行）")
     @GetMapping("/export")
+    @PreAuthorize("hasAuthority('order:order:export')")
     public ResponseEntity<byte[]> export(@RequestParam(required = false) String keyword,
                                          @RequestParam(required = false) Integer status,
                                          @RequestParam(required = false) Integer refundStatus,
@@ -109,6 +116,7 @@ public class OrderController {
 
     @Operation(summary = "批量发货模板下载（xlsx）")
     @GetMapping("/deliver-template")
+    @PreAuthorize("hasAuthority('order:order:batch-ship')")
     public ResponseEntity<byte[]> deliverTemplate() {
         byte[] bytes = orderExcelService.deliverTemplate();
         String filename = URLEncoder.encode("批量发货模板.xlsx", StandardCharsets.UTF_8);
@@ -121,6 +129,7 @@ public class OrderController {
 
     @Operation(summary = "批量发货（上传按模板填写的 xlsx）")
     @PostMapping("/batch-deliver")
+    @PreAuthorize("hasAuthority('order:order:batch-ship')")
     public Result<BatchDeliverVO> batchDeliver(@RequestParam("file") MultipartFile file) {
         return Result.ok(orderExcelService.parseAndBatchDeliver(file));
     }

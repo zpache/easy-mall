@@ -8,6 +8,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -28,12 +29,14 @@ public class SkuController {
 
     @Operation(summary = "查询商品的规格定义与 SKU 列表")
     @GetMapping
+    @PreAuthorize("hasAnyAuthority('goods:goods:sku', 'goods:stock:adjust')")
     public Result<SkuConfigVO> detail(@PathVariable Long goodsId) {
         return Result.ok(skuService.get(goodsId));
     }
 
     @Operation(summary = "保存规格与 SKU（specs 为空表示改回单规格）")
     @PutMapping
+    @PreAuthorize("hasAuthority('goods:goods:sku')")
     public Result<SkuConfigVO> save(@PathVariable Long goodsId, @Valid @RequestBody SkuConfigForm form) {
         return Result.ok(skuService.save(goodsId, form));
     }

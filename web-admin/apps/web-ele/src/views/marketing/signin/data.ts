@@ -3,6 +3,8 @@ import type { OnActionClickFn, VxeTableGridColumns } from '#/adapter/vxe-table';
 import type { MarketingSigninApi } from '#/api/marketing/signin';
 
 import { z } from '#/adapter/form';
+import { usePermission } from '#/composables/use-permission';
+import { MARKETING_PERMISSIONS } from '#/constants/permissions';
 import { $t } from '#/locales';
 
 export function formatTime(value?: string) {
@@ -107,6 +109,10 @@ export function useColumns<T = MarketingSigninApi.SigninRule>(
   onActionClick: OnActionClickFn<T>,
   onStatusChange?: (newStatus: any, row: T) => PromiseLike<boolean | undefined>,
 ): VxeTableGridColumns {
+  const { can } = usePermission();
+  const canEdit = can(MARKETING_PERMISSIONS.signinUpdate);
+  const canDelete = can(MARKETING_PERMISSIONS.signinDelete);
+  const canStatus = can(MARKETING_PERMISSIONS.signinStatus);
   return [
     { field: 'name', minWidth: 160, title: $t('marketing.signin.ruleName') },
     { field: 'pointsPerDay', title: $t('marketing.signin.pointsPerDay'), width: 110 },
@@ -122,7 +128,7 @@ export function useColumns<T = MarketingSigninApi.SigninRule>(
     {
       cellRender: {
         attrs: { beforeChange: onStatusChange },
-        name: onStatusChange ? 'CellSwitch' : 'CellTag',
+        name: canStatus && onStatusChange ? 'CellSwitch' : 'CellTag',
       },
       field: 'status',
       title: $t('marketing.signin.status'),
@@ -138,11 +144,15 @@ export function useColumns<T = MarketingSigninApi.SigninRule>(
           onClick: onActionClick,
         },
         name: 'CellOperation',
-        options: ['edit', 'delete'],
+        options: [
+          { code: 'edit', show: canEdit },
+          { code: 'delete', show: canDelete },
+        ],
       },
       field: 'operation',
       fixed: 'right',
       title: $t('marketing.signin.operation'),
+      visible: canEdit || canDelete,
       width: 150,
     },
   ];

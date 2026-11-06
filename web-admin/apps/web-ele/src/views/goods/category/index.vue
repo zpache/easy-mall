@@ -12,6 +12,7 @@ import { ElButton, ElMessage, ElMessageBox } from 'element-plus';
 
 import { useVbenVxeGrid } from '#/adapter/vxe-table';
 import { deleteCategory, getCategoryTree } from '#/api/goods/category';
+import { GOODS_PERMISSIONS } from '#/constants/permissions';
 import { $t } from '#/locales';
 
 import { useColumns } from './data';
@@ -103,7 +104,11 @@ function refreshGrid() {
     <FormModal @success="refreshGrid" />
     <Grid :table-title="$t('goods.category.list')">
       <template #toolbar-tools>
-        <ElButton type="primary" @click="onCreate">
+        <ElButton
+          v-access:code="GOODS_PERMISSIONS.categoryCreate"
+          type="primary"
+          @click="onCreate"
+        >
           <Plus class="size-5" />
           {{ $t('ui.actionTitle.create', [$t('goods.category.entity')]) }}
         </ElButton>

@@ -30,7 +30,11 @@ const SAVE_DELAY = 800;
  * 装修编辑器状态机：
  * 所有变更都走 commit()（快照入栈 → 变更 → 防抖保存），保证撤销/重做与落库一致。
  */
-export function useDecorateEditor(pageId: () => number) {
+export function useDecorateEditor(
+  pageId: () => number,
+  canEdit: () => boolean = () => true,
+  canPublish: () => boolean = () => true,
+) {
   const schema = ref<PageSchema>(createEmptySchema());
   const pageName = ref('');
   const pageMeta = ref<any>(null);
@@ -69,6 +73,9 @@ export function useDecorateEditor(pageId: () => number) {
   }
 
   function commit(mutator: () => void, coalesce = false) {
+    if (!canEdit()) {
+      return;
+    }
     pushHistory(coalesce);
     mutator();
     scheduleSave();
@@ -84,7 +91,7 @@ export function useDecorateEditor(pageId: () => number) {
 
   async function save(silent = true) {
     clearTimeout(saveTimer);
-    if (!dirty.value || !pageId()) {
+    if (!canEdit() || !dirty.value || !pageId()) {
       return;
     }
     saving.value = true;
@@ -130,6 +137,9 @@ export function useDecorateEditor(pageId: () => number) {
   }
 
   function undo() {
+    if (!canEdit()) {
+      return;
+    }
     const previous = past.value.pop();
     if (previous === undefined) {
       return;
@@ -141,6 +151,9 @@ export function useDecorateEditor(pageId: () => number) {
   }
 
   function redo() {
+    if (!canEdit()) {
+      return;
+    }
     const next = future.value.pop();
     if (next === undefined) {
       return;
@@ -263,6 +276,9 @@ export function useDecorateEditor(pageId: () => number) {
   }
 
   function rename(name: string) {
+    if (!canEdit()) {
+      return;
+    }
     pageName.value = name;
     commit(() => {
       schema.value.page.title = name;
@@ -271,6 +287,9 @@ export function useDecorateEditor(pageId: () => number) {
 
   /** 拖入：从左侧组件库或画布内已有组件 */
   function startDrag(payload: DragState) {
+    if (!canEdit()) {
+      return;
+    }
     dragState.value = payload;
   }
 
@@ -295,6 +314,9 @@ export function useDecorateEditor(pageId: () => number) {
   }
 
   async function publish() {
+    if (!canPublish()) {
+      return;
+    }
     await save(true);
     const page = await publishDecoratePage(pageId());
     pageMeta.value = { ...pageMeta.value, ...page };
@@ -309,6 +331,9 @@ export function useDecorateEditor(pageId: () => number) {
         target.tagName === 'TEXTAREA' ||
         target.isContentEditable);
     if (editing) {
+      return;
+    }
+    if (!canEdit()) {
       return;
     }
     const meta = event.metaKey || event.ctrlKey;

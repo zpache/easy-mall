@@ -6,6 +6,8 @@ import { z } from '#/adapter/form';
 import { getBrandOptions } from '#/api/goods/brand';
 import { getCategoryTree } from '#/api/goods/category';
 import GoodsImageField from '#/components/goods-image-field.vue';
+import { usePermission } from '#/composables/use-permission';
+import { GOODS_PERMISSIONS } from '#/constants/permissions';
 import { $t } from '#/locales';
 
 /**
@@ -203,6 +205,11 @@ export function useColumns<T = GoodsApi.Goods>(
   onActionClick: OnActionClickFn<T>,
   onStatusChange?: (newStatus: any, row: T) => PromiseLike<boolean | undefined>,
 ): VxeTableGridColumns {
+  const { can } = usePermission();
+  const canEdit = can(GOODS_PERMISSIONS.goodsUpdate);
+  const canDelete = can(GOODS_PERMISSIONS.goodsDelete);
+  const canSku = can(GOODS_PERMISSIONS.goodsSku);
+  const canStatus = can(GOODS_PERMISSIONS.goodsStatus);
   return [
     {
       cellRender: {
@@ -266,7 +273,7 @@ export function useColumns<T = GoodsApi.Goods>(
     {
       cellRender: {
         attrs: { beforeChange: onStatusChange },
-        name: onStatusChange ? 'CellSwitch' : 'CellTag',
+        name: canStatus && onStatusChange ? 'CellSwitch' : 'CellTag',
       },
       field: 'status',
       title: $t('goods.goods.status'),
@@ -288,14 +295,15 @@ export function useColumns<T = GoodsApi.Goods>(
         },
         name: 'CellOperation',
         options: [
-          { code: 'sku', text: $t('goods.goods.skuConfig') },
-          'edit',
-          'delete',
+          { code: 'sku', show: canSku, text: $t('goods.goods.skuConfig') },
+          { code: 'edit', show: canEdit },
+          { code: 'delete', show: canDelete },
         ],
       },
       field: 'operation',
       fixed: 'right',
       title: $t('goods.goods.operation'),
+      visible: canEdit || canDelete || canSku,
       width: 150,
     },
   ];

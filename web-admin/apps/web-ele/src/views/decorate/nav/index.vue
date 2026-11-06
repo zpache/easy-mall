@@ -28,6 +28,8 @@ import {
   saveDecorateNav,
 } from '#/api/decorate/nav';
 import { getDecoratePages } from '#/api/decorate/page';
+import { DECORATE_PERMISSIONS } from '#/constants/permissions';
+import { usePermission } from '#/composables/use-permission';
 
 import IconPickerField from './components/icon-picker-field.vue';
 import PhonePreview from './components/phone-preview.vue';
@@ -76,10 +78,16 @@ const loading = ref(false);
 const saving = ref(false);
 const dirty = ref(false);
 const pages = ref<{ id: number; name: string }[]>([]);
+const { can } = usePermission();
+const canEdit = computed(() => can(DECORATE_PERMISSIONS.navUpdate));
+const canPublish = computed(() => can(DECORATE_PERMISSIONS.navPublish));
+const canReset = computed(() => can(DECORATE_PERMISSIONS.navReset));
 
 /** 用户改动后标记未保存，保存/重置后清除 */
 function touch() {
-  dirty.value = true;
+  if (canEdit.value) {
+    dirty.value = true;
+  }
 }
 
 /**
@@ -126,6 +134,7 @@ onMounted(async () => {
 /* ---------------- TabBar ---------------- */
 
 function addTab() {
+  if (!canEdit.value) return;
   if (nav.tabbar.items.length >= MAX_TABS) {
     ElMessage.warning(`最多 ${MAX_TABS} 个标签`);
     return;
@@ -137,6 +146,7 @@ function addTab() {
 }
 
 function removeTab(index: number) {
+  if (!canEdit.value) return;
   if (nav.tabbar.items.length <= MIN_TABS) {
     ElMessage.warning(`至少保留 ${MIN_TABS} 个标签`);
     return;
@@ -146,6 +156,7 @@ function removeTab(index: number) {
 }
 
 function moveTab(index: number, offset: number) {
+  if (!canEdit.value) return;
   const target = index + offset;
   if (target < 0 || target >= nav.tabbar.items.length) {
     return;
@@ -156,6 +167,7 @@ function moveTab(index: number, offset: number) {
 }
 
 function onLinkTypeChange(item: NavApi.TabItem) {
+  if (!canEdit.value) return;
   item.linkValue = '';
   touch();
 }
@@ -167,6 +179,7 @@ function pageName(id: string) {
 /* ---------------- 快捷入口 ---------------- */
 
 function addFloatItem() {
+  if (!canEdit.value) return;
   if (nav.floatBall.itemList.length >= MAX_FLOAT) {
     ElMessage.warning(`最多 ${MAX_FLOAT} 个快捷入口`);
     return;
@@ -182,11 +195,13 @@ function addFloatItem() {
 }
 
 function removeFloatItem(index: number) {
+  if (!canEdit.value) return;
   nav.floatBall.itemList.splice(index, 1);
   touch();
 }
 
 function moveFloatItem(index: number, offset: number) {
+  if (!canEdit.value) return;
   const target = index + offset;
   if (target < 0 || target >= nav.floatBall.itemList.length) {
     return;
@@ -207,6 +222,7 @@ const tabCountTip = computed(
 );
 
 async function onSave() {
+  if (!canEdit.value) return;
   if (nav.navbar.title.trim().length === 0) {
     ElMessage.warning('请填写顶部导航标题');
     return;
@@ -235,6 +251,7 @@ async function onSave() {
 
 /** 发布：先保存草稿再快照生效，发布是唯一影响小程序的闸门，需二次确认 */
 async function onPublish() {
+  if (!canPublish.value) return;
   await ElMessageBox.confirm(
     '发布后导航配置将立即下发到小程序端（底部 TabBar、顶部导航、快捷入口全部生效），确定发布吗？',
     '发布导航配置',
@@ -253,6 +270,7 @@ async function onPublish() {
 }
 
 async function onReset() {
+  if (!canReset.value) return;
   await ElMessageBox.confirm(
     '将恢复为默认导航（4 个标签、常规标题栏、右侧快捷入口），当前配置会被覆盖。',
     '恢复默认配置',
@@ -291,14 +309,34 @@ const previewPageName = computed(() => {
           <ElTag v-else-if="updatedAt" effect="plain" type="info">
             上次保存 {{ updatedAt.replace('T', ' ').slice(0, 19) }}
           </ElTag>
+          <ElTag v-if="!canEdit" effect="plain" type="info">只读</ElTag>
           <ElButton :loading="loading" @click="load">重新加载</ElButton>
-          <ElButton :disabled="saving" @click="onReset">恢复默认</ElButton>
-          <ElButton :loading="saving" @click="onSave">保存草稿</ElButton>
-          <ElButton :loading="saving" type="primary" @click="onPublish">发 布</ElButton>
+          <ElButton
+            v-access:code="DECORATE_PERMISSIONS.navReset"
+            :disabled="saving"
+            @click="onReset"
+          >
+            恢复默认
+          </ElButton>
+          <ElButton
+            v-access:code="DECORATE_PERMISSIONS.navUpdate"
+            :loading="saving"
+            @click="onSave"
+          >
+            保存草稿
+          </ElButton>
+          <ElButton
+            v-access:code="DECORATE_PERMISSIONS.navPublish"
+            :loading="saving"
+            type="primary"
+            @click="onPublish"
+          >
+            发 布
+          </ElButton>
         </div>
       </div>
 
-      <div class="nav-body">
+      <div class="nav-body" :class="{ 'is-readonly': !canEdit }">
       <div class="nav-main">
         <!-- 顶部导航（紫色版块） -->
         <ElCard class="section section-navbar" shadow="never">
@@ -461,13 +499,29 @@ const previewPageName = computed(() => {
                     @input="touch"
                   />
                   <span class="spacer"></span>
-                  <ElButton size="small" text @click="moveTab(index, -1)">
+                  <ElButton
+                    v-access:code="DECORATE_PERMISSIONS.navUpdate"
+                    size="small"
+                    text
+                    @click="moveTab(index, -1)"
+                  >
                     <IconifyIcon icon="lucide:chevron-up" />
                   </ElButton>
-                  <ElButton size="small" text @click="moveTab(index, 1)">
+                  <ElButton
+                    v-access:code="DECORATE_PERMISSIONS.navUpdate"
+                    size="small"
+                    text
+                    @click="moveTab(index, 1)"
+                  >
                     <IconifyIcon icon="lucide:chevron-down" />
                   </ElButton>
-                  <ElButton size="small" text type="danger" @click="removeTab(index)">
+                  <ElButton
+                    v-access:code="DECORATE_PERMISSIONS.navUpdate"
+                    size="small"
+                    text
+                    type="danger"
+                    @click="removeTab(index)"
+                  >
                     <IconifyIcon icon="lucide:trash-2" />
                   </ElButton>
                 </div>
@@ -529,6 +583,7 @@ const previewPageName = computed(() => {
             </div>
 
             <ElButton
+              v-access:code="DECORATE_PERMISSIONS.navUpdate"
               :disabled="nav.tabbar.items.length >= MAX_TABS"
               class="add-btn"
               plain
@@ -601,13 +656,29 @@ const previewPageName = computed(() => {
                   />
                   <span class="spacer"></span>
                   <ElSwitch v-model="item.enabled" size="small" @change="touch" />
-                  <ElButton size="small" text @click="moveFloatItem(index, -1)">
+                  <ElButton
+                    v-access:code="DECORATE_PERMISSIONS.navUpdate"
+                    size="small"
+                    text
+                    @click="moveFloatItem(index, -1)"
+                  >
                     <IconifyIcon icon="lucide:chevron-up" />
                   </ElButton>
-                  <ElButton size="small" text @click="moveFloatItem(index, 1)">
+                  <ElButton
+                    v-access:code="DECORATE_PERMISSIONS.navUpdate"
+                    size="small"
+                    text
+                    @click="moveFloatItem(index, 1)"
+                  >
                     <IconifyIcon icon="lucide:chevron-down" />
                   </ElButton>
-                  <ElButton size="small" text type="danger" @click="removeFloatItem(index)">
+                  <ElButton
+                    v-access:code="DECORATE_PERMISSIONS.navUpdate"
+                    size="small"
+                    text
+                    type="danger"
+                    @click="removeFloatItem(index)"
+                  >
                     <IconifyIcon icon="lucide:trash-2" />
                   </ElButton>
                 </div>
@@ -620,6 +691,7 @@ const previewPageName = computed(() => {
             </div>
 
             <ElButton
+              v-access:code="DECORATE_PERMISSIONS.navUpdate"
               :disabled="nav.floatBall.itemList.length >= MAX_FLOAT"
               class="add-btn"
               plain
@@ -677,6 +749,10 @@ const previewPageName = computed(() => {
   min-height: 0;
   padding-right: 4px;
   overflow-y: auto;
+}
+.nav-body.is-readonly .nav-main {
+  pointer-events: none;
+  opacity: 0.7;
 }
 /* 顶部悬浮操作条：固定不随内容滚动（与首页装修编辑器一致） */
 .head {

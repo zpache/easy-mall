@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import type { OrderApi } from '#/api/order/order';
 
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 
 import { useVbenDrawer } from '@vben/common-ui';
 
@@ -19,6 +19,8 @@ import {
 } from 'element-plus';
 
 import { getOrderDetail, getOrderLogistics } from '#/api/order/order';
+import { ORDER_PERMISSIONS } from '#/constants/permissions';
+import { usePermission } from '#/composables/use-permission';
 import { $t } from '#/locales';
 
 import {
@@ -30,6 +32,8 @@ import {
 
 const order = ref<null | OrderApi.Order>(null);
 const loading = ref(false);
+const { can } = usePermission();
+const canLogistics = computed(() => can(ORDER_PERMISSIONS.logistics));
 
 /** 物流轨迹：undefined 未加载，null 加载失败/不可用 */
 const trace = ref<OrderApi.LogisticsTrace | null | undefined>(undefined);
@@ -53,7 +57,7 @@ const [Drawer, drawerApi] = useVbenDrawer({
       trace.value = undefined;
       traceError.value = '';
       // 已发货且有单号时自动加载物流轨迹（未开启/失败静默降级，不阻塞详情展示）
-      if (order.value?.deliveryNo) {
+      if (order.value?.deliveryNo && canLogistics.value) {
         loadTrace(order.value.id);
       }
     } finally {
@@ -63,6 +67,9 @@ const [Drawer, drawerApi] = useVbenDrawer({
 });
 
 async function loadTrace(id: number) {
+  if (!canLogistics.value) {
+    return;
+  }
   traceLoading.value = true;
   traceError.value = '';
   try {
@@ -213,12 +220,13 @@ const tagTypeMap: Record<string, any> = {
           </ElDescriptionsItem>
         </ElDescriptions>
 
-        <div v-if="order.deliveryNo">
+        <div v-if="order.deliveryNo && canLogistics">
           <div class="mb-2 flex items-center justify-between">
             <span class="text-sm font-medium">
               {{ $t('order.order.logisticsTrace') }}
             </span>
             <ElButton
+              v-access:code="ORDER_PERMISSIONS.logistics"
               :loading="traceLoading"
               link
               type="primary"

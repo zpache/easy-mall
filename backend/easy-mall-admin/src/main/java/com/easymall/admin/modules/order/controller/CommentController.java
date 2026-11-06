@@ -10,6 +10,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -32,6 +33,7 @@ public class CommentController {
 
     @Operation(summary = "分页查询评价")
     @GetMapping
+    @PreAuthorize("hasAuthority('order:comment:list')")
     public Result<PageResult<CommentVO>> page(@RequestParam(defaultValue = "1") long pageNum,
                                               @RequestParam(defaultValue = "10") long pageSize,
                                               @RequestParam(required = false) String keyword,
@@ -43,12 +45,14 @@ public class CommentController {
 
     @Operation(summary = "待审核评价数量")
     @GetMapping("/pending-count")
+    @PreAuthorize("hasAuthority('order:comment:list')")
     public Result<Long> pendingCount() {
         return Result.ok(commentService.pendingCount());
     }
 
     @Operation(summary = "审核评价（1 通过，2 拒绝）")
     @PutMapping("/{id}/audit")
+    @PreAuthorize("hasAuthority('order:comment:audit')")
     public Result<Void> audit(@PathVariable Long id, @Valid @RequestBody CommentAuditForm form) {
         commentService.audit(id, form.status(), form.remark());
         return Result.ok();
@@ -56,6 +60,7 @@ public class CommentController {
 
     @Operation(summary = "显示 / 隐藏评价（仅已通过审核的评价）")
     @PutMapping("/{id}/visible")
+    @PreAuthorize("hasAuthority('order:comment:visible')")
     public Result<Void> updateVisible(@PathVariable Long id, @RequestParam Integer isShow) {
         commentService.updateVisible(id, isShow);
         return Result.ok();
@@ -63,6 +68,7 @@ public class CommentController {
 
     @Operation(summary = "回复评价")
     @PutMapping("/{id}/reply")
+    @PreAuthorize("hasAuthority('order:comment:reply')")
     public Result<Void> reply(@PathVariable Long id, @Valid @RequestBody CommentReplyForm form) {
         commentService.reply(id, form.reply());
         return Result.ok();
@@ -70,6 +76,7 @@ public class CommentController {
 
     @Operation(summary = "删除评价")
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAuthority('order:comment:delete')")
     public Result<Void> delete(@PathVariable Long id) {
         commentService.delete(id);
         return Result.ok();

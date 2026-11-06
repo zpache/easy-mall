@@ -3,6 +3,8 @@ import type { OnActionClickFn, VxeTableGridColumns } from '#/adapter/vxe-table';
 import type { GoodsStockApi } from '#/api/goods/stock';
 
 import { $t } from '#/locales';
+import { usePermission } from '#/composables/use-permission';
+import { GOODS_PERMISSIONS } from '#/constants/permissions';
 
 /**
  * 库存查询表单
@@ -79,6 +81,9 @@ export function useAdjustSchema(): VbenFormSchema[] {
 export function useColumns<T = GoodsStockApi.Stock>(
   onActionClick: OnActionClickFn<T>,
 ): VxeTableGridColumns {
+  const { can } = usePermission();
+  const canAdjust = can(GOODS_PERMISSIONS.stockAdjust);
+  const canLogs = can(GOODS_PERMISSIONS.stockLogs);
   return [
     {
       cellRender: {
@@ -151,13 +156,14 @@ export function useColumns<T = GoodsStockApi.Stock>(
         },
         name: 'CellOperation',
         options: [
-          { code: 'adjust', text: $t('goods.stock.adjust') },
-          { code: 'logs', text: $t('goods.stock.logs') },
+          { code: 'adjust', show: canAdjust, text: $t('goods.stock.adjust') },
+          { code: 'logs', show: canLogs, text: $t('goods.stock.logs') },
         ],
       },
       field: 'operation',
       fixed: 'right',
       title: $t('goods.stock.operation'),
+      visible: canAdjust || canLogs,
       width: 190,
     },
   ];

@@ -11,6 +11,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -36,6 +37,7 @@ public class MemberLevelController {
 
     @Operation(summary = "分页查询等级")
     @GetMapping
+    @PreAuthorize("hasAuthority('member:level:list')")
     public Result<PageResult<MemberLevel>> page(@RequestParam(defaultValue = "1") long pageNum,
                                                 @RequestParam(defaultValue = "10") long pageSize,
                                                 @RequestParam(required = false) String keyword,
@@ -45,36 +47,42 @@ public class MemberLevelController {
 
     @Operation(summary = "启用中的等级（下拉选项）")
     @GetMapping("/options")
+    @PreAuthorize("hasAnyAuthority('member:level:list', 'member:member:list')")
     public Result<List<MemberLevel>> options() {
         return Result.ok(levelService.listEnabled());
     }
 
     @Operation(summary = "查询等级折扣总开关")
     @GetMapping("/discount-switch")
+    @PreAuthorize("hasAuthority('member:level:list')")
     public Result<LevelDiscountSwitchVO> discountSwitch() {
         return Result.ok(levelService.discountSwitch());
     }
 
     @Operation(summary = "开启/关闭等级折扣总开关")
     @PutMapping("/discount-switch")
+    @PreAuthorize("hasAuthority('member:level:discount')")
     public Result<LevelDiscountSwitchVO> updateDiscountSwitch(@Valid @RequestBody LevelDiscountSwitchForm form) {
         return Result.ok(levelService.updateDiscountSwitch(form));
     }
 
     @Operation(summary = "新增等级")
     @PostMapping
+    @PreAuthorize("hasAuthority('member:level:create')")
     public Result<MemberLevel> create(@Valid @RequestBody LevelForm form) {
         return Result.ok(levelService.create(form));
     }
 
     @Operation(summary = "编辑等级")
     @PutMapping("/{id}")
+    @PreAuthorize("hasAuthority('member:level:update')")
     public Result<MemberLevel> update(@PathVariable Long id, @Valid @RequestBody LevelForm form) {
         return Result.ok(levelService.update(id, form));
     }
 
     @Operation(summary = "启用/停用等级")
     @PutMapping("/{id}/status")
+    @PreAuthorize("hasAuthority('member:level:status')")
     public Result<Void> updateStatus(@PathVariable Long id, @RequestParam Integer status) {
         levelService.updateStatus(id, status);
         return Result.ok();
@@ -82,6 +90,7 @@ public class MemberLevelController {
 
     @Operation(summary = "删除等级（有会员时拒绝）")
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAuthority('member:level:delete')")
     public Result<Void> delete(@PathVariable Long id) {
         levelService.delete(id);
         return Result.ok();

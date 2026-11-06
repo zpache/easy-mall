@@ -11,6 +11,10 @@ const emit = defineEmits<{
   dragstart: [type: string];
 }>();
 
+const props = withDefaults(defineProps<{ readonly?: boolean }>(), {
+  readonly: false,
+});
+
 const groups = computed(() => {
   const order: string[] = ['base', 'content', 'goods', 'marketing'];
   return order
@@ -23,11 +27,21 @@ const groups = computed(() => {
 });
 
 function onDragStart(event: DragEvent, type: string) {
+  if (props.readonly) {
+    event.preventDefault();
+    return;
+  }
   event.dataTransfer?.setData('text/widget-type', type);
   if (event.dataTransfer) {
     event.dataTransfer.effectAllowed = 'copy';
   }
   emit('dragstart', type);
+}
+
+function onAdd(type: string) {
+  if (!props.readonly) {
+    emit('add', type);
+  }
 }
 </script>
 
@@ -35,7 +49,9 @@ function onDragStart(event: DragEvent, type: string) {
   <aside class="widget-panel">
     <div class="panel-head">
       <span class="title">组件库</span>
-      <span class="tip">拖入画布或点击添加</span>
+      <span class="tip">
+        {{ readonly ? '只读模式' : '拖入画布或点击添加' }}
+      </span>
     </div>
     <div class="panel-body">
       <div v-for="group in groups" :key="group.category" class="group">
@@ -45,10 +61,11 @@ function onDragStart(event: DragEvent, type: string) {
             v-for="widget in group.widgets"
             :key="widget.type"
             class="widget"
-            draggable="true"
+            :class="{ disabled: readonly }"
+            :draggable="!readonly"
             @dragend="emit('dragend')"
             @dragstart="onDragStart($event, widget.type)"
-            @click="emit('add', widget.type)"
+            @click="onAdd(widget.type)"
           >
             <IconifyIcon :icon="widget.icon" class="icon" />
             <span class="name">{{ widget.name }}</span>
@@ -121,6 +138,13 @@ function onDragStart(event: DragEvent, type: string) {
 }
 .widget:active {
   cursor: grabbing;
+}
+.widget.disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+.widget.disabled:active {
+  cursor: not-allowed;
 }
 .icon {
   font-size: 17px;

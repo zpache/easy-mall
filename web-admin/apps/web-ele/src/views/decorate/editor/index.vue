@@ -17,6 +17,8 @@ import {
 } from 'element-plus';
 
 import { getDecorateNav } from '#/api/decorate/nav';
+import { DECORATE_PERMISSIONS } from '#/constants/permissions';
+import { usePermission } from '#/composables/use-permission';
 
 import { parseNavConfig } from '../nav/config';
 import { useDecorateEditor } from './use-editor';
@@ -29,8 +31,15 @@ const route = useRoute();
 const router = useRouter();
 
 const pageId = computed(() => Number(route.params.id));
+const { can } = usePermission();
+const canEdit = computed(() => can(DECORATE_PERMISSIONS.pageUpdate));
+const canPublish = computed(() => can(DECORATE_PERMISSIONS.pagePublish));
 
-const editor = useDecorateEditor(() => pageId.value);
+const editor = useDecorateEditor(
+  () => pageId.value,
+  () => canEdit.value,
+  () => canPublish.value,
+);
 const {
   canRedo,
   canUndo,
@@ -120,6 +129,9 @@ function onAdd(type: string) {
 
 /** 发布直接影响小程序端展示，必须二次确认 */
 async function onPublish() {
+  if (!canPublish.value) {
+    return;
+  }
   await ElMessageBox.confirm(
     `发布后「${pageName.value}」的装修内容将立即对小程序端生效，确定发布吗？`,
     '发布页面',
@@ -195,23 +207,39 @@ onMounted(async () => {
             onRename(pageName);
           "
         />
-        <span v-else class="page-name" @click="nameEditing = true">
+        <span
+          v-else
+          class="page-name"
+          :class="{ editable: canEdit }"
+          @click="canEdit && (nameEditing = true)"
+        >
           {{ pageName || '未命名页面' }}
-          <IconifyIcon icon="lucide:pencil" class="edit-icon" />
+          <IconifyIcon v-if="canEdit" icon="lucide:pencil" class="edit-icon" />
         </span>
         <ElTag :type="saveStateType" size="small" effect="light">
           {{ saveStateText }}
+        </ElTag>
+        <ElTag v-if="!canEdit" size="small" type="info" effect="plain">
+          只读
         </ElTag>
       </div>
 
       <div class="right">
         <ElTooltip content="撤销 (⌘Z)" placement="bottom">
-          <ElButton :disabled="!canUndo" size="small" @click="undo">
+          <ElButton
+            :disabled="!canEdit || !canUndo"
+            size="small"
+            @click="undo"
+          >
             <IconifyIcon icon="lucide:undo-2" />
           </ElButton>
         </ElTooltip>
         <ElTooltip content="重做 (⇧⌘Z)" placement="bottom">
-          <ElButton :disabled="!canRedo" size="small" @click="redo">
+          <ElButton
+            :disabled="!canEdit || !canRedo"
+            size="small"
+            @click="redo"
+          >
             <IconifyIcon icon="lucide:redo-2" />
           </ElButton>
         </ElTooltip>
@@ -220,10 +248,20 @@ onMounted(async () => {
           <IconifyIcon icon="lucide:qr-code" class="mr-1" />
           扫码预览
         </ElButton>
-        <ElButton :loading="saving" size="small" @click="save(false)">
+        <ElButton
+          v-access:code="DECORATE_PERMISSIONS.pageUpdate"
+          :loading="saving"
+          size="small"
+          @click="save(false)"
+        >
           保存草稿
         </ElButton>
-        <ElButton size="small" type="primary" @click="onPublish">
+        <ElButton
+          v-access:code="DECORATE_PERMISSIONS.pagePublish"
+          size="small"
+          type="primary"
+          @click="onPublish"
+        >
           <IconifyIcon icon="lucide:upload" class="mr-1" />
           发布
         </ElButton>
@@ -232,12 +270,14 @@ onMounted(async () => {
 
     <main class="editor-main">
       <WidgetPanel
+        :readonly="!canEdit"
         @add="onAdd"
         @dragend="endDrag"
         @dragstart="onDragStart"
       />
       <PhoneCanvas
         :nav="navConfig"
+        :readonly="!canEdit"
         :schema="schema"
         :selected-id="selectedId"
         :show-nav="showNav"
@@ -260,6 +300,7 @@ onMounted(async () => {
       <PropPanel
         :component-count="components.length"
         :page="schema.page"
+        :readonly="!canEdit"
         :selected="selected"
         @update-page="updatePageConfig"
         @update-props="
@@ -315,10 +356,13 @@ onMounted(async () => {
   font-size: 13px;
   font-weight: 600;
   color: #1f2329;
-  cursor: pointer;
+  cursor: default;
   border-radius: 4px;
 }
-.page-name:hover {
+.page-name.editable {
+  cursor: pointer;
+}
+.page-name.editable:hover {
   background: #f5f7fa;
 }
 .edit-icon {

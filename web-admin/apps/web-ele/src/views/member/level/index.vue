@@ -28,6 +28,7 @@ import {
   getLevelList,
   updateLevelDiscountSwitch,
 } from '#/api/member/level';
+import { MEMBER_PERMISSIONS } from '#/constants/permissions';
 import { $t } from '#/locales';
 
 import { useColumns, useGridFormSchema } from './data';
@@ -188,6 +189,7 @@ function onCreate() {
             当前 {{ discountLevelCount }} 个等级享受折扣
           </span>
           <ElSwitch
+            v-access:code="MEMBER_PERMISSIONS.levelDiscount"
             :loading="switchLoading || switchSaving"
             :model-value="discountEnabled"
             @change="onDiscountSwitchChange"
@@ -205,7 +207,11 @@ function onCreate() {
     </ElCard>
     <Grid :table-title="$t('member.level.list')">
       <template #toolbar-tools>
-        <ElButton type="primary" @click="onCreate">
+        <ElButton
+          v-access:code="MEMBER_PERMISSIONS.levelCreate"
+          type="primary"
+          @click="onCreate"
+        >
           <Plus class="size-5" />
           {{ $t('ui.actionTitle.create', [$t('member.level.entity')]) }}
         </ElButton>

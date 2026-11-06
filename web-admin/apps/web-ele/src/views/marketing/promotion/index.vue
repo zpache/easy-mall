@@ -16,6 +16,7 @@ import {
   deletePromotion,
   getPromotionList,
 } from '#/api/marketing/promotion';
+import { MARKETING_PERMISSIONS } from '#/constants/permissions';
 import { $t } from '#/locales';
 
 import { useColumns, useGridFormSchema } from './data';
@@ -112,7 +113,11 @@ function onCreate() {
     <FormDrawer @success="gridApi.query()" />
     <Grid :table-title="$t('marketing.promotion.list')">
       <template #toolbar-tools>
-        <ElButton type="primary" @click="onCreate">
+        <ElButton
+          v-access:code="MARKETING_PERMISSIONS.promotionCreate"
+          type="primary"
+          @click="onCreate"
+        >
           <Plus class="size-5" />
           {{ $t('ui.actionTitle.create', [$t('marketing.promotion.entity')]) }}
         </ElButton>

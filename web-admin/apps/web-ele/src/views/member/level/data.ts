@@ -3,6 +3,8 @@ import type { OnActionClickFn, VxeTableGridColumns } from '#/adapter/vxe-table';
 import type { MemberLevelApi } from '#/api/member/level';
 
 import { z } from '#/adapter/form';
+import { usePermission } from '#/composables/use-permission';
+import { MEMBER_PERMISSIONS } from '#/constants/permissions';
 import { $t } from '#/locales';
 
 /**
@@ -106,6 +108,10 @@ export function useColumns<T = MemberLevelApi.Level>(
   onActionClick: OnActionClickFn<T>,
   onStatusChange?: (newStatus: any, row: T) => PromiseLike<boolean | undefined>,
 ): VxeTableGridColumns {
+  const { can } = usePermission();
+  const canEdit = can(MEMBER_PERMISSIONS.levelUpdate);
+  const canDelete = can(MEMBER_PERMISSIONS.levelDelete);
+  const canStatus = can(MEMBER_PERMISSIONS.levelStatus);
   return [
     {
       field: 'name',
@@ -138,7 +144,7 @@ export function useColumns<T = MemberLevelApi.Level>(
     {
       cellRender: {
         attrs: { beforeChange: onStatusChange },
-        name: onStatusChange ? 'CellSwitch' : 'CellTag',
+        name: canStatus && onStatusChange ? 'CellSwitch' : 'CellTag',
       },
       field: 'status',
       title: $t('member.level.status'),
@@ -153,11 +159,15 @@ export function useColumns<T = MemberLevelApi.Level>(
           onClick: onActionClick,
         },
         name: 'CellOperation',
-        options: ['edit', 'delete'],
+        options: [
+          { code: 'edit', show: canEdit },
+          { code: 'delete', show: canDelete },
+        ],
       },
       field: 'operation',
       fixed: 'right',
       title: $t('member.list.operation'),
+      visible: canEdit || canDelete,
       width: 150,
     },
   ];

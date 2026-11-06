@@ -2,6 +2,8 @@ import type { VbenFormSchema } from '#/adapter/form';
 import type { OnActionClickFn, VxeTableGridColumns } from '#/adapter/vxe-table';
 import type { OrderRefundApi } from '#/api/order/refund';
 
+import { usePermission } from '#/composables/use-permission';
+import { ORDER_PERMISSIONS } from '#/constants/permissions';
 import { $t } from '#/locales';
 
 import { formatMoney, formatTime } from '../list/data';
@@ -56,6 +58,9 @@ export function useGridFormSchema(): VbenFormSchema[] {
 export function useColumns<T = OrderRefundApi.Refund>(
   onActionClick: OnActionClickFn<T>,
 ): VxeTableGridColumns {
+  const { can } = usePermission();
+  const canAudit = can(ORDER_PERMISSIONS.refundAudit);
+  const canConfirm = can(ORDER_PERMISSIONS.refundConfirm);
   return [
     {
       field: 'refundNo',
@@ -121,12 +126,12 @@ export function useColumns<T = OrderRefundApi.Refund>(
         options: [
           {
             code: 'audit',
-            show: (row: OrderRefundApi.Refund) => row.status === 0,
+            show: (row: OrderRefundApi.Refund) => canAudit && row.status === 0,
             text: $t('order.refund.audit'),
           },
           {
             code: 'confirm',
-            show: (row: OrderRefundApi.Refund) => row.status === 1,
+            show: (row: OrderRefundApi.Refund) => canConfirm && row.status === 1,
             text: $t('order.refund.confirm'),
           },
         ],
@@ -134,6 +139,7 @@ export function useColumns<T = OrderRefundApi.Refund>(
       field: 'operation',
       fixed: 'right',
       title: $t('order.refund.operation'),
+      visible: canAudit || canConfirm,
       width: 150,
     },
   ];

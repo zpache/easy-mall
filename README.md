@@ -145,9 +145,13 @@ java -version   # 应显示 25.x
 mysql -uroot -p < db/easy_mall.sql
 # 再按序执行全部迁移
 for f in db/migrations/*.sql; do mysql -uroot -p easy_mall < "$f"; done
+# 补齐按钮级操作权限（随代码分发，非 ADMIN 角色升级后必须执行）
+mysql -uroot -p easy_mall < backend/easy-mall-admin/src/main/resources/permission-buttons.sql
 ```
 
 基础脚本会创建 `easy_mall` 库并写入演示数据；迁移补齐系统管理、动态菜单、商品/订单/会员模块与菜单授权。默认管理员：**admin / admin123**（首次登录后请立即改密码）。
+
+> `permission-buttons.sql` 会为现有页面菜单补齐新增、编辑、删除、导出等按钮权限，并把已有页面权限同步给角色；脚本可重复执行。ADMIN 账号即使未单独勾选按钮也由后端兜底拥有全部权限。
 
 > `easy_mall.sql` 开头是 `DROP TABLE IF EXISTS`，**重复执行会清空数据**，只适合初始化；有数据的库只跑 `db/migrations/` 增量脚本。
 

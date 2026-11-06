@@ -3,6 +3,8 @@ import type { OnActionClickFn, VxeTableGridColumns } from '#/adapter/vxe-table';
 import type { SystemRoleApi } from '#/api/system/role';
 
 import { z } from '#/adapter/form';
+import { usePermission } from '#/composables/use-permission';
+import { SYSTEM_PERMISSIONS } from '#/constants/permissions';
 import { $t } from '#/locales';
 
 /**
@@ -97,6 +99,10 @@ export function useColumns<T = SystemRoleApi.SystemRole>(
   onActionClick: OnActionClickFn<T>,
   onStatusChange?: (newStatus: any, row: T) => PromiseLike<boolean | undefined>,
 ): VxeTableGridColumns {
+  const { can } = usePermission();
+  const canUpdate = can(SYSTEM_PERMISSIONS.roleUpdate);
+  const canDelete = can(SYSTEM_PERMISSIONS.roleDelete);
+  const canStatus = can(SYSTEM_PERMISSIONS.roleStatus);
   return [
     {
       field: 'name',
@@ -116,7 +122,7 @@ export function useColumns<T = SystemRoleApi.SystemRole>(
     {
       cellRender: {
         attrs: { beforeChange: onStatusChange },
-        name: onStatusChange ? 'CellSwitch' : 'CellTag',
+        name: canStatus && onStatusChange ? 'CellSwitch' : 'CellTag',
       },
       field: 'status',
       title: $t('system.role.status'),
@@ -141,10 +147,15 @@ export function useColumns<T = SystemRoleApi.SystemRole>(
           onClick: onActionClick,
         },
         name: 'CellOperation',
+        options: [
+          { code: 'edit', show: canUpdate },
+          { code: 'delete', show: canDelete },
+        ],
       },
       field: 'operation',
       fixed: 'right',
       title: $t('system.role.operation'),
+      visible: canUpdate || canDelete,
       width: 140,
     },
   ];

@@ -16,6 +16,7 @@ import {
   deleteCoupon,
   getCouponList,
 } from '#/api/marketing/coupon';
+import { MARKETING_PERMISSIONS } from '#/constants/permissions';
 import { $t } from '#/locales';
 
 import { useColumns, useGridFormSchema } from './data';
@@ -131,10 +132,18 @@ function onRecords() {
     <GrantModal @success="gridApi.query()" />
     <Grid :table-title="$t('marketing.coupon.list')">
       <template #toolbar-tools>
-        <ElButton class="mr-2" @click="onRecords">
+        <ElButton
+          v-access:code="MARKETING_PERMISSIONS.couponRecords"
+          class="mr-2"
+          @click="onRecords"
+        >
           {{ $t('marketing.coupon.records') }}
         </ElButton>
-        <ElButton type="primary" @click="onCreate">
+        <ElButton
+          v-access:code="MARKETING_PERMISSIONS.couponCreate"
+          type="primary"
+          @click="onCreate"
+        >
           <Plus class="size-5" />
           {{ $t('ui.actionTitle.create', [$t('marketing.coupon.entity')]) }}
         </ElButton>

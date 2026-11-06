@@ -18,8 +18,12 @@ import {
 } from 'element-plus';
 
 import { getGoodsSku, saveGoodsSku } from '#/api/goods/goods';
+import { GOODS_PERMISSIONS } from '#/constants/permissions';
+import { usePermission } from '#/composables/use-permission';
 
 const emit = defineEmits<{ success: [] }>();
+const { can } = usePermission();
+const canEdit = computed(() => can(GOODS_PERMISSIONS.goodsSku));
 
 /** 抽屉里编辑的规格组：values 用数组便于增删 */
 interface SpecGroupForm {
@@ -208,6 +212,9 @@ function validate(): string | null {
 }
 
 async function onSave() {
+  if (!canEdit.value) {
+    return;
+  }
   const error = validate();
   if (error) {
     ElMessage.warning(error);
@@ -248,6 +255,9 @@ async function onSave() {
 
 /** 改回单规格：清空规格定义与 SKU，商品价格/库存沿用商品表 */
 async function toSingleSpec() {
+  if (!canEdit.value) {
+    return;
+  }
   await ElMessageBox.confirm(
     '改为单规格会删除该商品的全部 SKU，已有订单不受影响，确定继续吗？',
     '改为单规格',
@@ -292,10 +302,16 @@ const [Drawer, drawerApi] = useVbenDrawer({
           <ElInput
             v-model="group.name"
             class="w-[200px]"
+            :disabled="!canEdit"
             placeholder="规格名称，如 颜色"
             @change="regenerate"
           />
-          <ElButton link type="danger" @click="removeGroup(gi)">
+          <ElButton
+            v-access:code="GOODS_PERMISSIONS.goodsSku"
+            link
+            type="danger"
+            @click="removeGroup(gi)"
+          >
             删除该规格
           </ElButton>
         </div>
@@ -303,7 +319,7 @@ const [Drawer, drawerApi] = useVbenDrawer({
           <ElTag
             v-for="(value, vi) in group.values"
             :key="value"
-            closable
+            :closable="canEdit"
             class="mr-2"
             @close="removeValue(gi, vi)"
           >
@@ -313,22 +329,42 @@ const [Drawer, drawerApi] = useVbenDrawer({
             <ElInput
               v-model="valueInputs[gi]"
               class="w-[160px]"
+              :disabled="!canEdit"
               placeholder="规格值，回车添加"
               @keyup.enter="addValue(gi)"
             />
-            <ElButton @click="addValue(gi)">添加</ElButton>
+            <ElButton
+              v-access:code="GOODS_PERMISSIONS.goodsSku"
+              @click="addValue(gi)"
+            >
+              添加
+            </ElButton>
           </div>
         </div>
       </div>
 
       <div class="flex gap-2">
-        <ElButton :disabled="specs.length >= 3" @click="addGroup">
+        <ElButton
+          v-access:code="GOODS_PERMISSIONS.goodsSku"
+          :disabled="specs.length >= 3"
+          @click="addGroup"
+        >
           添加规格组
         </ElButton>
-        <ElButton :disabled="!hasSpecs" @click="regenerate">
+        <ElButton
+          v-access:code="GOODS_PERMISSIONS.goodsSku"
+          :disabled="!hasSpecs"
+          @click="regenerate"
+        >
           生成规格组合
         </ElButton>
-        <ElButton v-if="skus.length > 0" type="danger" plain @click="toSingleSpec">
+        <ElButton
+          v-if="skus.length > 0"
+          v-access:code="GOODS_PERMISSIONS.goodsSku"
+          type="danger"
+          plain
+          @click="toSingleSpec"
+        >
           改为单规格
         </ElButton>
       </div>
@@ -346,13 +382,19 @@ const [Drawer, drawerApi] = useVbenDrawer({
           </ElTableColumn>
           <ElTableColumn label="销售价" width="140">
             <template #default="{ row }">
-              <ElInputNumber v-model="row.price" :min="0" :precision="2" />
+              <ElInputNumber
+                v-model="row.price"
+                :disabled="!canEdit"
+                :min="0"
+                :precision="2"
+              />
             </template>
           </ElTableColumn>
           <ElTableColumn label="划线价" width="140">
             <template #default="{ row }">
               <ElInputNumber
                 v-model="row.originalPrice"
+                :disabled="!canEdit"
                 :min="0"
                 :precision="2"
               />
@@ -360,7 +402,7 @@ const [Drawer, drawerApi] = useVbenDrawer({
           </ElTableColumn>
           <ElTableColumn label="库存" width="140">
             <template #default="{ row }">
-              <ElInputNumber v-model="row.stock" :min="0" />
+              <ElInputNumber v-model="row.stock" :disabled="!canEdit" :min="0" />
             </template>
           </ElTableColumn>
           <ElTableColumn label="启用" width="100">
@@ -368,6 +410,7 @@ const [Drawer, drawerApi] = useVbenDrawer({
               <ElSwitch
                 v-model="row.status"
                 :active-value="1"
+                :disabled="!canEdit"
                 :inactive-value="0"
               />
             </template>
@@ -378,6 +421,17 @@ const [Drawer, drawerApi] = useVbenDrawer({
         还没有规格，先添加规格组并录入规格值，再生成规格组合。
       </div>
     </div>
+    <template #footer>
+      <ElButton @click="drawerApi.close()">取消</ElButton>
+      <ElButton
+        v-access:code="GOODS_PERMISSIONS.goodsSku"
+        :loading="saving"
+        type="primary"
+        @click="onSave"
+      >
+        保存
+      </ElButton>
+    </template>
   </Drawer>
 </template>
 

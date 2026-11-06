@@ -16,6 +16,7 @@ import {
   deleteSigninRule,
   getSigninRuleList,
 } from '#/api/marketing/signin';
+import { MARKETING_PERMISSIONS } from '#/constants/permissions';
 import { $t } from '#/locales';
 
 import { useColumns, useGridFormSchema } from './data';
@@ -122,10 +123,18 @@ function onLogs() {
     <LogsDrawer />
     <Grid :table-title="$t('marketing.signin.rulesList')">
       <template #toolbar-tools>
-        <ElButton class="mr-2" @click="onLogs">
+        <ElButton
+          v-access:code="MARKETING_PERMISSIONS.signinLogs"
+          class="mr-2"
+          @click="onLogs"
+        >
           {{ $t('marketing.signin.logs') }}
         </ElButton>
-        <ElButton type="primary" @click="onCreate">
+        <ElButton
+          v-access:code="MARKETING_PERMISSIONS.signinCreate"
+          type="primary"
+          @click="onCreate"
+        >
           <Plus class="size-5" />
           {{ $t('ui.actionTitle.create', [$t('marketing.signin.entity')]) }}
         </ElButton>

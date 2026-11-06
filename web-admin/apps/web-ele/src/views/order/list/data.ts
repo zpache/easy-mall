@@ -2,6 +2,8 @@ import type { VbenFormSchema } from '#/adapter/form';
 import type { OnActionClickFn, VxeTableGridColumns } from '#/adapter/vxe-table';
 import type { OrderApi } from '#/api/order/order';
 
+import { usePermission } from '#/composables/use-permission';
+import { ORDER_PERMISSIONS } from '#/constants/permissions';
 import { $t } from '#/locales';
 
 /**
@@ -111,6 +113,10 @@ export function useGridFormSchema(): VbenFormSchema[] {
 export function useColumns<T = OrderApi.Order>(
   onActionClick: OnActionClickFn<T>,
 ): VxeTableGridColumns {
+  const { can } = usePermission();
+  const canDetail = can(ORDER_PERMISSIONS.detail);
+  const canShip = can(ORDER_PERMISSIONS.ship);
+  const canClose = can(ORDER_PERMISSIONS.close);
   return [
     {
       field: 'orderNo',
@@ -169,16 +175,16 @@ export function useColumns<T = OrderApi.Order>(
         },
         name: 'CellOperation',
         options: [
-          { code: 'detail', text: $t('order.order.detail') },
+          { code: 'detail', show: canDetail, text: $t('order.order.detail') },
           {
             code: 'deliver',
-            show: (row: OrderApi.Order) => row.status === 1,
+            show: (row: OrderApi.Order) => canShip && row.status === 1,
             text: $t('order.order.deliver'),
           },
           {
             code: 'close',
             // 只有待付款订单可关闭；已支付订单一律走「售后退款」，否则会出现「订单已关闭但钱没退」
-            show: (row: OrderApi.Order) => row.status === 0,
+            show: (row: OrderApi.Order) => canClose && row.status === 0,
             text: $t('order.order.close'),
           },
         ],
@@ -186,6 +192,7 @@ export function useColumns<T = OrderApi.Order>(
       field: 'operation',
       fixed: 'right',
       title: $t('order.order.operation'),
+      visible: canDetail || canShip || canClose,
       width: 200,
     },
   ];

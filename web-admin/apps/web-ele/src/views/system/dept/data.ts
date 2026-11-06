@@ -4,6 +4,8 @@ import type { SystemDeptApi } from '#/api/system/dept';
 
 import { z } from '#/adapter/form';
 import { getDeptList } from '#/api/system/dept';
+import { usePermission } from '#/composables/use-permission';
+import { SYSTEM_PERMISSIONS } from '#/constants/permissions';
 import { $t } from '#/locales';
 
 /**
@@ -76,6 +78,10 @@ export function useSchema(): VbenFormSchema[] {
 export function useColumns(
   onActionClick?: OnActionClickFn<SystemDeptApi.SystemDept>,
 ): VxeTableGridColumns<SystemDeptApi.SystemDept> {
+  const { can } = usePermission();
+  const canCreate = can(SYSTEM_PERMISSIONS.deptCreate);
+  const canUpdate = can(SYSTEM_PERMISSIONS.deptUpdate);
+  const canDelete = can(SYSTEM_PERMISSIONS.deptDelete);
   return [
     {
       align: 'left',
@@ -115,18 +121,24 @@ export function useColumns(
         },
         name: 'CellOperation',
         options: [
-          { code: 'append', text: $t('system.dept.append') },
-          'edit',
+          {
+            code: 'append',
+            show: canCreate,
+            text: $t('system.dept.append'),
+          },
+          { code: 'edit', show: canUpdate },
           {
             code: 'delete',
             disabled: (row: SystemDeptApi.SystemDept) =>
               !!(row.children && row.children.length > 0),
+            show: canDelete,
           },
         ],
       },
       field: 'operation',
       fixed: 'right',
       title: $t('system.dept.operation'),
+      visible: canCreate || canUpdate || canDelete,
       width: 220,
     },
   ];

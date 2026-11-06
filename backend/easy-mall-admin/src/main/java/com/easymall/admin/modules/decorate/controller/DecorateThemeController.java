@@ -8,6 +8,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -32,30 +33,35 @@ public class DecorateThemeController {
 
     @Operation(summary = "全部主题（含草稿态）")
     @GetMapping
+    @PreAuthorize("hasAuthority('decorate:theme:list')")
     public Result<List<DecorateTheme>> list() {
         return Result.ok(themeService.listAll());
     }
 
     @Operation(summary = "新增主题")
     @PostMapping
+    @PreAuthorize("hasAuthority('decorate:theme:create')")
     public Result<DecorateTheme> create(@Valid @RequestBody ThemeSaveForm form) {
         return Result.ok(themeService.create(form));
     }
 
     @Operation(summary = "编辑主题（草稿，不影响线上）")
     @PutMapping("/{id}")
+    @PreAuthorize("hasAuthority('decorate:theme:update')")
     public Result<DecorateTheme> update(@PathVariable Long id, @Valid @RequestBody ThemeSaveForm form) {
         return Result.ok(themeService.update(id, form));
     }
 
     @Operation(summary = "启用主题（发布快照并切换线上，全局唯一）")
     @PutMapping("/{id}/activate")
+    @PreAuthorize("hasAuthority('decorate:theme:activate')")
     public Result<DecorateTheme> activate(@PathVariable Long id) {
         return Result.ok(themeService.activate(id));
     }
 
     @Operation(summary = "删除主题（线上主题不可删除）")
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAuthority('decorate:theme:delete')")
     public Result<Void> delete(@PathVariable Long id) {
         themeService.delete(id);
         return Result.ok();

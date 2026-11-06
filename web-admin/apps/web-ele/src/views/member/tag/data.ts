@@ -3,6 +3,8 @@ import type { OnActionClickFn, VxeTableGridColumns } from '#/adapter/vxe-table';
 import type { MemberTagApi } from '#/api/member/tag';
 
 import { z } from '#/adapter/form';
+import { usePermission } from '#/composables/use-permission';
+import { MEMBER_PERMISSIONS } from '#/constants/permissions';
 import { $t } from '#/locales';
 
 /**
@@ -65,6 +67,9 @@ export function useGridFormSchema(): VbenFormSchema[] {
 export function useColumns<T = MemberTagApi.Tag>(
   onActionClick: OnActionClickFn<T>,
 ): VxeTableGridColumns {
+  const { can } = usePermission();
+  const canEdit = can(MEMBER_PERMISSIONS.tagUpdate);
+  const canDelete = can(MEMBER_PERMISSIONS.tagDelete);
   return [
     {
       field: 'name',
@@ -99,11 +104,15 @@ export function useColumns<T = MemberTagApi.Tag>(
           onClick: onActionClick,
         },
         name: 'CellOperation',
-        options: ['edit', 'delete'],
+        options: [
+          { code: 'edit', show: canEdit },
+          { code: 'delete', show: canDelete },
+        ],
       },
       field: 'operation',
       fixed: 'right',
       title: $t('member.list.operation'),
+      visible: canEdit || canDelete,
       width: 150,
     },
   ];

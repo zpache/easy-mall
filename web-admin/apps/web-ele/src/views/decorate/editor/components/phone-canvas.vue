@@ -14,6 +14,7 @@ import CanvasItem from './canvas-item.vue';
 
 const props = defineProps<{
   nav: NavConfig | null;
+  readonly?: boolean;
   schema: PageSchema;
   selectedId: null | string;
   showNav: boolean;
@@ -46,6 +47,9 @@ const tabbarHeight = computed(() =>
 );
 
 function onDragOver(event: DragEvent, index: number) {
+  if (props.readonly) {
+    return;
+  }
   event.preventDefault();
   if (event.dataTransfer) {
     event.dataTransfer.dropEffect = 'move';
@@ -54,6 +58,9 @@ function onDragOver(event: DragEvent, index: number) {
 }
 
 function onDrop(index: number) {
+  if (props.readonly) {
+    return;
+  }
   hoverIndex.value = null;
   emit('drop', index);
 }
@@ -107,6 +114,7 @@ function onDrop(index: number) {
           <CanvasItem
             :component="item"
             :index="index"
+            :readonly="readonly"
             :selected="selectedId === item.id"
             @duplicate="emit('duplicate', $event)"
             @dragstart="emit('dragstart', $event)"

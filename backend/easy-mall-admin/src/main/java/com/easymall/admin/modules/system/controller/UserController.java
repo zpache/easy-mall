@@ -35,6 +35,7 @@ public class UserController {
 
     @Operation(summary = "分页查询用户")
     @GetMapping("/list")
+    @PreAuthorize("hasAuthority('system:user:list')")
     public Result<PageResult<UserVO>> list(@RequestParam(defaultValue = "1") long pageNum,
                                            @RequestParam(defaultValue = "10") long pageSize,
                                            @RequestParam(required = false) String keyword,
@@ -45,21 +46,21 @@ public class UserController {
 
     @Operation(summary = "新增用户")
     @PostMapping
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('system:user:create')")
     public Result<SysUser> create(@Valid @RequestBody UserForm form) {
         return Result.ok(userService.create(form));
     }
 
     @Operation(summary = "编辑用户")
     @PutMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('system:user:update')")
     public Result<SysUser> update(@PathVariable Long id, @Valid @RequestBody UserForm form) {
         return Result.ok(userService.update(id, form));
     }
 
     @Operation(summary = "删除用户")
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('system:user:delete')")
     public Result<Void> delete(@PathVariable Long id) {
         userService.delete(id);
         return Result.ok();
@@ -67,7 +68,7 @@ public class UserController {
 
     @Operation(summary = "启用 / 停用用户")
     @PutMapping("/{id}/status")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('system:user:status')")
     public Result<Void> changeStatus(@PathVariable Long id, @RequestParam Integer status) {
         if (status == null) {
             throw new BusinessException("状态不能为空");
@@ -78,7 +79,7 @@ public class UserController {
 
     @Operation(summary = "重置密码")
     @PutMapping("/{id}/password")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('system:user:reset-password')")
     public Result<Void> resetPassword(@PathVariable Long id, @RequestParam String password) {
         userService.resetPassword(id, password);
         return Result.ok();

@@ -27,6 +27,7 @@ import {
   downloadDeliverTemplate,
   getOrderList,
 } from '#/api/order/order';
+import { ORDER_PERMISSIONS } from '#/constants/permissions';
 import { $t } from '#/locales';
 
 import Detail from '../list/modules/detail.vue';
@@ -224,7 +225,13 @@ function refreshGrid() {
 
     <Grid :table-title="$t('order.delivery.list')">
       <template #toolbar-tools>
-        <ElButton class="mr-2" type="primary" plain @click="openBatch">
+        <ElButton
+          v-access:code="ORDER_PERMISSIONS.batchShip"
+          class="mr-2"
+          type="primary"
+          plain
+          @click="openBatch"
+        >
           {{ $t('order.delivery.batchDeliver') }}
         </ElButton>
         <ElTag class="mr-2" effect="plain" type="warning">

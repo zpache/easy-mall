@@ -3,6 +3,8 @@ import type { OnActionClickFn, VxeTableGridColumns } from '#/adapter/vxe-table';
 import type { DecorateApi } from '#/api/decorate/page';
 
 import { z } from '#/adapter/form';
+import { usePermission } from '#/composables/use-permission';
+import { DECORATE_PERMISSIONS } from '#/constants/permissions';
 
 export const PAGE_TYPES = [
   { label: '首页', value: 1 },
@@ -101,6 +103,10 @@ export function useGridFormSchema(): VbenFormSchema[] {
 export function useColumns<T = DecorateApi.Page>(
   onActionClick: OnActionClickFn<T>,
 ): VxeTableGridColumns {
+  const { can } = usePermission();
+  const canEdit = can(DECORATE_PERMISSIONS.pageUpdate);
+  const canCopy = can(DECORATE_PERMISSIONS.pageCopy);
+  const canDelete = can(DECORATE_PERMISSIONS.pageDelete);
   return [
     {
       field: 'name',
@@ -147,10 +153,10 @@ export function useColumns<T = DecorateApi.Page>(
         },
         name: 'CellOperation',
         options: [
-          { code: 'edit', text: '装修' },
+          { code: 'edit', show: canEdit, text: '装修' },
           { code: 'preview', text: '预览' },
-          { code: 'copy', text: '复制' },
-          { code: 'delete', text: '删除' },
+          { code: 'copy', show: canCopy, text: '复制' },
+          { code: 'delete', show: canDelete, text: '删除' },
         ],
       },
       field: 'operation',

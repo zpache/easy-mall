@@ -16,6 +16,7 @@ import {
   deleteGoods,
   getGoodsList,
 } from '#/api/goods/goods';
+import { GOODS_PERMISSIONS } from '#/constants/permissions';
 import { $t } from '#/locales';
 
 import { useColumns, useGridFormSchema } from './data';
@@ -125,7 +126,11 @@ function refreshGrid() {
     <SkuDrawer @success="refreshGrid" />
     <Grid :table-title="$t('goods.goods.list')">
       <template #toolbar-tools>
-        <ElButton type="primary" @click="onCreate">
+        <ElButton
+          v-access:code="GOODS_PERMISSIONS.goodsCreate"
+          type="primary"
+          @click="onCreate"
+        >
           <Plus class="size-5" />
           {{ $t('ui.actionTitle.create', [$t('goods.goods.entity')]) }}
         </ElButton>

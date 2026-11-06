@@ -11,6 +11,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -34,6 +35,7 @@ public class DecoratePageController {
 
     @Operation(summary = "分页查询装修页面")
     @GetMapping
+    @PreAuthorize("hasAnyAuthority('decorate:page:list', 'decorate:nav:list')")
     public Result<PageResult<PageListVO>> page(@RequestParam(defaultValue = "1") long pageNum,
                                                @RequestParam(defaultValue = "10") long pageSize,
                                                @RequestParam(required = false) String keyword,
@@ -44,48 +46,56 @@ public class DecoratePageController {
 
     @Operation(summary = "页面详情（含草稿结构）")
     @GetMapping("/{id}")
+    @PreAuthorize("hasAuthority('decorate:page:list')")
     public Result<DecoratePage> detail(@PathVariable Long id) {
         return Result.ok(pageService.detail(id));
     }
 
     @Operation(summary = "新建页面")
     @PostMapping
+    @PreAuthorize("hasAuthority('decorate:page:create')")
     public Result<DecoratePage> create(@Valid @RequestBody PageForm form) {
         return Result.ok(pageService.create(form));
     }
 
     @Operation(summary = "保存草稿")
     @PutMapping("/{id}")
+    @PreAuthorize("hasAuthority('decorate:page:update')")
     public Result<DecoratePage> save(@PathVariable Long id, @Valid @RequestBody PageSaveForm form) {
         return Result.ok(pageService.saveSchema(id, form));
     }
 
     @Operation(summary = "发布页面")
     @PostMapping("/{id}/publish")
+    @PreAuthorize("hasAuthority('decorate:page:publish')")
     public Result<DecoratePage> publish(@PathVariable Long id) {
         return Result.ok(pageService.publish(id));
     }
 
     @Operation(summary = "复制页面")
     @PostMapping("/{id}/copy")
+    @PreAuthorize("hasAuthority('decorate:page:copy')")
     public Result<DecoratePage> copy(@PathVariable Long id) {
         return Result.ok(pageService.copy(id));
     }
 
     @Operation(summary = "设为商城首页")
     @PutMapping("/{id}/home")
+    @PreAuthorize("hasAuthority('decorate:page:home')")
     public Result<DecoratePage> setHome(@PathVariable Long id) {
         return Result.ok(pageService.setHome(id));
     }
 
     @Operation(summary = "重置预览码")
     @PutMapping("/{id}/preview-code")
+    @PreAuthorize("hasAuthority('decorate:page:update')")
     public Result<DecoratePage> resetPreviewCode(@PathVariable Long id) {
         return Result.ok(pageService.resetPreviewCode(id));
     }
 
     @Operation(summary = "删除页面（首页不可删）")
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAuthority('decorate:page:delete')")
     public Result<Void> delete(@PathVariable Long id) {
         pageService.delete(id);
         return Result.ok();

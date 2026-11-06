@@ -23,6 +23,12 @@ import {
   getPaymentConfig,
   updatePaymentConfig,
 } from '#/api/settings/payment';
+import { SETTING_PERMISSIONS } from '#/constants/permissions';
+import { usePermission } from '#/composables/use-permission';
+
+const { can } = usePermission();
+const canEdit = computed(() => can(SETTING_PERMISSIONS.paymentUpdate));
+const canCheck = computed(() => can(SETTING_PERMISSIONS.paymentCheck));
 
 const form = reactive({
   wxpayEnabled: false,
@@ -126,7 +132,7 @@ function validate(): boolean {
 }
 
 async function onSave() {
-  if (!validate()) return;
+  if (!canEdit.value || !validate()) return;
   saving.value = true;
   try {
     await updatePaymentConfig(buildPayload());
@@ -141,12 +147,15 @@ async function onSave() {
 }
 
 async function onCheck() {
-  if (!validate()) return;
+  if (!canCheck.value) return;
   checking.value = true;
   try {
-    // 自检读的是已落库的配置，先保存再校验，避免展示过期结果
-    await updatePaymentConfig(buildPayload());
-    await loadConfig();
+    if (canEdit.value) {
+      if (!validate()) return;
+      // 自检读的是已落库的配置，有编辑权限时先保存再校验，避免展示过期结果
+      await updatePaymentConfig(buildPayload());
+      await loadConfig();
+    }
     checkItems.value = await checkPaymentConfig();
     const failed = checkItems.value.filter((item) => item.status === 'FAIL');
     if (failed.length > 0) {
@@ -172,6 +181,14 @@ const statusMap: Record<
 
 <template>
   <Page>
+    <ElAlert
+      v-if="!canEdit"
+      class="mb-4"
+      :closable="false"
+      show-icon
+      title="当前账号仅可查看支付配置；没有编辑权限时不会保存表单改动"
+      type="info"
+    />
     <ElCard v-loading="loading" shadow="never" class="mb-4">
       <template #header>
         <div class="card-header">
@@ -187,13 +204,13 @@ const statusMap: Record<
       </ElAlert>
       <ElForm label-width="150px" class="max-w-[720px]">
         <ElFormItem label="微信支付">
-          <ElSwitch v-model="form.wxpayEnabled" />
+          <ElSwitch v-model="form.wxpayEnabled" :disabled="!canEdit" />
           <span class="form-tip">
             开启后需要商户参数完整，否则保存会被拦截
           </span>
         </ElFormItem>
         <ElFormItem label="模拟支付">
-          <ElSwitch v-model="form.mockPayEnabled" />
+          <ElSwitch v-model="form.mockPayEnabled" :disabled="!canEdit" />
           <span class="form-tip">
             仅开发联调使用；关闭后小程序「去支付」将不可用
           </span>
@@ -212,16 +229,23 @@ const statusMap: Record<
         <ElFormItem label="小程序 AppID">
           <ElInput
             v-model="form.appId"
+            :disabled="!canEdit"
             placeholder="wx 开头，需与小程序主体一致"
             clearable
           />
         </ElFormItem>
         <ElFormItem label="商户号 mchId">
-          <ElInput v-model="form.mchId" placeholder="8~10 位数字" clearable />
+          <ElInput
+            v-model="form.mchId"
+            :disabled="!canEdit"
+            placeholder="8~10 位数字"
+            clearable
+          />
         </ElFormItem>
         <ElFormItem label="证书序列号">
           <ElInput
             v-model="form.mchSerialNo"
+            :disabled="!canEdit"
             placeholder="商户 API 证书序列号（十六进制）"
             clearable
           />
@@ -229,6 +253,7 @@ const statusMap: Record<
         <ElFormItem label="APIv3 密钥">
           <ElInput
             v-model="form.apiV3Key"
+            :disabled="!canEdit"
             type="password"
             show-password
             :placeholder="
@@ -239,6 +264,7 @@ const statusMap: Record<
         <ElFormItem label="商户 API 私钥">
           <ElInput
             v-model="form.privateKey"
+            :disabled="!canEdit"
             type="textarea"
             :rows="4"
             :placeholder="
@@ -254,6 +280,7 @@ const statusMap: Record<
         <ElFormItem label="微信支付公钥">
           <ElInput
             v-model="form.wxpayPublicKey"
+            :disabled="!canEdit"
             type="textarea"
             :rows="4"
             :placeholder="
@@ -269,6 +296,7 @@ const statusMap: Record<
         <ElFormItem label="微信支付公钥 ID">
           <ElInput
             v-model="form.wxpayPublicKeyId"
+            :disabled="!canEdit"
             placeholder="PUB_KEY_ID_ 开头，可选"
             clearable
           />
@@ -277,6 +305,7 @@ const statusMap: Record<
         <ElFormItem label="支付回调地址">
           <ElInput
             v-model="form.notifyUrl"
+            :disabled="!canEdit"
             placeholder="https://你的域名/api/pay/wxpay/notify"
             clearable
           />
@@ -285,6 +314,7 @@ const statusMap: Record<
         <ElFormItem label="退款回调地址">
           <ElInput
             v-model="form.refundNotifyUrl"
+            :disabled="!canEdit"
             placeholder="https://你的域名/api/pay/wxpay/refund-notify（可留空）"
             clearable
           />
@@ -295,6 +325,7 @@ const statusMap: Record<
         <ElFormItem label="支付超时（分钟）">
           <ElInputNumber
             v-model="form.orderPayTimeoutMinutes"
+            :disabled="!canEdit"
             :min="1"
             :max="1440"
             :step="5"
@@ -306,6 +337,7 @@ const statusMap: Record<
         <ElFormItem label="自动确认收货">
           <ElInputNumber
             v-model="form.autoReceiveDays"
+            :disabled="!canEdit"
             :min="0"
             :max="90"
             :step="1"
@@ -317,10 +349,19 @@ const statusMap: Record<
           </span>
         </ElFormItem>
         <ElFormItem>
-          <ElButton type="primary" :loading="saving" @click="onSave">
+          <ElButton
+            v-access:code="SETTING_PERMISSIONS.paymentUpdate"
+            type="primary"
+            :loading="saving"
+            @click="onSave"
+          >
             保存配置
           </ElButton>
-          <ElButton :loading="checking" @click="onCheck">
+          <ElButton
+            v-access:code="SETTING_PERMISSIONS.paymentCheck"
+            :loading="checking"
+            @click="onCheck"
+          >
             参数自检
           </ElButton>
         </ElFormItem>

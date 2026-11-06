@@ -12,6 +12,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -34,6 +35,7 @@ public class MemberController {
 
     @Operation(summary = "分页查询会员（关键词 / 等级 / 来源渠道 / 标签）")
     @GetMapping
+    @PreAuthorize("hasAuthority('member:member:list')")
     public Result<PageResult<MemberVO>> page(@RequestParam(defaultValue = "1") long pageNum,
                                              @RequestParam(defaultValue = "10") long pageSize,
                                              @RequestParam(required = false) String keyword,
@@ -45,12 +47,14 @@ public class MemberController {
 
     @Operation(summary = "会员详情")
     @GetMapping("/{id}")
+    @PreAuthorize("hasAuthority('member:member:list')")
     public Result<MemberVO> detail(@PathVariable Long id) {
         return Result.ok(memberService.detail(id));
     }
 
     @Operation(summary = "会员打标签（全量覆盖）")
     @PutMapping("/{id}/tags")
+    @PreAuthorize("hasAuthority('member:member:tag')")
     public Result<Void> updateTags(@PathVariable Long id, @Valid @RequestBody MemberTagForm form) {
         memberService.updateTags(id, form);
         return Result.ok();
@@ -58,6 +62,7 @@ public class MemberController {
 
     @Operation(summary = "会员积分人工调整")
     @PutMapping("/{id}/points")
+    @PreAuthorize("hasAuthority('member:member:points')")
     public Result<Void> adjustPoints(@PathVariable Long id, @Valid @RequestBody PointsAdjustForm form) {
         memberService.adjustPoints(id, form.change(), form.remark());
         return Result.ok();
@@ -65,6 +70,7 @@ public class MemberController {
 
     @Operation(summary = "分页查询邀请记录（状态 / 关键词）")
     @GetMapping("/invites")
+    @PreAuthorize("hasAuthority('member:invite:list')")
     public Result<PageResult<InviteRecordVO>> invites(@RequestParam(defaultValue = "1") long pageNum,
                                                       @RequestParam(defaultValue = "10") long pageSize,
                                                       @RequestParam(required = false) Integer status,

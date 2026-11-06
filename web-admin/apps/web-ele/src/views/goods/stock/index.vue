@@ -27,6 +27,7 @@ import {
   downloadBlob,
   getStockList,
 } from '#/api/goods/stock';
+import { GOODS_PERMISSIONS } from '#/constants/permissions';
 import { $t } from '#/locales';
 
 import { useColumns, useGridFormSchema } from './data';
@@ -223,7 +224,13 @@ function refreshGrid() {
 
     <Grid :table-title="$t('goods.stock.list')">
       <template #toolbar-tools>
-        <ElButton class="mr-2" type="primary" plain @click="openBatch">
+        <ElButton
+          v-access:code="GOODS_PERMISSIONS.stockImport"
+          class="mr-2"
+          type="primary"
+          plain
+          @click="openBatch"
+        >
           {{ $t('goods.stock.batchSet') }}
         </ElButton>
         <ElTag type="warning" effect="plain">

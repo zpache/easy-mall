@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { onMounted, reactive, ref } from 'vue';
+import { computed, onMounted, reactive, ref } from 'vue';
 
 import { Page } from '@vben/common-ui';
 
@@ -18,6 +18,11 @@ import {
   getLogisticsConfig,
   updateLogisticsConfig,
 } from '#/api/settings/logistics';
+import { SETTING_PERMISSIONS } from '#/constants/permissions';
+import { usePermission } from '#/composables/use-permission';
+
+const { can } = usePermission();
+const canEdit = computed(() => can(SETTING_PERMISSIONS.logisticsUpdate));
 
 const form = reactive({
   kuaidi100Enabled: false,
@@ -75,7 +80,7 @@ function validate(): boolean {
 }
 
 async function onSave() {
-  if (!validate()) return;
+  if (!canEdit.value || !validate()) return;
   saving.value = true;
   try {
     await updateLogisticsConfig(buildPayload());
@@ -89,6 +94,14 @@ async function onSave() {
 
 <template>
   <Page>
+    <ElAlert
+      v-if="!canEdit"
+      class="mb-4"
+      :closable="false"
+      show-icon
+      title="当前账号仅可查看物流配置，无法保存修改"
+      type="info"
+    />
     <ElCard v-loading="loading" shadow="never" class="mb-4">
       <template #header>
         <div class="card-header">
@@ -104,12 +117,13 @@ async function onSave() {
       </ElAlert>
       <ElForm label-width="180px" class="max-w-[720px]">
         <ElFormItem label="启用物流查询">
-          <ElSwitch v-model="form.kuaidi100Enabled" />
+          <ElSwitch v-model="form.kuaidi100Enabled" :disabled="!canEdit" />
           <span class="form-tip">开启前需要先填完整客户编号与密钥</span>
         </ElFormItem>
         <ElFormItem label="客户编号 customer">
           <ElInput
             v-model="form.kuaidi100Customer"
+            :disabled="!canEdit"
             placeholder="快递100 授权客户编号"
             clearable
           />
@@ -117,6 +131,7 @@ async function onSave() {
         <ElFormItem label="授权密钥 key">
           <ElInput
             v-model="form.kuaidi100Key"
+            :disabled="!canEdit"
             type="password"
             show-password
             :placeholder="
@@ -129,6 +144,7 @@ async function onSave() {
         </ElFormItem>
         <ElFormItem>
           <ElButton
+            v-access:code="SETTING_PERMISSIONS.logisticsUpdate"
             type="primary"
             :loading="saving"
             @click="onSave"

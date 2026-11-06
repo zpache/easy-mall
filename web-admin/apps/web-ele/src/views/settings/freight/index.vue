@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import type { SettingsFreightApi } from '#/api/settings/freight';
 
-import { onMounted, reactive, ref } from 'vue';
+import { computed, onMounted, reactive, ref } from 'vue';
 
 import { Page } from '@vben/common-ui';
 
@@ -30,6 +30,11 @@ import {
   updateFreightConfig,
   updateFreightRule,
 } from '#/api/settings/freight';
+import { SETTING_PERMISSIONS } from '#/constants/permissions';
+import { usePermission } from '#/composables/use-permission';
+
+const { can } = usePermission();
+const canEdit = computed(() => can(SETTING_PERMISSIONS.freightUpdate));
 
 /* ---------------- 全局运费配置 ---------------- */
 
@@ -90,6 +95,7 @@ onMounted(() => {
 });
 
 async function onSaveConfig() {
+  if (!canEdit.value) return;
   configSaving.value = true;
   try {
     await updateFreightConfig({
@@ -118,6 +124,7 @@ function freeAmountText(row: SettingsFreightApi.FreightRule) {
 }
 
 function onCreateRule() {
+  if (!canEdit.value) return;
   editingRuleId.value = null;
   ruleForm.regionCode = '';
   ruleForm.deliverable = 1;
@@ -128,6 +135,7 @@ function onCreateRule() {
 }
 
 function onEditRule(row: SettingsFreightApi.FreightRule) {
+  if (!canEdit.value) return;
   editingRuleId.value = row.id;
   ruleForm.regionCode = row.regionCode;
   ruleForm.deliverable = row.deliverable;
@@ -141,6 +149,7 @@ function onEditRule(row: SettingsFreightApi.FreightRule) {
 }
 
 async function onDeleteRule(row: SettingsFreightApi.FreightRule) {
+  if (!canEdit.value) return;
   try {
     await ElMessageBox.confirm(
       `确定要删除「${row.regionPath}」的运费规则吗？删除后该地区将按统一运费计费。`,
@@ -156,6 +165,7 @@ async function onDeleteRule(row: SettingsFreightApi.FreightRule) {
 }
 
 async function onSaveRule() {
+  if (!canEdit.value) return;
   if (!ruleForm.regionCode) {
     ElMessage.warning('请选择地区');
     return;
@@ -190,6 +200,14 @@ async function onSaveRule() {
 
 <template>
   <Page>
+    <ElAlert
+      v-if="!canEdit"
+      class="mb-4"
+      :closable="false"
+      show-icon
+      title="当前账号仅可查看运费配置，无法修改规则"
+      type="info"
+    />
     <!-- 全局运费配置 -->
     <ElCard shadow="never" class="mb-4">
       <template #header>
@@ -202,6 +220,7 @@ async function onSaveRule() {
         <ElFormItem label="统一运费（元）">
           <ElInputNumber
             v-model="configForm.defaultFee"
+            :disabled="!canEdit"
             :min="0"
             :precision="2"
             :step="1"
@@ -213,6 +232,7 @@ async function onSaveRule() {
         <ElFormItem label="全国满额包邮（元）">
           <ElInputNumber
             v-model="configForm.freeAmount"
+            :disabled="!canEdit"
             :min="0"
             :precision="2"
             :step="10"
@@ -224,6 +244,7 @@ async function onSaveRule() {
         </ElFormItem>
         <ElFormItem>
           <ElButton
+            v-access:code="SETTING_PERMISSIONS.freightUpdate"
             type="primary"
             :loading="configSaving"
             @click="onSaveConfig"
@@ -242,7 +263,12 @@ async function onSaveRule() {
           <span class="header-tip">
             命中优先级：市规则 &gt; 省规则 &gt; 统一运费；运费填 0 即该地区无条件包邮
           </span>
-          <ElButton type="primary" size="small" @click="onCreateRule">
+          <ElButton
+            v-access:code="SETTING_PERMISSIONS.freightUpdate"
+            type="primary"
+            size="small"
+            @click="onCreateRule"
+          >
             新增规则
           </ElButton>
         </div>
@@ -281,10 +307,22 @@ async function onSaveRule() {
         <ElTableColumn prop="updatedAt" label="更新时间" width="170" />
         <ElTableColumn label="操作" width="140" fixed="right">
           <template #default="{ row }">
-            <ElButton link type="primary" size="small" @click="onEditRule(row)">
+            <ElButton
+              v-access:code="SETTING_PERMISSIONS.freightUpdate"
+              link
+              type="primary"
+              size="small"
+              @click="onEditRule(row)"
+            >
               编辑
             </ElButton>
-            <ElButton link type="danger" size="small" @click="onDeleteRule(row)">
+            <ElButton
+              v-access:code="SETTING_PERMISSIONS.freightUpdate"
+              link
+              type="danger"
+              size="small"
+              @click="onDeleteRule(row)"
+            >
               删除
             </ElButton>
           </template>
@@ -303,6 +341,7 @@ async function onSaveRule() {
         <ElFormItem label="地区" required>
           <ElCascader
             v-model="ruleForm.regionCode"
+            :disabled="!canEdit || editingRuleId !== null"
             :options="regionOptions"
             :props="{
               value: 'code',
@@ -315,7 +354,6 @@ async function onSaveRule() {
             clearable
             filterable
             class="!w-full"
-            :disabled="editingRuleId !== null"
           />
           <div v-if="editingRuleId !== null" class="form-tip">
             规则地区不可修改，如需更换请删除后重新新增
@@ -323,14 +361,15 @@ async function onSaveRule() {
         </ElFormItem>
         <ElFormItem label="是否配送">
           <ElRadioGroup v-model="ruleForm.deliverable">
-            <ElRadioButton :value="1">配送</ElRadioButton>
-            <ElRadioButton :value="0">不配送</ElRadioButton>
+            <ElRadioButton :disabled="!canEdit" :value="1">配送</ElRadioButton>
+            <ElRadioButton :disabled="!canEdit" :value="0">不配送</ElRadioButton>
           </ElRadioGroup>
         </ElFormItem>
         <template v-if="ruleForm.deliverable === 1">
           <ElFormItem label="运费（元）">
             <ElInputNumber
               v-model="ruleForm.fee"
+              :disabled="!canEdit"
               :min="0"
               :precision="2"
               :step="1"
@@ -342,6 +381,7 @@ async function onSaveRule() {
           <ElFormItem v-if="Number(ruleForm.fee) > 0" label="满额包邮（元）">
             <ElInputNumber
               v-model="ruleForm.freeAmount"
+              :disabled="!canEdit"
               :min="0"
               :precision="2"
               :step="10"
@@ -355,7 +395,12 @@ async function onSaveRule() {
       </ElForm>
       <template #footer>
         <ElButton @click="ruleDialogVisible = false">取消</ElButton>
-        <ElButton type="primary" :loading="ruleSaving" @click="onSaveRule">
+        <ElButton
+          v-access:code="SETTING_PERMISSIONS.freightUpdate"
+          type="primary"
+          :loading="ruleSaving"
+          @click="onSaveRule"
+        >
           保存
         </ElButton>
       </template>

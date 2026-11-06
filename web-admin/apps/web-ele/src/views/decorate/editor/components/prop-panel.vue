@@ -11,6 +11,7 @@ import PropField from './prop-field.vue';
 const props = defineProps<{
   componentCount?: number;
   page: PageConfig;
+  readonly?: boolean;
   selected?: CanvasComponent;
 }>();
 
@@ -36,13 +37,17 @@ function onPropUpdate(key: string, value: any) {
 </script>
 
 <template>
-  <aside class="prop-panel">
+  <aside class="prop-panel" :class="{ 'is-readonly': readonly }">
     <div class="panel-head">
       <span class="title">{{ selected ? `编辑：${definition?.name}` : '页面设置' }}</span>
       <span v-if="selected" class="component-type">{{ selected.type }}</span>
     </div>
 
     <div class="panel-body">
+      <div v-if="readonly" class="hint hint--readonly">
+        <IconifyIcon icon="lucide:lock" class="mr-1" />
+        当前账号无页面编辑权限，仅可查看
+      </div>
       <template v-if="selected && definition">
         <div class="hint">
           <IconifyIcon icon="lucide:mouse-pointer-click" class="mr-1" />
@@ -114,6 +119,14 @@ function onPropUpdate(key: string, value: any) {
   color: #1677ff;
   background: #f0f6ff;
   border-radius: 4px;
+}
+.hint--readonly {
+  color: #8c6d1f;
+  background: #fffbe6;
+}
+.is-readonly .panel-body > :not(.hint--readonly) {
+  pointer-events: none;
+  opacity: 0.65;
 }
 .page-meta {
   margin-top: 8px;

@@ -16,6 +16,7 @@ import {
   deleteBrand,
   getBrandList,
 } from '#/api/goods/brand';
+import { GOODS_PERMISSIONS } from '#/constants/permissions';
 import { $t } from '#/locales';
 
 import { useColumns, useGridFormSchema } from './data';
@@ -102,7 +103,11 @@ function refreshGrid() {
     <FormDrawer @success="refreshGrid" />
     <Grid :table-title="$t('goods.brand.list')">
       <template #toolbar-tools>
-        <ElButton type="primary" @click="onCreate">
+        <ElButton
+          v-access:code="GOODS_PERMISSIONS.brandCreate"
+          type="primary"
+          @click="onCreate"
+        >
           <Plus class="size-5" />
           {{ $t('ui.actionTitle.create', [$t('goods.brand.entity')]) }}
         </ElButton>

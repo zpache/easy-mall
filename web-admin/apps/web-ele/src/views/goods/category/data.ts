@@ -4,6 +4,8 @@ import type { GoodsCategoryApi } from '#/api/goods/category';
 
 import { z } from '#/adapter/form';
 import { getCategoryTree } from '#/api/goods/category';
+import { usePermission } from '#/composables/use-permission';
+import { GOODS_PERMISSIONS } from '#/constants/permissions';
 import { $t } from '#/locales';
 
 /**
@@ -64,6 +66,10 @@ export function useSchema(): VbenFormSchema[] {
 export function useColumns(
   onActionClick?: OnActionClickFn<GoodsCategoryApi.Category>,
 ): VxeTableGridColumns<GoodsCategoryApi.Category> {
+  const { can } = usePermission();
+  const canCreate = can(GOODS_PERMISSIONS.categoryCreate);
+  const canEdit = can(GOODS_PERMISSIONS.categoryUpdate);
+  const canDelete = can(GOODS_PERMISSIONS.categoryDelete);
   return [
     {
       field: 'id',
@@ -106,10 +112,11 @@ export function useColumns(
         },
         name: 'CellOperation',
         options: [
-          { code: 'append', text: $t('goods.category.append') },
-          'edit',
+          { code: 'append', show: canCreate, text: $t('goods.category.append') },
+          { code: 'edit', show: canEdit },
           {
             code: 'delete',
+            show: canDelete,
             disabled: (row: GoodsCategoryApi.Category) =>
               !!(row.children && row.children.length > 0),
           },
@@ -118,6 +125,7 @@ export function useColumns(
       field: 'operation',
       fixed: 'right',
       title: $t('goods.category.operation'),
+      visible: canCreate || canEdit || canDelete,
       width: 220,
     },
   ];

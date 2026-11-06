@@ -9,6 +9,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -32,6 +33,7 @@ public class ReductionController {
 
     @Operation(summary = "分页查询满减活动")
     @GetMapping
+    @PreAuthorize("hasAuthority('marketing:reduction:list')")
     public Result<PageResult<Reduction>> page(@RequestParam(defaultValue = "1") long pageNum,
                                               @RequestParam(defaultValue = "10") long pageSize,
                                               @RequestParam(required = false) String keyword,
@@ -42,18 +44,21 @@ public class ReductionController {
 
     @Operation(summary = "新增满减活动")
     @PostMapping
+    @PreAuthorize("hasAuthority('marketing:reduction:create')")
     public Result<Reduction> create(@Valid @RequestBody ReductionForm form) {
         return Result.ok(reductionService.create(form));
     }
 
     @Operation(summary = "编辑满减活动")
     @PutMapping("/{id}")
+    @PreAuthorize("hasAuthority('marketing:reduction:update')")
     public Result<Reduction> update(@PathVariable Long id, @Valid @RequestBody ReductionForm form) {
         return Result.ok(reductionService.update(id, form));
     }
 
     @Operation(summary = "启用/停用满减活动")
     @PutMapping("/{id}/status")
+    @PreAuthorize("hasAuthority('marketing:reduction:status')")
     public Result<Void> updateStatus(@PathVariable Long id, @RequestParam Integer status) {
         reductionService.updateStatus(id, status);
         return Result.ok();
@@ -61,6 +66,7 @@ public class ReductionController {
 
     @Operation(summary = "删除满减活动")
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAuthority('marketing:reduction:delete')")
     public Result<Void> delete(@PathVariable Long id) {
         reductionService.delete(id);
         return Result.ok();

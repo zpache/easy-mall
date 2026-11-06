@@ -2,6 +2,8 @@ import type { VbenFormSchema } from '#/adapter/form';
 import type { OnActionClickFn, VxeTableGridColumns } from '#/adapter/vxe-table';
 import type { OrderApi } from '#/api/order/order';
 
+import { usePermission } from '#/composables/use-permission';
+import { ORDER_PERMISSIONS } from '#/constants/permissions';
 import { $t } from '#/locales';
 
 import {
@@ -52,6 +54,9 @@ export function useGridFormSchema(): VbenFormSchema[] {
 export function useColumns<T = OrderApi.Order>(
   onActionClick: OnActionClickFn<T>,
 ): VxeTableGridColumns {
+  const { can } = usePermission();
+  const canShip = can(ORDER_PERMISSIONS.ship);
+  const canDetail = can(ORDER_PERMISSIONS.detail);
   return [
     {
       field: 'orderNo',
@@ -100,13 +105,14 @@ export function useColumns<T = OrderApi.Order>(
         },
         name: 'CellOperation',
         options: [
-          { code: 'deliver', text: $t('order.delivery.ship') },
-          { code: 'detail', text: $t('order.order.detail') },
+          { code: 'deliver', show: canShip, text: $t('order.delivery.ship') },
+          { code: 'detail', show: canDetail, text: $t('order.order.detail') },
         ],
       },
       field: 'operation',
       fixed: 'right',
       title: $t('order.order.operation'),
+      visible: canShip || canDetail,
       width: 170,
     },
   ];

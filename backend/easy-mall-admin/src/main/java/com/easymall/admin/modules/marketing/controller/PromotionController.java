@@ -9,6 +9,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -32,6 +33,7 @@ public class PromotionController {
 
     @Operation(summary = "分页查询活动")
     @GetMapping
+    @PreAuthorize("hasAuthority('marketing:promotion:list')")
     public Result<PageResult<Promotion>> page(@RequestParam(defaultValue = "1") long pageNum,
                                               @RequestParam(defaultValue = "10") long pageSize,
                                               @RequestParam(required = false) String keyword,
@@ -42,18 +44,21 @@ public class PromotionController {
 
     @Operation(summary = "新增活动")
     @PostMapping
+    @PreAuthorize("hasAuthority('marketing:promotion:create')")
     public Result<Promotion> create(@Valid @RequestBody PromotionForm form) {
         return Result.ok(promotionService.create(form));
     }
 
     @Operation(summary = "编辑活动")
     @PutMapping("/{id}")
+    @PreAuthorize("hasAuthority('marketing:promotion:update')")
     public Result<Promotion> update(@PathVariable Long id, @Valid @RequestBody PromotionForm form) {
         return Result.ok(promotionService.update(id, form));
     }
 
     @Operation(summary = "启用/停用活动")
     @PutMapping("/{id}/status")
+    @PreAuthorize("hasAuthority('marketing:promotion:status')")
     public Result<Void> updateStatus(@PathVariable Long id, @RequestParam Integer status) {
         promotionService.updateStatus(id, status);
         return Result.ok();
@@ -61,6 +66,7 @@ public class PromotionController {
 
     @Operation(summary = "删除活动（已售出时拒绝）")
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAuthority('marketing:promotion:delete')")
     public Result<Void> delete(@PathVariable Long id) {
         promotionService.delete(id);
         return Result.ok();

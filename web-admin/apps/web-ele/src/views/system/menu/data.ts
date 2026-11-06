@@ -1,6 +1,8 @@
 import type { OnActionClickFn, VxeTableGridColumns } from '#/adapter/vxe-table';
 import type { SystemMenuApi } from '#/api/system/menu';
 
+import { usePermission } from '#/composables/use-permission';
+import { SYSTEM_PERMISSIONS } from '#/constants/permissions';
 import { $t } from '#/locales';
 
 /**
@@ -22,6 +24,10 @@ export function getMenuTypeOptions() {
 export function useColumns(
   onActionClick: OnActionClickFn<SystemMenuApi.SystemMenu>,
 ): VxeTableGridColumns<SystemMenuApi.SystemMenu> {
+  const { can } = usePermission();
+  const canCreate = can(SYSTEM_PERMISSIONS.menuCreate);
+  const canUpdate = can(SYSTEM_PERMISSIONS.menuUpdate);
+  const canDelete = can(SYSTEM_PERMISSIONS.menuDelete);
   return [
     {
       align: 'left',
@@ -86,14 +92,19 @@ export function useColumns(
         },
         name: 'CellOperation',
         options: [
-          { code: 'append', text: $t('system.menu.append') },
-          'edit',
-          'delete',
+          {
+            code: 'append',
+            show: canCreate,
+            text: $t('system.menu.append'),
+          },
+          { code: 'edit', show: canUpdate },
+          { code: 'delete', show: canDelete },
         ],
       },
       field: 'operation',
       fixed: 'right',
       title: $t('system.menu.operation'),
+      visible: canCreate || canUpdate || canDelete,
       width: 200,
     },
   ];

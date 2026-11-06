@@ -11,6 +11,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -34,6 +35,7 @@ public class CouponController {
 
     @Operation(summary = "分页查询优惠券")
     @GetMapping
+    @PreAuthorize("hasAuthority('marketing:coupon:list')")
     public Result<PageResult<Coupon>> page(@RequestParam(defaultValue = "1") long pageNum,
                                            @RequestParam(defaultValue = "10") long pageSize,
                                            @RequestParam(required = false) String keyword,
@@ -44,6 +46,7 @@ public class CouponController {
 
     @Operation(summary = "领券记录分页")
     @GetMapping("/records")
+    @PreAuthorize("hasAuthority('marketing:coupon:records')")
     public Result<PageResult<CouponUserVO>> records(@RequestParam(defaultValue = "1") long pageNum,
                                                     @RequestParam(defaultValue = "10") long pageSize,
                                                     @RequestParam(required = false) Long couponId,
@@ -54,18 +57,21 @@ public class CouponController {
 
     @Operation(summary = "新增优惠券")
     @PostMapping
+    @PreAuthorize("hasAuthority('marketing:coupon:create')")
     public Result<Coupon> create(@Valid @RequestBody CouponForm form) {
         return Result.ok(couponService.create(form));
     }
 
     @Operation(summary = "编辑优惠券")
     @PutMapping("/{id}")
+    @PreAuthorize("hasAuthority('marketing:coupon:update')")
     public Result<Coupon> update(@PathVariable Long id, @Valid @RequestBody CouponForm form) {
         return Result.ok(couponService.update(id, form));
     }
 
     @Operation(summary = "启用/停用优惠券")
     @PutMapping("/{id}/status")
+    @PreAuthorize("hasAuthority('marketing:coupon:status')")
     public Result<Void> updateStatus(@PathVariable Long id, @RequestParam Integer status) {
         couponService.updateStatus(id, status);
         return Result.ok();
@@ -73,6 +79,7 @@ public class CouponController {
 
     @Operation(summary = "删除优惠券（有领取记录时拒绝）")
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAuthority('marketing:coupon:delete')")
     public Result<Void> delete(@PathVariable Long id) {
         couponService.delete(id);
         return Result.ok();
@@ -80,6 +87,7 @@ public class CouponController {
 
     @Operation(summary = "定向发放：直接发到指定会员账户，返回实际发放张数")
     @PostMapping("/{id}/grant")
+    @PreAuthorize("hasAuthority('marketing:coupon:grant')")
     public Result<Integer> grant(@PathVariable Long id, @Valid @RequestBody CouponGrantForm form) {
         return Result.ok(couponService.grantToUsers(id, form.userIds()));
     }

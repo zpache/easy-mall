@@ -9,6 +9,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -32,6 +33,7 @@ public class SigninRuleController {
 
     @Operation(summary = "分页查询签到规则")
     @GetMapping
+    @PreAuthorize("hasAuthority('marketing:signin:list')")
     public Result<PageResult<SigninRule>> page(@RequestParam(defaultValue = "1") long pageNum,
                                                @RequestParam(defaultValue = "10") long pageSize,
                                                @RequestParam(required = false) String keyword,
@@ -41,18 +43,21 @@ public class SigninRuleController {
 
     @Operation(summary = "新增签到规则")
     @PostMapping
+    @PreAuthorize("hasAuthority('marketing:signin:create')")
     public Result<SigninRule> create(@Valid @RequestBody SigninRuleForm form) {
         return Result.ok(signinService.createRule(form));
     }
 
     @Operation(summary = "编辑签到规则")
     @PutMapping("/{id}")
+    @PreAuthorize("hasAuthority('marketing:signin:update')")
     public Result<SigninRule> update(@PathVariable Long id, @Valid @RequestBody SigninRuleForm form) {
         return Result.ok(signinService.updateRule(id, form));
     }
 
     @Operation(summary = "启用/停用签到规则")
     @PutMapping("/{id}/status")
+    @PreAuthorize("hasAuthority('marketing:signin:status')")
     public Result<Void> updateStatus(@PathVariable Long id, @RequestParam Integer status) {
         signinService.updateRuleStatus(id, status);
         return Result.ok();
@@ -60,6 +65,7 @@ public class SigninRuleController {
 
     @Operation(summary = "删除签到规则")
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAuthority('marketing:signin:delete')")
     public Result<Void> delete(@PathVariable Long id) {
         signinService.deleteRule(id);
         return Result.ok();

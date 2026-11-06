@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { onMounted, reactive, ref } from 'vue';
+import { computed, onMounted, reactive, ref } from 'vue';
 
 import { Page } from '@vben/common-ui';
 
@@ -15,6 +15,11 @@ import {
 } from 'element-plus';
 
 import { getNotifyConfig, updateNotifyConfig } from '#/api/settings/notify';
+import { SETTING_PERMISSIONS } from '#/constants/permissions';
+import { usePermission } from '#/composables/use-permission';
+
+const { can } = usePermission();
+const canEdit = computed(() => can(SETTING_PERMISSIONS.notifyUpdate));
 
 const form = reactive({
   subscribeEnabled: false,
@@ -77,7 +82,7 @@ function validate(): boolean {
 }
 
 async function onSave() {
-  if (!validate()) return;
+  if (!canEdit.value || !validate()) return;
   saving.value = true;
   try {
     await updateNotifyConfig(buildPayload());
@@ -91,6 +96,14 @@ async function onSave() {
 
 <template>
   <Page>
+    <ElAlert
+      v-if="!canEdit"
+      class="mb-4"
+      :closable="false"
+      show-icon
+      title="当前账号仅可查看通知配置，无法保存修改"
+      type="info"
+    />
     <ElCard v-loading="loading" shadow="never" class="mb-4">
       <template #header>
         <div class="card-header">
@@ -105,12 +118,13 @@ async function onSave() {
       </ElAlert>
       <ElForm label-width="180px" class="max-w-[720px]">
         <ElFormItem label="启用消息推送">
-          <ElSwitch v-model="form.subscribeEnabled" />
+          <ElSwitch v-model="form.subscribeEnabled" :disabled="!canEdit" />
           <span class="form-tip">开启前需要先填完整 AppID 与 AppSecret</span>
         </ElFormItem>
         <ElFormItem label="小程序 AppID">
           <ElInput
             v-model="form.wxAppId"
+            :disabled="!canEdit"
             placeholder="wx 开头，须与登录/支付所用主体一致"
             clearable
           />
@@ -118,6 +132,7 @@ async function onSave() {
         <ElFormItem label="AppSecret">
           <ElInput
             v-model="form.wxAppSecret"
+            :disabled="!canEdit"
             type="password"
             show-password
             :placeholder="
@@ -131,6 +146,7 @@ async function onSave() {
         <ElFormItem label="发货提醒模板 ID">
           <ElInput
             v-model="form.tmplDeliver"
+            :disabled="!canEdit"
             placeholder="小程序后台申请的发货提醒模板，留空则不推送"
             clearable
           />
@@ -138,12 +154,18 @@ async function onSave() {
         <ElFormItem label="退款结果模板 ID">
           <ElInput
             v-model="form.tmplRefund"
+            :disabled="!canEdit"
             placeholder="小程序后台申请的退款结果模板，留空则不推送"
             clearable
           />
         </ElFormItem>
         <ElFormItem>
-          <ElButton :loading="saving" type="primary" @click="onSave">
+          <ElButton
+            v-access:code="SETTING_PERMISSIONS.notifyUpdate"
+            :loading="saving"
+            type="primary"
+            @click="onSave"
+          >
             保存配置
           </ElButton>
         </ElFormItem>

@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.spring.service.impl.ServiceImpl;
 import com.easymall.admin.common.api.ResultCode;
 import com.easymall.admin.common.exception.BusinessException;
+import com.easymall.admin.common.permission.PermissionCodes;
 import com.easymall.admin.entity.SysMenu;
 import com.easymall.admin.entity.SysRole;
 import com.easymall.admin.entity.SysRoleMenu;
@@ -86,12 +87,16 @@ public class MenuService extends ServiceImpl<SysMenuMapper, SysMenu> {
         if (visibleIds.isEmpty()) {
             return List.of();
         }
-        return listEnabled().stream()
+        Set<String> codes = listEnabled().stream()
                 .filter(menu -> visibleIds.contains(menu.getId()))
                 .map(SysMenu::getAuthCode)
                 .filter(StringUtils::hasText)
-                .distinct()
-                .toList();
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+        // ADMIN 默认拥有代码中登记的全部权限，避免新增按钮权限后管理员被锁死
+        if (hasAdminRole(resolveRoleIds(userId))) {
+            codes.addAll(PermissionCodes.ALL);
+        }
+        return List.copyOf(codes);
     }
 
     /**
@@ -303,14 +308,20 @@ public class MenuService extends ServiceImpl<SysMenuMapper, SysMenu> {
                         Wrappers.<SysUserRole>lambdaQuery().eq(SysUserRole::getUserId, userId))
                 .stream().map(SysUserRole::getRoleId).distinct().toList();
         if (!roleIds.isEmpty()) {
-            return roleIds;
+            return sysRoleMapper.selectList(Wrappers.<SysRole>lambdaQuery()
+                            .in(SysRole::getId, roleIds)
+                            .eq(SysRole::getStatus, 1))
+                    .stream().map(SysRole::getId).toList();
         }
         SysUser user = sysUserMapper.selectById(userId);
         if (user == null || !StringUtils.hasText(user.getRole())) {
             return List.of();
         }
         SysRole role = sysRoleMapper.selectOne(
-                Wrappers.<SysRole>lambdaQuery().eq(SysRole::getCode, user.getRole()).last("limit 1"));
+                Wrappers.<SysRole>lambdaQuery()
+                        .eq(SysRole::getCode, user.getRole())
+                        .eq(SysRole::getStatus, 1)
+                        .last("limit 1"));
         return role == null ? List.of() : List.of(role.getId());
     }
 

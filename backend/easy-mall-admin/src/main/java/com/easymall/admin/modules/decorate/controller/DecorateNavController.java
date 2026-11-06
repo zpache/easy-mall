@@ -8,6 +8,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -28,24 +29,28 @@ public class DecorateNavController {
 
     @Operation(summary = "读取导航配置")
     @GetMapping
+    @PreAuthorize("hasAuthority('decorate:nav:list')")
     public Result<DecorateNav> get() {
         return Result.ok(navService.get());
     }
 
     @Operation(summary = "保存导航配置（草稿，发布前不影响小程序）")
     @PutMapping
+    @PreAuthorize("hasAuthority('decorate:nav:update')")
     public Result<DecorateNav> save(@Valid @RequestBody NavSaveForm form) {
         return Result.ok(navService.save(form));
     }
 
     @Operation(summary = "发布导航配置（草稿快照生效到小程序）")
     @PostMapping("/publish")
+    @PreAuthorize("hasAuthority('decorate:nav:publish')")
     public Result<DecorateNav> publish() {
         return Result.ok(navService.publish());
     }
 
     @Operation(summary = "恢复默认导航配置")
     @PostMapping("/reset")
+    @PreAuthorize("hasAuthority('decorate:nav:reset')")
     public Result<DecorateNav> reset() {
         return Result.ok(navService.reset());
     }

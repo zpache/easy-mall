@@ -23,6 +23,14 @@ import {
   getDecorateThemes,
   updateDecorateTheme,
 } from '#/api/decorate/theme';
+import { DECORATE_PERMISSIONS } from '#/constants/permissions';
+import { usePermission } from '#/composables/use-permission';
+
+const { can } = usePermission();
+const canCreate = computed(() => can(DECORATE_PERMISSIONS.themeCreate));
+const canUpdate = computed(() => can(DECORATE_PERMISSIONS.themeUpdate));
+const canActivate = computed(() => can(DECORATE_PERMISSIONS.themeActivate));
+const canDelete = computed(() => can(DECORATE_PERMISSIONS.themeDelete));
 
 type ThemeItem = DecorateThemeApi.Theme;
 
@@ -62,6 +70,10 @@ const dirty = ref(false);
 
 /** 已启用主题：线上生效的那份（读发布快照） */
 const activeTheme = computed(() => themes.value.find((t) => t.isActive === 1));
+/** 新建主题需要 create，编辑已有主题需要 update，按钮与输入态都按当前对象判断 */
+const canEditCurrent = computed(() =>
+  editingId.value === null ? canCreate.value : canUpdate.value,
+);
 
 async function load() {
   loading.value = true;
@@ -85,6 +97,7 @@ function select(theme: ThemeItem) {
 }
 
 function startCreate() {
+  if (!canCreate.value) return;
   editingId.value = null;
   editingName.value = '新主题';
   editingConfig.value = { ...DEFAULT_CONFIG };
@@ -96,6 +109,7 @@ function markDirty() {
 }
 
 async function onSave() {
+  if (!canEditCurrent.value) return;
   if (!editingName.value.trim()) {
     ElMessage.warning('请填写主题名称');
     return;
@@ -124,6 +138,7 @@ async function onSave() {
 }
 
 async function onActivate(theme: ThemeItem) {
+  if (!canActivate.value) return;
   await ElMessageBox.confirm(
     `确定把「${theme.name}」发布为线上主题吗？小程序端将整体换肤。`,
     '启用主题',
@@ -137,6 +152,7 @@ async function onActivate(theme: ThemeItem) {
 }
 
 async function onDelete(theme: ThemeItem) {
+  if (!canDelete.value) return;
   await ElMessageBox.confirm(`确定删除「${theme.name}」吗？`, '删除主题', {
     type: 'warning',
   });
@@ -150,6 +166,7 @@ async function onDelete(theme: ThemeItem) {
 
 /** 一键载入小程序历史默认配色（新建主题或想还原到换肤前视觉时用） */
 function applyDefaultPalette() {
+  if (!canEditCurrent.value) return;
   editingConfig.value = { ...DEFAULT_CONFIG };
   markDirty();
 }
@@ -170,7 +187,12 @@ onMounted(load);
         <template #header>
           <div class="list-header">
             <span>主题列表</span>
-            <ElButton size="small" type="primary" @click="startCreate">
+            <ElButton
+              v-access:code="DECORATE_PERMISSIONS.themeCreate"
+              size="small"
+              type="primary"
+              @click="startCreate"
+            >
               新建主题
             </ElButton>
           </div>
@@ -206,6 +228,7 @@ onMounted(load);
           <div class="theme-item__actions" @click.stop>
             <ElButton
               v-if="theme.isActive !== 1"
+              v-access:code="DECORATE_PERMISSIONS.themeActivate"
               size="small"
               type="primary"
               @click="onActivate(theme)"
@@ -214,6 +237,7 @@ onMounted(load);
             </ElButton>
             <ElButton
               v-if="theme.isActive !== 1"
+              v-access:code="DECORATE_PERMISSIONS.themeDelete"
               size="small"
               text
               type="danger"
@@ -235,7 +259,12 @@ onMounted(load);
                 当前线上主题（改动需「启用」后生效）
               </ElTag>
             </span>
-            <ElButton :loading="saving" type="primary" @click="onSave">
+            <ElButton
+              v-if="canEditCurrent"
+              :loading="saving"
+              type="primary"
+              @click="onSave"
+            >
               保存草稿
             </ElButton>
           </div>
@@ -248,6 +277,14 @@ onMounted(load);
           title="保存草稿不影响线上；点左侧「启用」后草稿快照发布，小程序端整体换肤"
           type="info"
         />
+        <ElAlert
+          v-if="!canEditCurrent"
+          class="editor-tip"
+          :closable="false"
+          show-icon
+          title="当前账号无此主题的保存权限，编辑器为只读状态"
+          type="warning"
+        />
 
         <div class="editor-body">
           <div class="editor-fields">
@@ -256,12 +293,19 @@ onMounted(load);
               <ElInput
                 v-model="editingName"
                 class="name-input"
+                :disabled="!canEditCurrent"
                 maxlength="50"
                 @input="markDirty"
               />
             </div>
             <div class="preset-row">
-              <ElButton size="small" text type="primary" @click="applyDefaultPalette">
+              <ElButton
+                v-if="canEditCurrent"
+                size="small"
+                text
+                type="primary"
+                @click="applyDefaultPalette"
+              >
                 载入小程序默认配色
               </ElButton>
               <span class="field-tip">换肤上线前小程序使用的那套配色，可一键还原</span>
@@ -273,6 +317,7 @@ onMounted(load);
               </div>
               <ElColorPicker
                 :model-value="colorCss(field.key)"
+                :disabled="!canEditCurrent"
                 @update:model-value="
                   (val: string | null) => {
                     editingConfig[field.key] = val || DEFAULT_CONFIG[field.key];

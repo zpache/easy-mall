@@ -28,6 +28,7 @@ import {
   getDeliveryCompanies,
   updateDeliveryCompany,
 } from '#/api/settings/delivery';
+import { SETTING_PERMISSIONS } from '#/constants/permissions';
 
 /** 快递100 官方「常用快递公司编码」表 */
 const CODE_DOC_URL =
@@ -169,7 +170,12 @@ async function onToggleStatus(
           >
             快递100 官方编码表 ↗
           </ElLink>
-          <ElButton type="primary" size="small" @click="onCreate">
+          <ElButton
+            v-access:code="SETTING_PERMISSIONS.deliveryCreate"
+            type="primary"
+            size="small"
+            @click="onCreate"
+          >
             新增快递公司
           </ElButton>
         </div>
@@ -206,6 +212,7 @@ async function onToggleStatus(
         <ElTableColumn label="状态" width="110">
           <template #default="{ row }">
             <ElSwitch
+              v-access:code="SETTING_PERMISSIONS.deliveryUpdate"
               :model-value="row.status === 1"
               @change="(v: boolean | number | string) => onToggleStatus(row, Boolean(v))"
             />
@@ -217,10 +224,22 @@ async function onToggleStatus(
         <ElTableColumn prop="updatedAt" label="更新时间" width="170" />
         <ElTableColumn label="操作" width="140" fixed="right">
           <template #default="{ row }">
-            <ElButton link type="primary" size="small" @click="onEdit(row)">
+            <ElButton
+              v-access:code="SETTING_PERMISSIONS.deliveryUpdate"
+              link
+              type="primary"
+              size="small"
+              @click="onEdit(row)"
+            >
               编辑
             </ElButton>
-            <ElButton link type="danger" size="small" @click="onDelete(row)">
+            <ElButton
+              v-access:code="SETTING_PERMISSIONS.deliveryDelete"
+              link
+              type="danger"
+              size="small"
+              @click="onDelete(row)"
+            >
               删除
             </ElButton>
           </template>
@@ -288,7 +307,15 @@ async function onToggleStatus(
       </ElForm>
       <template #footer>
         <ElButton @click="dialogVisible = false">取消</ElButton>
-        <ElButton type="primary" :loading="saving" @click="onSave">
+        <ElButton
+          v-access:code="[
+            SETTING_PERMISSIONS.deliveryCreate,
+            SETTING_PERMISSIONS.deliveryUpdate,
+          ]"
+          type="primary"
+          :loading="saving"
+          @click="onSave"
+        >
           保存
         </ElButton>
       </template>

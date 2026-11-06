@@ -8,6 +8,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -33,18 +34,21 @@ public class DeliveryCompanyController {
 
     @Operation(summary = "快递公司列表（status=1 只取启用的，发货下拉用）")
     @GetMapping
+    @PreAuthorize("hasAnyAuthority('settings:delivery:list', 'order:order:ship')")
     public Result<List<DeliveryCompanyVO>> list(@RequestParam(required = false) Integer status) {
         return Result.ok(deliveryCompanyService.list(status));
     }
 
     @Operation(summary = "新增快递公司")
     @PostMapping
+    @PreAuthorize("hasAuthority('settings:delivery:create')")
     public Result<Long> create(@Valid @RequestBody DeliveryCompanyForm form) {
         return Result.ok(deliveryCompanyService.create(form));
     }
 
     @Operation(summary = "编辑快递公司")
     @PutMapping("/{id}")
+    @PreAuthorize("hasAuthority('settings:delivery:update')")
     public Result<Void> update(@PathVariable Long id, @Valid @RequestBody DeliveryCompanyForm form) {
         deliveryCompanyService.update(id, form);
         return Result.ok();
@@ -52,6 +56,7 @@ public class DeliveryCompanyController {
 
     @Operation(summary = "删除快递公司")
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAuthority('settings:delivery:delete')")
     public Result<Void> delete(@PathVariable Long id) {
         deliveryCompanyService.delete(id);
         return Result.ok();

@@ -37,6 +37,7 @@ public class RoleController {
 
     @Operation(summary = "分页查询角色")
     @GetMapping("/list")
+    @PreAuthorize("hasAuthority('system:role:list')")
     public Result<PageResult<RoleVO>> list(@RequestParam(defaultValue = "1") long pageNum,
                                            @RequestParam(defaultValue = "10") long pageSize,
                                            @RequestParam(required = false) String name,
@@ -47,27 +48,29 @@ public class RoleController {
 
     @Operation(summary = "启用中的角色选项")
     @GetMapping("/options")
+    @PreAuthorize("hasAnyAuthority('system:role:list', 'system:user:list', "
+            + "'system:user:create', 'system:user:update')")
     public Result<List<RoleVO>> options() {
         return Result.ok(roleService.listEnabled());
     }
 
     @Operation(summary = "新增角色")
     @PostMapping
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('system:role:create')")
     public Result<SysRole> create(@Valid @RequestBody RoleForm form) {
         return Result.ok(roleService.create(form));
     }
 
     @Operation(summary = "编辑角色")
     @PutMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('system:role:update')")
     public Result<SysRole> update(@PathVariable Long id, @Valid @RequestBody RoleForm form) {
         return Result.ok(roleService.update(id, form));
     }
 
     @Operation(summary = "删除角色")
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('system:role:delete')")
     public Result<Void> delete(@PathVariable Long id) {
         roleService.delete(id);
         return Result.ok();
@@ -75,7 +78,7 @@ public class RoleController {
 
     @Operation(summary = "启用 / 停用角色")
     @PutMapping("/{id}/status")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('system:role:status')")
     public Result<Void> changeStatus(@PathVariable Long id, @RequestParam Integer status) {
         if (status == null) {
             throw new BusinessException("状态不能为空");
