@@ -205,7 +205,7 @@ watch(
         :avatar
         :menus
         :text="userStore.userInfo?.realName"
-        description="ann.vben@gmail.com"
+        description="Easy Mall Admin"
         tag-text="Pro"
         @logout="handleLogout"
         @clear-preferences-and-logout="handleLogout"

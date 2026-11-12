@@ -17,7 +17,9 @@ export const overridesPreferences = defineOverridesPreferences({
     mode: 'light',
   },
   copyright: {
-    // 版权年份，登录页与页脚共用
+    // 登录页与页脚共用的版权文案：公司名与站点链接不覆盖会回落到框架默认的 Vben
+    companyName: 'Easy Mall Admin',
+    companySiteLink: '',
     date: '2026',
   },
 });
