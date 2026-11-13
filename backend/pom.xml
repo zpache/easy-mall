@@ -11,12 +11,12 @@
         <relativePath/>
     </parent>
 
-    <groupId>com.easymall</groupId>
-    <artifactId>easy-mall</artifactId>
+    <groupId>cn.easykits</groupId>
+    <artifactId>easy-admin</artifactId>
     <version>1.0.0</version>
     <packaging>pom</packaging>
-    <name>easy-mall</name>
-    <description>easy-mall 微商城后端（单体应用，多模块）</description>
+    <name>easy-admin</name>
+    <description>easykits easy-admin 微商城后端（单体应用，多模块）</description>
     <licenses>
         <license>
             <name>Apache License, Version 2.0</name>
@@ -26,8 +26,8 @@
     </licenses>
 
     <modules>
-        <module>easy-mall-admin</module>
-        <module>easy-mall-api</module>
+        <module>easy-admin-admin</module>
+        <module>easy-admin-api</module>
     </modules>
 
     <properties>

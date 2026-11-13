@@ -1,0 +1,1032 @@
+package cn.easykits.api.modules.order.service;
+
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import cn.easykits.api.common.api.PageResult;
+import cn.easykits.api.common.api.ResultCode;
+import cn.easykits.api.common.exception.BusinessException;
+import cn.easykits.api.entity.Address;
+import cn.easykits.api.entity.CartItem;
+import cn.easykits.api.entity.Coupon;
+import cn.easykits.api.entity.CouponUser;
+import cn.easykits.api.entity.Goods;
+import cn.easykits.api.entity.GoodsSku;
+import cn.easykits.api.entity.MallOrder;
+import cn.easykits.api.entity.Message;
+import cn.easykits.api.entity.OrderItem;
+import cn.easykits.api.entity.OrderPromotion;
+import cn.easykits.api.entity.Reduction;
+import cn.easykits.api.mapper.AddressMapper;
+import cn.easykits.api.mapper.CartItemMapper;
+import cn.easykits.api.mapper.CouponMapper;
+import cn.easykits.api.mapper.CouponUserMapper;
+import cn.easykits.api.mapper.GoodsMapper;
+import cn.easykits.api.mapper.GoodsSkuMapper;
+import cn.easykits.api.mapper.MallOrderMapper;
+import cn.easykits.api.mapper.OrderItemMapper;
+import cn.easykits.api.mapper.OrderPromotionMapper;
+import cn.easykits.api.mapper.ReductionMapper;
+import cn.easykits.api.modules.freight.service.FreightService;
+import cn.easykits.api.modules.comment.service.CommentService;
+import cn.easykits.api.modules.message.service.MessageWriter;
+import cn.easykits.api.modules.order.dto.BuyNowRequest;
+import cn.easykits.api.modules.order.dto.OrderCreateRequest;
+import cn.easykits.api.modules.order.vo.OrderVO;
+import cn.easykits.api.modules.order.vo.ReductionPreviewVO;
+import cn.easykits.api.modules.order.vo.UsableCouponVO;
+import cn.easykits.api.modules.member.service.MemberDiscountService;
+import cn.easykits.api.modules.member.service.MemberPointService;
+import cn.easykits.api.modules.pay.service.WxPayService;
+import cn.easykits.api.modules.setting.service.PaymentConfigService;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
+
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.time.Duration;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ThreadLocalRandom;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+
+/**
+ * 订单服务。
+ * 当前为单体应用，下单流程在本地事务中完成；后续拆分支付、发货时可在此处接入消息或状态机。
+ */
+@Slf4j
+@Service
+@RequiredArgsConstructor
+public class OrderService {
+
+    private static final DateTimeFormatter ORDER_NO_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
+
+    /** 会员券状态：与 mk_coupon_user 口径一致 */
+    private static final int COUPON_UNUSED = 0;
+    private static final int COUPON_USED = 1;
+
+    /**
+     * 用户端订单列表状态组（列表页签语义，非订单真实状态）：
+     * 10 待收货 = 已付款未收货（待发货 1 + 待收货 2），用户视角统一为「等收货」；
+     * 11 待评价 = 已完成且还有未评价的商品。
+     */
+    public static final int GROUP_UNRECEIVED = 10;
+    public static final int GROUP_PENDING_COMMENT = 11;
+
+    private final MallOrderMapper orderMapper;
+    private final OrderItemMapper orderItemMapper;
+    private final CartItemMapper cartItemMapper;
+    private final GoodsMapper goodsMapper;
+    private final GoodsSkuMapper goodsSkuMapper;
+    private final AddressMapper addressMapper;
+    private final CouponMapper couponMapper;
+    private final CouponUserMapper couponUserMapper;
+    private final ReductionMapper reductionMapper;
+    private final OrderPromotionMapper orderPromotionMapper;
+    private final FreightService freightService;
+    private final PaymentConfigService paymentConfigService;
+    private final MemberPointService memberPointService;
+    private final MemberDiscountService memberDiscountService;
+    private final CommentService commentService;
+    private final MessageWriter messageWriter;
+    /**
+     * 微信关单用 ObjectProvider 延迟解析：WxPayService 构造器依赖本类，直接注入会形成循环依赖。
+     */
+    private final ObjectProvider<WxPayService> wxPayServiceProvider;
+
+    @Transactional(rollbackFor = Exception.class)
+    public OrderVO create(Long userId, OrderCreateRequest request) {
+        Address address = addressMapper.selectById(request.addressId());
+        if (address == null || !address.getUserId().equals(userId)) {
+            throw new BusinessException(ResultCode.ADDRESS_NOT_FOUND);
+        }
+
+        List<CartItem> cartItems = cartItemMapper.selectList(Wrappers.<CartItem>lambdaQuery()
+                .eq(CartItem::getUserId, userId)
+                .eq(CartItem::getChecked, 1));
+        if (cartItems.isEmpty()) {
+            throw new BusinessException(ResultCode.CART_EMPTY);
+        }
+
+        List<Long> goodsIds = cartItems.stream().map(CartItem::getGoodsId).distinct().toList();
+        Map<Long, Goods> goodsMap = goodsMapper.selectByIds(goodsIds).stream()
+                .collect(Collectors.toMap(Goods::getId, Function.identity()));
+
+        List<OrderItem> orderItems = new ArrayList<>(cartItems.size());
+        for (CartItem cartItem : cartItems) {
+            Goods goods = goodsMap.get(cartItem.getGoodsId());
+            if (goods == null || !Integer.valueOf(1).equals(goods.getStatus())) {
+                throw new BusinessException(ResultCode.GOODS_OFF_SHELF, "商品已下架，请重新选择");
+            }
+            // 多规格商品以 SKU 价格与库存为准，单规格商品沿用商品表
+            GoodsSku sku = cartItem.getSkuId() == null ? null : goodsSkuMapper.selectById(cartItem.getSkuId());
+            orderItems.add(deductAndBuildItem(goods, sku, cartItem.getQuantity()));
+        }
+
+        OrderVO order = insertOrder(userId, address, request.remark(), request.couponUserId(), orderItems);
+
+        // 已下单的购物车条目直接物理删除
+        cartItemMapper.delete(Wrappers.<CartItem>lambdaQuery()
+                .in(CartItem::getId, cartItems.stream().map(CartItem::getId).toList()));
+
+        return order;
+    }
+
+    /**
+     * 立即购买：不走购物车，按指定商品与数量直接生成订单，不影响购物车数据。
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public OrderVO createBuyNow(Long userId, BuyNowRequest request) {
+        Address address = addressMapper.selectById(request.addressId());
+        if (address == null || !address.getUserId().equals(userId)) {
+            throw new BusinessException(ResultCode.ADDRESS_NOT_FOUND);
+        }
+
+        Goods goods = goodsMapper.selectById(request.goodsId());
+        if (goods == null || !Integer.valueOf(1).equals(goods.getStatus())) {
+            throw new BusinessException(ResultCode.GOODS_OFF_SHELF, "商品已下架，请重新选择");
+        }
+        GoodsSku sku = resolveSku(goods, request.skuId());
+        OrderItem orderItem = deductAndBuildItem(goods, sku, request.quantity());
+
+        return insertOrder(userId, address, request.remark(), request.couponUserId(), List.of(orderItem));
+    }
+
+    /**
+     * 解析并校验 SKU：商品存在启用中的 SKU 时 skuId 必填；
+     * 单规格商品忽略误传的 skuId，避免把其他商品的规格挂到本单。
+     */
+    private GoodsSku resolveSku(Goods goods, Long skuId) {
+        long skuCount = goodsSkuMapper.selectCount(Wrappers.<GoodsSku>lambdaQuery()
+                .eq(GoodsSku::getGoodsId, goods.getId())
+                .eq(GoodsSku::getStatus, 1));
+        if (skuCount == 0) {
+            return null;
+        }
+        if (skuId == null) {
+            throw new BusinessException("请选择商品规格");
+        }
+        GoodsSku sku = goodsSkuMapper.selectById(skuId);
+        if (sku == null || !sku.getGoodsId().equals(goods.getId())) {
+            throw new BusinessException("商品规格不存在，请重新选择");
+        }
+        return sku;
+    }
+
+    /**
+     * 带条件扣减库存并构建订单明细：SKU 商品先扣 SKU，再同步扣商品汇总库存；
+     * 任一步库存不足都抛异常回滚整单（含已扣的 SKU 库存）。
+     */
+    private OrderItem deductAndBuildItem(Goods goods, GoodsSku sku, int quantity) {
+        if (sku != null) {
+            if (!Integer.valueOf(1).equals(sku.getStatus())) {
+                throw new BusinessException(ResultCode.GOODS_OFF_SHELF, "商品规格已下架，请重新选择");
+            }
+            int skuAffected = goodsSkuMapper.update(null, Wrappers.<GoodsSku>lambdaUpdate()
+                    .eq(GoodsSku::getId, sku.getId())
+                    .eq(GoodsSku::getStatus, 1)
+                    .ge(GoodsSku::getStock, quantity)
+                    .setSql("stock = stock - " + quantity)
+                    .setSql("sales = sales + " + quantity));
+            if (skuAffected == 0) {
+                throw new BusinessException(ResultCode.STOCK_NOT_ENOUGH,
+                        goods.getName() + skuSuffix(sku) + " 库存不足");
+            }
+        }
+        // 商品级库存：多规格商品为其 SKU 库存合计，保证列表页与库存管理口径一致
+        int affected = goodsMapper.update(null, Wrappers.<Goods>lambdaUpdate()
+                .eq(Goods::getId, goods.getId())
+                .ge(Goods::getStock, quantity)
+                .setSql("stock = stock - " + quantity)
+                .setSql("sales = sales + " + quantity));
+        if (affected == 0) {
+            throw new BusinessException(ResultCode.STOCK_NOT_ENOUGH, goods.getName() + " 库存不足");
+        }
+
+        BigDecimal price = sku == null ? goods.getPrice() : sku.getPrice();
+        OrderItem item = new OrderItem();
+        item.setGoodsId(goods.getId());
+        item.setSkuId(sku == null ? null : sku.getId());
+        item.setGoodsName(goods.getName());
+        item.setGoodsImage(sku != null && StringUtils.hasText(sku.getImage())
+                ? sku.getImage() : goods.getMainImage());
+        item.setSpecText(sku == null ? null : sku.getSpecText());
+        item.setPrice(price);
+        item.setQuantity(quantity);
+        item.setTotalAmount(price.multiply(BigDecimal.valueOf(quantity)));
+        return item;
+    }
+
+    private String skuSuffix(GoodsSku sku) {
+        return StringUtils.hasText(sku.getSpecText()) ? "（" + sku.getSpecText() + "）" : "";
+    }
+
+    /**
+     * 建单公共尾部：优惠券核销 + 订单与明细落库。购物车下单与立即购买共用，均在调用方事务内执行。
+     */
+    private OrderVO insertOrder(Long userId, Address address, String remark, Long couponUserId,
+                                List<OrderItem> orderItems) {
+        BigDecimal totalAmount = orderItems.stream()
+                .map(OrderItem::getTotalAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        String orderNo = generateOrderNo();
+
+        // 会员等级折扣：只优惠商品金额，折扣率来自当前会员等级（可在「商城设置 - 会员配置」关闭）
+        MemberDiscountService.LevelDiscount levelDiscount =
+                memberDiscountService.calculate(userId, totalAmount);
+        BigDecimal memberDiscount = levelDiscount.discountAmount();
+        BigDecimal discountedTotal = totalAmount.subtract(memberDiscount).max(BigDecimal.ZERO);
+
+        // 满减：叠加顺序为会员折扣 -> 满减 -> 优惠券 -> 运费；
+        // 多活动可叠加（阶梯取最优档、每满减按次数），优惠快照按活动逐条落 o_order_promotion
+        List<OrderPromotion> promotions = applyReductions(discountedTotal);
+        BigDecimal reductionAmount = promotions.stream()
+                .map(OrderPromotion::getDiscountAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal afterReduction = discountedTotal.subtract(reductionAmount).max(BigDecimal.ZERO);
+
+        // 优惠券：服务端按满减后商品金额重新校验与计算，不信任前端传来的抵扣额
+        Long couponId = null;
+        BigDecimal couponAmount = BigDecimal.ZERO;
+        if (couponUserId != null) {
+            CouponRedemption redemption = redeemCoupon(userId, couponUserId, orderNo, afterReduction);
+            couponId = redemption.couponId();
+            couponAmount = redemption.amount();
+        }
+
+        // 运费：按收货地址与满减后商品金额服务端计算，不配送地区直接阻断下单（优惠不抵运费）
+        BigDecimal freightAmount = freightService.calculateOrThrow(address, afterReduction);
+
+        MallOrder order = new MallOrder();
+        order.setOrderNo(orderNo);
+        order.setUserId(userId);
+        order.setTotalAmount(totalAmount);
+        order.setFreightAmount(freightAmount);
+        order.setCouponId(couponId);
+        order.setCouponAmount(couponAmount);
+        order.setMemberDiscount(memberDiscount);
+        order.setMemberLevelName(levelDiscount.effective() ? levelDiscount.levelName() : null);
+        order.setReductionAmount(reductionAmount);
+        order.setPayAmount(afterReduction.subtract(couponAmount).max(BigDecimal.ZERO).add(freightAmount));
+        order.setRefundedAmount(BigDecimal.ZERO);
+        order.setStatus(MallOrder.STATUS_UNPAID);
+        order.setReceiverName(address.getReceiver());
+        order.setReceiverPhone(address.getPhone());
+        order.setReceiverAddress(address.getProvince() + address.getCity() + address.getDistrict() + address.getDetail());
+        order.setRemark(remark);
+        orderMapper.insert(order);
+
+        for (OrderItem item : orderItems) {
+            item.setOrderId(order.getId());
+            orderItemMapper.insert(item);
+        }
+
+        // 满减快照与订单同事务落库：每个参加的活动一行
+        for (OrderPromotion promotion : promotions) {
+            promotion.setOrderId(order.getId());
+            promotion.setOrderNo(orderNo);
+            orderPromotionMapper.insert(promotion);
+        }
+
+        return toVO(order, orderItems, Set.of(), promotions);
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    public PageResult<OrderVO> pageQuery(Long userId, Integer status, long pageNum, long pageSize) {
+        // 先兜底关闭该用户已超时的待付款订单，保证列表里的倒计时/状态是最新的
+        closeExpiredOrders(userId);
+        LambdaQueryWrapper<MallOrder> wrapper = Wrappers.<MallOrder>lambdaQuery()
+                .eq(MallOrder::getUserId, userId)
+                .orderByDesc(MallOrder::getId);
+        if (status != null && status == GROUP_UNRECEIVED) {
+            // 用户端「待收货」：已付款到确认收货之间的全部订单（含商家待发货）
+            wrapper.in(MallOrder::getStatus, MallOrder.STATUS_UNDELIVERED, MallOrder.STATUS_UNRECEIVED);
+        } else if (status != null && status == GROUP_PENDING_COMMENT) {
+            // 用户端「待评价」：已完成且至少一个商品还没有评价记录（子查询保证分页准确）
+            wrapper.eq(MallOrder::getStatus, MallOrder.STATUS_FINISHED)
+                    .exists("SELECT 1 FROM o_order_item i WHERE i.order_id = o_order.id "
+                            + "AND i.deleted = 0 AND NOT EXISTS (SELECT 1 FROM o_order_comment c "
+                            + "WHERE c.order_id = i.order_id AND c.goods_id = i.goods_id AND c.deleted = 0)");
+        } else {
+            wrapper.eq(status != null, MallOrder::getStatus, status);
+        }
+        Page<MallOrder> page = orderMapper.selectPage(Page.of(pageNum, pageSize), wrapper);
+
+        List<Long> orderIds = page.getRecords().stream().map(MallOrder::getId).toList();
+        Map<Long, List<OrderItem>> itemMap = orderIds.isEmpty()
+                ? Map.of()
+                : orderItemMapper.selectList(Wrappers.<OrderItem>lambdaQuery()
+                        .in(OrderItem::getOrderId, orderIds))
+                .stream()
+                .collect(Collectors.groupingBy(OrderItem::getOrderId));
+
+        // 一次性查出本页订单的已评价商品，避免逐单查询
+        Map<Long, Set<Long>> commentedMap = commentService.commentedGoodsByOrder(orderIds);
+        // 一次性查出本页订单参加的满减活动快照
+        Map<Long, List<OrderPromotion>> promotionMap = orderIds.isEmpty()
+                ? Map.of()
+                : orderPromotionMapper.selectList(Wrappers.<OrderPromotion>lambdaQuery()
+                        .in(OrderPromotion::getOrderId, orderIds)
+                        .orderByAsc(OrderPromotion::getId))
+                .stream()
+                .collect(Collectors.groupingBy(OrderPromotion::getOrderId));
+        List<OrderVO> records = page.getRecords().stream()
+                .map(order -> toVO(order, itemMap.getOrDefault(order.getId(), List.of()),
+                        commentedMap.getOrDefault(order.getId(), Set.of()),
+                        promotionMap.getOrDefault(order.getId(), List.of())))
+                .toList();
+        return new PageResult<>(records, page.getTotal(), page.getCurrent(), page.getSize(), page.getPages());
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    public OrderVO detail(Long userId, Long id) {
+        // 先校验归属（不存在直接抛错，不产生任何写操作），再兜底关单
+        requireOwnOrder(userId, id);
+        closeExpiredOrders(userId);
+        // 关单可能刚把订单状态改掉，重新读一次拿最新状态
+        MallOrder order = requireOwnOrder(userId, id);
+        List<OrderItem> items = orderItemMapper.selectList(Wrappers.<OrderItem>lambdaQuery()
+                .eq(OrderItem::getOrderId, id));
+        Set<Long> commented = commentService.commentedGoodsByOrder(List.of(id))
+                .getOrDefault(id, Set.of());
+        List<OrderPromotion> promotions = orderPromotionMapper.selectList(Wrappers.<OrderPromotion>lambdaQuery()
+                .eq(OrderPromotion::getOrderId, id)
+                .orderByAsc(OrderPromotion::getId));
+        return toVO(order, items, commented, promotions);
+    }
+
+    /**
+     * 模拟支付（渠道开关由「商城设置 - 支付配置」控制）。
+     * 关闭模拟支付后本接口不可用，需走微信支付正式流程。
+     *
+     * <p>注意：本方法刻意不加事务——超时分支要先落库关单、再抛出「已超时」，
+     * 若包在同一事务里，抛异常会把关单结果一起回滚。成功分支只是单条条件更新，本身就原子。</p>
+     */
+    public void pay(Long userId, Long id) {
+        if (!paymentConfigService.mockPayEnabled()) {
+            throw new BusinessException(ResultCode.PAY_CHANNEL_CLOSED, "模拟支付已关闭，请使用微信支付");
+        }
+        MallOrder order = requireOwnOrder(userId, id);
+        // 超过支付时限的订单先关闭再拒绝支付，避免「倒计时已结束却还能付」
+        LocalDateTime deadline = payDeadline(order);
+        if (deadline != null && !LocalDateTime.now().isBefore(deadline)) {
+            closeOrder(order, LocalDateTime.now());
+            throw new BusinessException(ResultCode.ORDER_STATUS_ERROR, "订单已超过支付时限，已自动关闭");
+        }
+        int affected = orderMapper.update(null, Wrappers.<MallOrder>lambdaUpdate()
+                .eq(MallOrder::getId, order.getId())
+                .eq(MallOrder::getStatus, MallOrder.STATUS_UNPAID)
+                .set(MallOrder::getStatus, MallOrder.STATUS_UNDELIVERED)
+                .set(MallOrder::getPayTime, LocalDateTime.now())
+                .set(MallOrder::getPayType, MallOrder.PAY_TYPE_MOCK));
+        if (affected == 0) {
+            throw new BusinessException(ResultCode.ORDER_STATUS_ERROR, "当前订单状态不支持支付");
+        }
+        // 支付成功即结算会员权益（积分 / 累计消费 / 等级）；发放失败不影响支付结果，由补发任务兜底
+        try {
+            memberPointService.awardForOrder(order);
+        } catch (Exception e) {
+            log.error("订单积分发放失败，等待补发任务重试: orderNo={}", order.getOrderNo(), e);
+        }
+    }
+
+    /**
+     * 支付成功入账（微信支付回调调用）。
+     *
+     * <p>幂等：带 status=待付款 的条件更新，重复回调只会成功一次。
+     * 金额校验由调用方先做，这里再校验一次总量避免误传。</p>
+     *
+     * @param orderNo       商户订单号
+     * @param transactionId 微信支付订单号（仅用于日志对账）
+     * @param paidFen       微信实付金额（分），<=0 表示不校验
+     * @return true 表示处理完成（含重复回调）；false 表示金额不一致，需要人工介入
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public boolean markPaid(String orderNo, String transactionId, long paidFen) {
+        MallOrder order = orderMapper.selectOne(Wrappers.<MallOrder>lambdaQuery()
+                .eq(MallOrder::getOrderNo, orderNo));
+        if (order == null) {
+            log.error("支付回调找不到订单: orderNo={}, transactionId={}", orderNo, transactionId);
+            return false;
+        }
+        long expectFen = order.getPayAmount() == null ? 0L
+                : order.getPayAmount().multiply(BigDecimal.valueOf(100))
+                .setScale(0, RoundingMode.HALF_UP).longValue();
+        if (paidFen > 0 && paidFen != expectFen) {
+            log.error("支付金额不一致，拒绝入账: orderNo={}, 应付={}分, 实付={}分", orderNo, expectFen, paidFen);
+            return false;
+        }
+
+        int affected = orderMapper.update(null, Wrappers.<MallOrder>lambdaUpdate()
+                .eq(MallOrder::getId, order.getId())
+                .eq(MallOrder::getStatus, MallOrder.STATUS_UNPAID)
+                .set(MallOrder::getStatus, MallOrder.STATUS_UNDELIVERED)
+                .set(MallOrder::getPayTime, LocalDateTime.now())
+                .set(MallOrder::getPayType, MallOrder.PAY_TYPE_WXPAY)
+                .set(MallOrder::getPayChannelNo, transactionId));
+        if (affected == 0) {
+            MallOrder latest = orderMapper.selectById(order.getId());
+            if (latest != null && latest.getStatus() == MallOrder.STATUS_CANCELLED) {
+                // 订单已被超时关闭但钱到账了：标记退款中，让后台能看到并原路退回
+                orderMapper.update(null, Wrappers.<MallOrder>lambdaUpdate()
+                        .eq(MallOrder::getId, order.getId())
+                        .set(MallOrder::getRefundStatus, 1));
+                log.error("订单已关闭却收到支付，已标记为退款中，需人工退款: orderNo={}, transactionId={}",
+                        orderNo, transactionId);
+            }
+            // 重复回调或订单已是其它已支付状态，视为处理成功，避免微信持续重试
+            return true;
+        }
+
+        order.setStatus(MallOrder.STATUS_UNDELIVERED);
+        order.setPayTime(LocalDateTime.now());
+        try {
+            memberPointService.awardForOrder(order);
+        } catch (Exception e) {
+            log.error("支付回调后积分发放失败，等待补发任务重试: orderNo={}", orderNo, e);
+        }
+        // 通知运营发货：消息只是提醒，写失败不能影响入账
+        try {
+            messageWriter.publish(
+                    Message.TYPE_ORDER_PAID,
+                    Message.LEVEL_INFO,
+                    "新订单待发货",
+                    "订单 " + order.getOrderNo() + " 已支付 ¥" + order.getPayAmount() + "，请及时发货",
+                    "order",
+                    order.getId(),
+                    "/order/delivery",
+                    Message.TYPE_ORDER_PAID + ":" + order.getId());
+        } catch (Exception e) {
+            log.warn("写入待发货消息失败: orderNo={}", orderNo, e);
+        }
+        log.info("微信支付入账成功: orderNo={}, transactionId={}, 金额={}分", orderNo, transactionId, paidFen);
+        return true;
+    }
+
+    /**
+     * 取消订单并回滚库存。
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public void cancel(Long userId, Long id) {
+        MallOrder order = requireOwnOrder(userId, id);
+        if (!closeOrder(order, LocalDateTime.now())) {
+            throw new BusinessException(ResultCode.ORDER_STATUS_ERROR, "当前订单状态不支持取消");
+        }
+    }
+
+    /**
+     * 确认收货：待收货 → 已完成，记录完成时间。
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public void confirmReceive(Long userId, Long id) {
+        MallOrder order = requireOwnOrder(userId, id);
+        if (!finishOrder(order, LocalDateTime.now())) {
+            throw new BusinessException(ResultCode.ORDER_STATUS_ERROR, "当前订单状态不支持确认收货");
+        }
+    }
+
+    /**
+     * 待收货 → 已完成。带 status 条件的更新保证幂等：
+     * 用户重复点击、多端同时操作、定时任务与手动操作并发，都只会成功一次。
+     */
+    private boolean finishOrder(MallOrder order, LocalDateTime finishTime) {
+        int affected = orderMapper.update(null, Wrappers.<MallOrder>lambdaUpdate()
+                .eq(MallOrder::getId, order.getId())
+                .eq(MallOrder::getStatus, MallOrder.STATUS_UNRECEIVED)
+                .set(MallOrder::getStatus, MallOrder.STATUS_FINISHED)
+                .set(MallOrder::getFinishTime, finishTime));
+        if (affected == 0) {
+            return false;
+        }
+        order.setStatus(MallOrder.STATUS_FINISHED);
+        order.setFinishTime(finishTime);
+        return true;
+    }
+
+    /**
+     * 发货超时自动确认收货：定时任务调用，天数为 0 或负数表示不自动完成。
+     *
+     * @return 本次自动完成的订单数
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public int autoFinishOrders() {
+        int days = paymentConfigService.autoReceiveDays();
+        if (days <= 0) {
+            return 0;
+        }
+        LocalDateTime deadline = LocalDateTime.now().minusDays(days);
+        List<MallOrder> list = orderMapper.selectList(Wrappers.<MallOrder>lambdaQuery()
+                .eq(MallOrder::getStatus, MallOrder.STATUS_UNRECEIVED)
+                .isNotNull(MallOrder::getDeliveryTime)
+                .lt(MallOrder::getDeliveryTime, deadline)
+                .orderByAsc(MallOrder::getId)
+                .last("limit 200"));
+        int finished = 0;
+        for (MallOrder order : list) {
+            if (finishOrder(order, LocalDateTime.now())) {
+                finished++;
+            }
+        }
+        return finished;
+    }
+
+    /**
+     * 支付截止时间：待付款订单 = 下单时间 + 「商城设置 - 支付配置」里的支付超时分钟数。
+     * 非待付款订单返回 null。
+     */
+    private LocalDateTime payDeadline(MallOrder order) {
+        if (order.getStatus() == null || order.getStatus() != MallOrder.STATUS_UNPAID
+                || order.getCreatedAt() == null) {
+            return null;
+        }
+        return order.getCreatedAt().plusMinutes(paymentConfigService.orderPayTimeoutMinutes());
+    }
+
+    /**
+     * 关闭订单（取消 / 超时关单共用）：置为已取消、回滚库存与销量、退回优惠券。
+     * 条件更新成功才做回滚，重复调用（如定时任务与用户操作并发）不会重复回滚。
+     */
+    private boolean closeOrder(MallOrder order, LocalDateTime cancelTime) {
+        int affected = orderMapper.update(null, Wrappers.<MallOrder>lambdaUpdate()
+                .eq(MallOrder::getId, order.getId())
+                .eq(MallOrder::getStatus, MallOrder.STATUS_UNPAID)
+                .set(MallOrder::getStatus, MallOrder.STATUS_CANCELLED)
+                .set(MallOrder::getCancelTime, cancelTime));
+        if (affected == 0) {
+            return false;
+        }
+        List<OrderItem> items = orderItemMapper.selectList(Wrappers.<OrderItem>lambdaQuery()
+                .eq(OrderItem::getOrderId, order.getId()));
+        for (OrderItem item : items) {
+            // 多规格商品：先回滚 SKU 库存，再回滚商品汇总库存
+            if (item.getSkuId() != null) {
+                goodsSkuMapper.update(null, Wrappers.<GoodsSku>lambdaUpdate()
+                        .eq(GoodsSku::getId, item.getSkuId())
+                        .setSql("stock = stock + " + item.getQuantity())
+                        .setSql("sales = GREATEST(sales - " + item.getQuantity() + ", 0)"));
+            }
+            goodsMapper.update(null, Wrappers.<Goods>lambdaUpdate()
+                    .eq(Goods::getId, item.getGoodsId())
+                    .setSql("stock = stock + " + item.getQuantity())
+                    .setSql("sales = GREATEST(sales - " + item.getQuantity() + ", 0)"));
+        }
+        rollbackCoupon(order);
+        closeWxPayOrder(order.getOrderNo());
+        // 同步内存对象，避免同一请求里继续用旧状态渲染
+        order.setStatus(MallOrder.STATUS_CANCELLED);
+        order.setCancelTime(cancelTime);
+        return true;
+    }
+
+    /**
+     * 通知微信关闭预支付单：防止用户停留在收银台时付款成功（那笔钱会变成待人工退款）。
+     * best-effort：微信侧订单不存在或已支付都属正常，失败只记日志不影响本地关单。
+     */
+    private void closeWxPayOrder(String orderNo) {
+        WxPayService wxPayService = wxPayServiceProvider.getIfAvailable();
+        if (wxPayService == null) {
+            return;
+        }
+        try {
+            wxPayService.closeRemoteOrder(orderNo);
+        } catch (Exception e) {
+            log.warn("微信关单调用异常: orderNo={}, err={}", orderNo, e.getMessage());
+        }
+    }
+
+    /**
+     * 全局超时关单：定时任务调用，按当前支付超时配置关闭所有已超时的待付款订单。
+     *
+     * @return 本次关闭的订单数
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public int closeExpiredOrders() {
+        return closeExpiredOrders(null);
+    }
+
+    /**
+     * 超时关单（可按用户过滤）：进订单列表/详情时先兜底关闭，保证用户立刻看到正确状态。
+     */
+    private int closeExpiredOrders(Long userId) {
+        LocalDateTime deadline = LocalDateTime.now().minusMinutes(paymentConfigService.orderPayTimeoutMinutes());
+        List<MallOrder> expired = orderMapper.selectList(Wrappers.<MallOrder>lambdaQuery()
+                .eq(userId != null, MallOrder::getUserId, userId)
+                .eq(MallOrder::getStatus, MallOrder.STATUS_UNPAID)
+                .lt(MallOrder::getCreatedAt, deadline)
+                .orderByAsc(MallOrder::getId)
+                .last("limit 200"));
+        int closed = 0;
+        for (MallOrder order : expired) {
+            if (closeOrder(order, LocalDateTime.now())) {
+                closed++;
+            }
+        }
+        return closed;
+    }
+
+    /** 取消订单时回滚优惠券：置回未使用并清空核销信息，券模板核销数 -1（展示层会把已过有效期的券归一为已过期） */
+    private void rollbackCoupon(MallOrder order) {
+        // 按 couponId 判断是否用过券：折扣型券（或极小金额订单）实际抵扣可能算出来是 0.00，
+        // 用金额判断会把这些券永久卡在「已使用」状态，用户既用不了也退不回
+        if (order.getCouponId() == null || order.getOrderNo() == null) {
+            return;
+        }
+        int affected = couponUserMapper.update(null, Wrappers.<CouponUser>lambdaUpdate()
+                .eq(CouponUser::getOrderNo, order.getOrderNo())
+                .eq(CouponUser::getStatus, COUPON_USED)
+                .set(CouponUser::getStatus, COUPON_UNUSED)
+                .set(CouponUser::getOrderNo, null)
+                .set(CouponUser::getUsedAt, null));
+        if (affected > 0) {
+            couponMapper.update(null, Wrappers.<Coupon>lambdaUpdate()
+                    .eq(Coupon::getId, order.getCouponId())
+                    .setSql("used_count = GREATEST(used_count - 1, 0)"));
+        }
+    }
+
+    /** 单个满减活动的命中结果：活动 + 命中次数 + 本单优惠金额 */
+    private record ReductionHit(Reduction reduction, int times, BigDecimal discount) {
+    }
+
+    /** 当前生效中的满减活动（启用且在活动时间内） */
+    private List<Reduction> activeReductions(LocalDateTime now) {
+        return reductionMapper.selectList(Wrappers.<Reduction>lambdaQuery()
+                .eq(Reduction::getStatus, 1)
+                .le(Reduction::getStartTime, now)
+                .ge(Reduction::getEndTime, now)
+                .orderByDesc(Reduction::getBenefit)
+                .orderByAsc(Reduction::getThreshold));
+    }
+
+    /**
+     * 计算指定金额命中的满减活动（多活动可叠加）：
+     * 阶梯满减（mode=1）一记录一档，只在命中档里取优惠最大的一条；
+     * 每满减（mode=2）按金额可叠加 floor(金额/门槛) 次。
+     * 优惠合计封顶不超过传入金额（极端情况下截断），保证优惠后金额不为负。
+     */
+    private List<ReductionHit> calculateReductionHits(BigDecimal amount) {
+        if (amount.compareTo(BigDecimal.ZERO) <= 0) {
+            return List.of();
+        }
+        List<Reduction> active = activeReductions(LocalDateTime.now());
+        List<ReductionHit> hits = new ArrayList<>(active.size());
+        Reduction bestLadder = null;
+        for (Reduction reduction : active) {
+            boolean ladder = reduction.getMode() != null && reduction.getMode() == Reduction.MODE_LADDER;
+            if (amount.compareTo(reduction.getThreshold()) < 0) {
+                continue;
+            }
+            if (ladder) {
+                if (bestLadder == null || reduction.getBenefit().compareTo(bestLadder.getBenefit()) > 0) {
+                    bestLadder = reduction;
+                }
+                continue;
+            }
+            int times = amount.divideToIntegralValue(reduction.getThreshold()).intValue();
+            hits.add(new ReductionHit(reduction, times, reduction.getBenefit()
+                    .multiply(BigDecimal.valueOf(times)).setScale(2, RoundingMode.HALF_UP)));
+        }
+        if (bestLadder != null) {
+            hits.add(new ReductionHit(bestLadder, 1, bestLadder.getBenefit().setScale(2, RoundingMode.HALF_UP)));
+        }
+        List<ReductionHit> capped = new ArrayList<>(hits.size());
+        BigDecimal remaining = amount;
+        for (ReductionHit hit : hits) {
+            BigDecimal discount = hit.discount().min(remaining).max(BigDecimal.ZERO)
+                    .setScale(2, RoundingMode.HALF_UP);
+            if (discount.compareTo(BigDecimal.ZERO) > 0) {
+                capped.add(new ReductionHit(hit.reduction(), hit.times(), discount));
+                remaining = remaining.subtract(discount);
+            }
+        }
+        return capped;
+    }
+
+    /** 对指定金额应用满减并生成快照行（订单信息由调用方回填），返回快照列表 */
+    private List<OrderPromotion> applyReductions(BigDecimal amount) {
+        List<OrderPromotion> promotions = new ArrayList<>();
+        for (ReductionHit hit : calculateReductionHits(amount)) {
+            OrderPromotion promotion = new OrderPromotion();
+            promotion.setPromotionId(hit.reduction().getId());
+            promotion.setPromotionName(hit.reduction().getName());
+            promotion.setMode(hit.reduction().getMode());
+            promotion.setThreshold(hit.reduction().getThreshold());
+            promotion.setBenefit(hit.reduction().getBenefit());
+            promotion.setTimes(hit.times());
+            promotion.setDiscountAmount(hit.discount());
+            promotions.add(promotion);
+        }
+        return promotions;
+    }
+
+    /** 满减优惠合计（多活动），与下单口径一致 */
+    private BigDecimal reductionTotal(BigDecimal amount) {
+        return calculateReductionHits(amount).stream()
+                .map(ReductionHit::discount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    /**
+     * 结算页满减预估：按购物车已勾选商品金额（或立即购买商品金额）列出每个生效活动的命中情况。
+     * 金额口径与下单一致：会员折扣后的商品金额参与满减。
+     */
+    public List<ReductionPreviewVO> promotionPreview(Long userId, Long goodsId, Integer quantity, Long skuId) {
+        BigDecimal totalAmount = goodsId != null && quantity != null && quantity > 0
+                ? singleGoodsTotal(goodsId, quantity, skuId)
+                : checkedCartTotal(userId);
+        BigDecimal discountedTotal = totalAmount
+                .subtract(memberDiscountService.calculate(userId, totalAmount).discountAmount())
+                .max(BigDecimal.ZERO);
+        List<ReductionPreviewVO> list = new ArrayList<>();
+        for (Reduction reduction : activeReductions(LocalDateTime.now())) {
+            boolean ladder = reduction.getMode() != null && reduction.getMode() == Reduction.MODE_LADDER;
+            boolean met = discountedTotal.compareTo(reduction.getThreshold()) >= 0;
+            int times = met ? (ladder ? 1 : discountedTotal.divideToIntegralValue(reduction.getThreshold()).intValue()) : 0;
+            BigDecimal discount = met
+                    ? reduction.getBenefit().multiply(BigDecimal.valueOf(times)).setScale(2, RoundingMode.HALF_UP)
+                    : BigDecimal.ZERO;
+            list.add(new ReductionPreviewVO(reduction.getId(), reduction.getName(), reduction.getMode(),
+                    reduction.getThreshold(), reduction.getBenefit(), times, discount, met));
+        }
+        return list;
+    }
+
+    /** 券核销结果：券模板 id + 实际抵扣金额 */
+    private record CouponRedemption(Long couponId, BigDecimal amount) {
+    }
+
+    /**
+     * 核销优惠券：校验归属、状态、有效期与门槛后，带条件更新为已使用并回填订单号。
+     * 在下单事务内执行，任何校验失败都会抛异常回滚整个订单。
+     */
+    private CouponRedemption redeemCoupon(Long userId, Long couponUserId, String orderNo, BigDecimal totalAmount) {
+        CouponUser record = couponUserMapper.selectById(couponUserId);
+        if (record == null || !record.getUserId().equals(userId)) {
+            throw new BusinessException(ResultCode.COUPON_NOT_USABLE, "优惠券不存在");
+        }
+        if (record.getStatus() == null || record.getStatus() != COUPON_UNUSED) {
+            throw new BusinessException(ResultCode.COUPON_NOT_USABLE, "优惠券已被使用或已过期，请重新选择");
+        }
+        Coupon coupon = couponMapper.selectById(record.getCouponId());
+        if (coupon == null || !Integer.valueOf(1).equals(coupon.getStatus())) {
+            throw new BusinessException(ResultCode.COUPON_NOT_USABLE, "优惠券已失效");
+        }
+        LocalDateTime now = LocalDateTime.now();
+        if (isExpired(record, coupon, now)) {
+            throw new BusinessException(ResultCode.COUPON_NOT_USABLE, "优惠券已过有效期");
+        }
+        BigDecimal threshold = coupon.getThreshold() == null ? BigDecimal.ZERO : coupon.getThreshold();
+        if (totalAmount.compareTo(threshold) < 0) {
+            throw new BusinessException(ResultCode.COUPON_NOT_USABLE,
+                    "未满足" + coupon.getName() + "使用门槛（满" + threshold.stripTrailingZeros().toPlainString() + "元可用）");
+        }
+
+        // 带条件更新核销，防止同一张券在并发下单中被重复使用
+        int affected = couponUserMapper.update(null, Wrappers.<CouponUser>lambdaUpdate()
+                .eq(CouponUser::getId, record.getId())
+                .eq(CouponUser::getUserId, userId)
+                .eq(CouponUser::getStatus, COUPON_UNUSED)
+                .set(CouponUser::getStatus, COUPON_USED)
+                .set(CouponUser::getOrderNo, orderNo)
+                .set(CouponUser::getUsedAt, now));
+        if (affected == 0) {
+            throw new BusinessException(ResultCode.COUPON_NOT_USABLE, "优惠券已被使用，请重新选择");
+        }
+        couponMapper.update(null, Wrappers.<Coupon>lambdaUpdate()
+                .eq(Coupon::getId, coupon.getId())
+                .setSql("used_count = used_count + 1"));
+
+        return new CouponRedemption(coupon.getId(), calcDiscount(coupon, totalAmount));
+    }
+
+    /** 券是否已过有效期：记录上的 expired_at 优先；固定日期券取 valid_end 当天末尾；N 天券取领取时间 + N 天 */
+    private boolean isExpired(CouponUser record, Coupon coupon, LocalDateTime now) {
+        if (record.getExpiredAt() != null) {
+            return record.getExpiredAt().isBefore(now);
+        }
+        if (coupon.getValidType() != null && coupon.getValidType() == 2
+                && coupon.getValidDays() != null && record.getReceivedAt() != null) {
+            return record.getReceivedAt().plusDays(coupon.getValidDays()).isBefore(now);
+        }
+        return coupon.getValidEnd() != null && coupon.getValidEnd().atTime(23, 59, 59).isBefore(now);
+    }
+
+    /**
+     * 计算券在本单的抵扣金额：满减/无门槛券抵面额，折扣券按 (100 - 折扣) / 100 计算优惠；
+     * 抵扣不超过订单金额，最多抵到 0 元。
+     */
+    private BigDecimal calcDiscount(Coupon coupon, BigDecimal totalAmount) {
+        BigDecimal saved;
+        if (coupon.getType() != null && coupon.getType() == 2 && coupon.getDiscount() != null) {
+            // discount 为百分比：90 表示 9 折，优惠 = 总价 × 10%
+            saved = totalAmount.multiply(BigDecimal.valueOf(100).subtract(coupon.getDiscount()))
+                    .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+        } else {
+            saved = coupon.getAmount() == null ? BigDecimal.ZERO : coupon.getAmount();
+        }
+        return saved.min(totalAmount).max(BigDecimal.ZERO).setScale(2, RoundingMode.HALF_UP);
+    }
+
+    /**
+     * 结算页可用优惠券：按购物车已勾选商品金额实时计算每张券的抵扣与可用性；
+     * 传入 goodsId + quantity 时改为按立即购买的单个商品金额计算。
+     * 可用的排前面，同可用性下抵扣大的优先、到期近的其次。
+     */
+    public List<UsableCouponVO> usableCoupons(Long userId, Long goodsId, Integer quantity, Long skuId) {
+        BigDecimal totalAmount = goodsId != null && quantity != null && quantity > 0
+                ? singleGoodsTotal(goodsId, quantity, skuId)
+                : checkedCartTotal(userId);
+        if (totalAmount.compareTo(BigDecimal.ZERO) <= 0) {
+            return List.of();
+        }
+        // 券门槛与抵扣按「会员折扣、满减后的商品金额」计算，与下单叠加顺序保持一致
+        BigDecimal afterMemberDiscount = totalAmount
+                .subtract(memberDiscountService.calculate(userId, totalAmount).discountAmount())
+                .max(BigDecimal.ZERO);
+        BigDecimal discountedTotal = afterMemberDiscount
+                .subtract(reductionTotal(afterMemberDiscount))
+                .max(BigDecimal.ZERO);
+
+        List<CouponUser> records = couponUserMapper.selectList(Wrappers.<CouponUser>lambdaQuery()
+                .eq(CouponUser::getUserId, userId)
+                .eq(CouponUser::getStatus, COUPON_UNUSED)
+                .orderByDesc(CouponUser::getId));
+        LocalDateTime now = LocalDateTime.now();
+        List<UsableCouponVO> list = new ArrayList<>(records.size());
+        for (CouponUser record : records) {
+            Coupon coupon = couponMapper.selectById(record.getCouponId());
+            if (coupon == null || !Integer.valueOf(1).equals(coupon.getStatus())) {
+                continue;
+            }
+            boolean expired = isExpired(record, coupon, now);
+            BigDecimal threshold = coupon.getThreshold() == null ? BigDecimal.ZERO : coupon.getThreshold();
+            boolean thresholdMet = discountedTotal.compareTo(threshold) >= 0;
+            boolean usable = !expired && thresholdMet;
+
+            list.add(new UsableCouponVO(
+                    record.getId(),
+                    coupon.getName(),
+                    valueText(coupon),
+                    threshold.compareTo(BigDecimal.ZERO) <= 0 ? "无门槛" : "满" + threshold.stripTrailingZeros().toPlainString() + "元可用",
+                    usable ? calcDiscount(coupon, discountedTotal) : BigDecimal.ZERO,
+                    usable,
+                    expired ? "已过有效期" : thresholdMet ? null : "还差"
+                            + threshold.subtract(discountedTotal).stripTrailingZeros().toPlainString() + "元可用",
+                    expireText(record, coupon)));
+        }
+        list.sort((a, b) -> {
+            if (a.usable() != b.usable()) {
+                return a.usable() ? -1 : 1;
+            }
+            int byDiscount = b.discountAmount().compareTo(a.discountAmount());
+            if (byDiscount != 0) {
+                return byDiscount;
+            }
+            return String.valueOf(a.expireAt()).compareTo(String.valueOf(b.expireAt()));
+        });
+        return list;
+    }
+
+    /** 购物车已勾选商品的合计金额（不含运费），与下单口径一致（多规格按 SKU 价格） */
+    private BigDecimal checkedCartTotal(Long userId) {
+        List<CartItem> cartItems = cartItemMapper.selectList(Wrappers.<CartItem>lambdaQuery()
+                .eq(CartItem::getUserId, userId)
+                .eq(CartItem::getChecked, 1));
+        if (cartItems.isEmpty()) {
+            return BigDecimal.ZERO;
+        }
+        List<Long> goodsIds = cartItems.stream().map(CartItem::getGoodsId).distinct().toList();
+        Map<Long, Goods> goodsMap = goodsMapper.selectByIds(goodsIds).stream()
+                .collect(Collectors.toMap(Goods::getId, Function.identity()));
+        List<Long> skuIds = cartItems.stream().map(CartItem::getSkuId)
+                .filter(java.util.Objects::nonNull).distinct().toList();
+        Map<Long, GoodsSku> skuMap = skuIds.isEmpty()
+                ? Map.of()
+                : goodsSkuMapper.selectByIds(skuIds).stream()
+                .collect(Collectors.toMap(GoodsSku::getId, Function.identity()));
+        BigDecimal total = BigDecimal.ZERO;
+        for (CartItem cartItem : cartItems) {
+            Goods goods = goodsMap.get(cartItem.getGoodsId());
+            if (goods == null) {
+                continue;
+            }
+            GoodsSku sku = cartItem.getSkuId() == null ? null : skuMap.get(cartItem.getSkuId());
+            BigDecimal price = sku == null ? goods.getPrice() : sku.getPrice();
+            total = total.add(price.multiply(BigDecimal.valueOf(cartItem.getQuantity())));
+        }
+        return total;
+    }
+
+    /** 单个商品在指定数量下的合计金额（立即购买口径，多规格按 SKU 价格），商品缺失按 0 处理 */
+    private BigDecimal singleGoodsTotal(Long goodsId, Integer quantity, Long skuId) {
+        Goods goods = goodsMapper.selectById(goodsId);
+        if (goods == null) {
+            return BigDecimal.ZERO;
+        }
+        BigDecimal price = goods.getPrice();
+        if (skuId != null) {
+            GoodsSku sku = goodsSkuMapper.selectById(skuId);
+            if (sku != null && sku.getGoodsId().equals(goodsId) && sku.getPrice() != null) {
+                price = sku.getPrice();
+            }
+        }
+        return price.multiply(BigDecimal.valueOf(quantity));
+    }
+
+    private String valueText(Coupon coupon) {
+        if (coupon.getType() != null && coupon.getType() == 2 && coupon.getDiscount() != null) {
+            return coupon.getDiscount().divide(BigDecimal.TEN).stripTrailingZeros().toPlainString() + "折";
+        }
+        BigDecimal amount = coupon.getAmount() == null ? BigDecimal.ZERO : coupon.getAmount();
+        return "¥" + amount.stripTrailingZeros().toPlainString();
+    }
+
+    /** 到期时间文案，null 表示长期有效 */
+    private String expireText(CouponUser record, Coupon coupon) {
+        LocalDate date = null;
+        if (record.getExpiredAt() != null) {
+            date = record.getExpiredAt().toLocalDate();
+        } else if (coupon.getValidType() != null && coupon.getValidType() == 2
+                && coupon.getValidDays() != null && record.getReceivedAt() != null) {
+            date = record.getReceivedAt().toLocalDate().plusDays(coupon.getValidDays());
+        } else if (coupon.getValidEnd() != null) {
+            date = coupon.getValidEnd();
+        }
+        return date == null ? null : date.toString().replace('-', '.');
+    }
+
+    private MallOrder requireOwnOrder(Long userId, Long id) {
+        MallOrder order = orderMapper.selectById(id);
+        if (order == null || !order.getUserId().equals(userId)) {
+            throw new BusinessException(ResultCode.ORDER_NOT_FOUND);
+        }
+        return order;
+    }
+
+    /**
+     * 按主键取本人订单实体，供物流查询等旁路功能使用。
+     */
+    public MallOrder requireOwnEntity(Long userId, Long id) {
+        return requireOwnOrder(userId, id);
+    }
+
+    private String generateOrderNo() {
+        return LocalDateTime.now().format(ORDER_NO_FORMATTER)
+                + String.format("%04d", ThreadLocalRandom.current().nextInt(10000));
+    }
+
+    private OrderVO toVO(MallOrder order, List<OrderItem> items, Set<Long> commentedGoods,
+                         List<OrderPromotion> promotions) {
+        LocalDateTime payDeadline = payDeadline(order);
+        Long payRemainSeconds = payDeadline == null
+                ? null
+                : Math.max(Duration.between(LocalDateTime.now(), payDeadline).getSeconds(), 0L);
+        // 标记每个商品是否已评价；已完成订单再统计待评价数量，供列表页显示评价入口
+        int pendingCommentCount = 0;
+        for (OrderItem item : items) {
+            boolean commented = commentedGoods != null && commentedGoods.contains(item.getGoodsId());
+            item.setCommented(commented);
+            if (!commented && Integer.valueOf(MallOrder.STATUS_FINISHED).equals(order.getStatus())) {
+                pendingCommentCount++;
+            }
+        }
+        return new OrderVO(
+                order.getId(),
+                order.getOrderNo(),
+                order.getStatus(),
+                OrderVO.statusText(order.getStatus()),
+                order.getRefundStatus() == null ? 0 : order.getRefundStatus(),
+                OrderVO.refundStatusText(order.getRefundStatus()),
+                order.getTotalAmount(),
+                order.getFreightAmount(),
+                order.getCouponAmount(),
+                order.getMemberDiscount() == null ? BigDecimal.ZERO : order.getMemberDiscount(),
+                order.getMemberLevelName(),
+                order.getReductionAmount() == null ? BigDecimal.ZERO : order.getReductionAmount(),
+                promotions == null ? List.of() : promotions,
+                order.getPayAmount(),
+                order.getReceiverName(),
+                order.getReceiverPhone(),
+                order.getReceiverAddress(),
+                order.getDeliveryCompany(),
+                order.getDeliveryNo(),
+                order.getDeliveryTime(),
+                order.getRemark(),
+                order.getCreatedAt(),
+                payDeadline,
+                payRemainSeconds,
+                items,
+                pendingCommentCount);
+    }
+}

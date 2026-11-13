@@ -1,0 +1,14 @@
+# 本机私有配置模板：复制为 application-local.yml 后填入真实值
+# application-local.yml 已被 .gitignore 忽略，改这个模板不会生效
+# 也可以不用本文件，直接设置环境变量 MYSQL_PASSWORD（环境变量优先级更高）
+spring:
+  datasource:
+    password: your-local-password
+
+# 微信小程序真实登录：填自己的 appId/appSecret 并保持 mock: false
+# 没有凭证时也可设 WX_MOCK=true 临时联调（伪造 openid，禁止用于生产）
+easykits:
+  wx:
+    app-id: your-wx-appid
+    app-secret: your-wx-appsecret
+    mock: false

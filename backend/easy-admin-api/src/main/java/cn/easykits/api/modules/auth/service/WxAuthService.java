@@ -1,0 +1,112 @@
+package cn.easykits.api.modules.auth.service;
+
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import cn.easykits.api.common.api.ResultCode;
+import cn.easykits.api.common.context.LoginUser;
+import cn.easykits.api.common.exception.BusinessException;
+import cn.easykits.api.entity.AppUser;
+import cn.easykits.api.mapper.AppUserMapper;
+import cn.easykits.api.modules.auth.config.WxProperties;
+import cn.easykits.api.modules.auth.dto.WxSessionResponse;
+import cn.easykits.api.modules.auth.vo.LoginVO;
+import cn.easykits.api.modules.member.service.InviteService;
+import cn.easykits.api.security.LoginSessionService;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
+import org.springframework.web.client.RestClient;
+import tools.jackson.databind.ObjectMapper;
+
+/**
+ * 微信小程序登录：code -> openid -> 本地用户（不存在则自动注册）-> JWT。
+ */
+@Slf4j
+@Service
+@RequiredArgsConstructor
+public class WxAuthService {
+
+    private final WxProperties wxProperties;
+    private final AppUserMapper appUserMapper;
+    private final LoginSessionService loginSessionService;
+    private final InviteService inviteService;
+    private final ObjectMapper objectMapper;
+    private final RestClient restClient = RestClient.create();
+
+    public LoginVO login(String code) {
+        return login(code, null);
+    }
+
+    /**
+     * 登录/注册。inviterId 仅在新用户注册时生效：分享卡片带邀请人进入，
+     * 首次建号即绑定邀请关系（老用户带 inviter 登录不补绑）。
+     */
+    public LoginVO login(String code, Long inviterId) {
+        String openid = resolveOpenid(code);
+
+        AppUser user = appUserMapper.selectOne(
+                Wrappers.<AppUser>lambdaQuery().eq(AppUser::getOpenid, openid));
+        boolean newUser = false;
+        if (user == null) {
+            user = new AppUser();
+            user.setOpenid(openid);
+            user.setNickname("微信用户");
+            user.setGender(0);
+            user.setStatus(1);
+            appUserMapper.insert(user);
+            newUser = true;
+        }
+        if (!Integer.valueOf(1).equals(user.getStatus())) {
+            throw new BusinessException(ResultCode.USER_DISABLED);
+        }
+
+        if (newUser) {
+            inviteService.bindOnRegister(inviterId, user.getId());
+        }
+
+        LoginUser loginUser = new LoginUser(user.getId(), user.getOpenid(), user.getNickname());
+        // 生成服务端可控的自定义登录态（Redis 会话），替代自包含 JWT
+        String token = loginSessionService.create(loginUser);
+        return new LoginVO(token, "Bearer", loginSessionService.getExpireSeconds(), loginUser);
+    }
+
+    private String resolveOpenid(String code) {
+        if (wxProperties.isMock()) {
+            log.warn("easykits.wx.mock=true，使用模拟 openid，请勿在生产环境开启");
+            return "mock_" + code;
+        }
+        if (!StringUtils.hasText(wxProperties.getAppId()) || !StringUtils.hasText(wxProperties.getAppSecret())) {
+            throw new BusinessException(ResultCode.WX_LOGIN_FAILED, "未配置小程序 appId/appSecret");
+        }
+        // 微信该接口的响应头常见为 text/plain（body 仍是 JSON），
+        // 因此先按 String 取回再自行反序列化，避免按 content-type 匹配转换器失败
+        String body;
+        try {
+            body = restClient.get()
+                    .uri(wxProperties.getSessionUrl()
+                                    + "?appid={appid}&secret={secret}&js_code={code}&grant_type=authorization_code",
+                            wxProperties.getAppId(), wxProperties.getAppSecret(), code)
+                    .retrieve()
+                    .body(String.class);
+        } catch (Exception e) {
+            log.error("调用微信 jscode2session 失败", e);
+            throw new BusinessException(ResultCode.WX_LOGIN_FAILED);
+        }
+
+        WxSessionResponse response;
+        try {
+            response = objectMapper.readValue(body, WxSessionResponse.class);
+        } catch (Exception e) {
+            // 响应体含 openid/session_key，不落日志明文
+            log.error("解析微信 jscode2session 响应失败，bodyLength={}", body == null ? 0 : body.length(), e);
+            throw new BusinessException(ResultCode.WX_LOGIN_FAILED);
+        }
+        if (response == null || !response.success()) {
+            log.warn("微信登录失败: errcode={}, errmsg={}",
+                    response == null ? null : response.errcode(),
+                    response == null ? null : response.errmsg());
+            throw new BusinessException(ResultCode.WX_LOGIN_FAILED);
+        }
+        return response.openid();
+    }
+}

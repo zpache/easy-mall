@@ -53,8 +53,8 @@
 easy-mall/
 ├── backend/                     # 后端 Maven 父工程
 │   ├── pom.xml                  # Java 25 / Spring Boot 4.1.2 / Lombok
-│   ├── easy-mall-admin/         # 管理后台接口服务，端口 8081，context-path=/admin
-│   └── easy-mall-api/           # 小程序接口服务，端口 8082，context-path=/api
+│   ├── easy-admin-admin/         # 管理后台接口服务，端口 8081，context-path=/admin
+│   └── easy-admin-api/           # 小程序接口服务，端口 8082，context-path=/api
 ├── web-admin/                   # 管理后台前端（Vben Admin 5 · web-ele），见 web-admin/README.md
 ├── miniprogram/                 # 小程序端（uni-app）
 └── （db/ 数据库脚本不在仓库内，请联系作者获取）
@@ -63,7 +63,7 @@ easy-mall/
 ### 后端模块内部分层
 
 ```
-com.easymall.{admin|api}
+cn.easykits.{admin|api}
 ├── EasyMall{Admin|Api}Application.java
 ├── common/            # 统一响应 Result、分页、异常、登录上下文、日志 traceId 过滤器
 ├── config/            # MyBatis-Plus、Swagger、跨域、安全
@@ -146,7 +146,7 @@ mysql -uroot -p < db/easy_mall.sql
 # 再按序执行全部迁移
 for f in db/migrations/*.sql; do mysql -uroot -p easy_mall < "$f"; done
 # 补齐按钮级操作权限（随代码分发，非 ADMIN 角色升级后必须执行）
-mysql -uroot -p easy_mall < backend/easy-mall-admin/src/main/resources/permission-buttons.sql
+mysql -uroot -p easy_mall < backend/easy-admin-admin/src/main/resources/permission-buttons.sql
 ```
 
 基础脚本会创建 `easy_mall` 库并写入演示数据；迁移补齐系统管理、动态菜单、商品/订单/会员模块与菜单授权。默认管理员：**admin / admin123**（首次登录后请立即改密码）。
@@ -161,7 +161,7 @@ mysql -uroot -p easy_mall < backend/easy-mall-admin/src/main/resources/permissio
 
    ```bash
    cd backend
-   for m in easy-mall-admin easy-mall-api; do
+   for m in easy-admin-admin easy-admin-api; do
      cp $m/src/main/resources/application-local.yml.example \
         $m/src/main/resources/application-local.yml
    done
@@ -178,10 +178,10 @@ mysql -uroot -p easy_mall < backend/easy-mall-admin/src/main/resources/permissio
 cd backend
 
 # 管理后台接口（8081）
-mvn -pl easy-mall-admin spring-boot:run
+mvn -pl easy-admin-admin spring-boot:run
 
 # 小程序接口（8082），另开一个终端
-mvn -pl easy-mall-api spring-boot:run
+mvn -pl easy-admin-api spring-boot:run
 ```
 
 数据库连接、账号密码通过环境变量覆盖（默认 `127.0.0.1:3306/easy_mall`，`root`）：
@@ -189,7 +189,7 @@ mvn -pl easy-mall-api spring-boot:run
 ```bash
 MYSQL_HOST=127.0.0.1 MYSQL_PORT=3306 MYSQL_DATABASE=easy_mall \
 MYSQL_USERNAME=root MYSQL_PASSWORD=yourpwd \
-mvn -pl easy-mall-admin spring-boot:run
+mvn -pl easy-admin-admin spring-boot:run
 ```
 
 接口文档：
@@ -205,7 +205,7 @@ corepack pnpm install   # 首次（根 package.json 锁定 pnpm@10.33.4）
 pnpm dev                # http://localhost:5777，默认账号 admin / admin123
 ```
 
-dev 模式下 `/admin` 请求由 Vite 代理转发到 `http://127.0.0.1:8081`，需要先启动 `easy-mall-admin`。裁剪与对接细节见 `web-admin/README.md`。
+dev 模式下 `/admin` 请求由 Vite 代理转发到 `http://127.0.0.1:8081`，需要先启动 `easy-admin-admin`。裁剪与对接细节见 `web-admin/README.md`。
 
 ### 4. 启动小程序端
 
@@ -219,10 +219,10 @@ pnpm dev:mp-weixin     # 微信开发者工具导入 miniprogram/dist/dev/mp-wei
 小程序需要配置的变量在 `.env.development`：`VITE_API_BASE_URL=http://127.0.0.1:8082/api`。
 本地调试请在微信开发者工具中勾选「不校验合法域名」；真机预览要把 `VITE_API_BASE_URL` 换成电脑的局域网地址（如 `http://192.168.1.10:8082/api`），手机与电脑需在同一网络。
 
-登录走微信官方推荐的「自定义登录态」模式：小程序启动即静默 `wx.login` 取 code → 后端 `jscode2session` 换 openid（不存在则自动注册）→ 生成随机不透明 token，**会话数据存 Redis**（`easy-mall:api:session:*`），token 下发给客户端。后续请求带 `Authorization: Bearer <token>`，拦截器查 Redis 校验并**滑动续期**；`POST /api/auth/logout` 由服务端销毁登录态；默认开启单设备登录（`easy-mall.session.single-device`），同一用户再次登录会挤掉旧 token。相比自包含 JWT：可随时作废、可续期、可踢下线，且 token 不携带任何用户信息。凭证写在 `application-local.yml`（已 gitignore）：
+登录走微信官方推荐的「自定义登录态」模式：小程序启动即静默 `wx.login` 取 code → 后端 `jscode2session` 换 openid（不存在则自动注册）→ 生成随机不透明 token，**会话数据存 Redis**（`easykits:api:session:*`），token 下发给客户端。后续请求带 `Authorization: Bearer <token>`，拦截器查 Redis 校验并**滑动续期**；`POST /api/auth/logout` 由服务端销毁登录态；默认开启单设备登录（`easykits.session.single-device`），同一用户再次登录会挤掉旧 token。相比自包含 JWT：可随时作废、可续期、可踢下线，且 token 不携带任何用户信息。凭证写在 `application-local.yml`（已 gitignore）：
 
 ```yaml
-easy-mall:
+easykits:
   wx:
     app-id: wx9e3a05ced8c0a4eb
     app-secret: <你的 AppSecret>
@@ -242,7 +242,7 @@ easy-mall:
 2. 选好头像先 `POST /api/uploads/avatar`（multipart，字段名 `file`，仅 jpg/png/gif/webp，≤2MB），返回可直接访问的绝对地址
 3. 再 `PUT /api/user/profile` 写回 `nickname` / `avatar`
 
-文件默认落在 `easy-mall.upload.dir`（`./uploads`，已 gitignore），由 `/files/**` 静态映射对外提供；返回地址默认按客户端请求的 host 拼装，真机用局域网 IP 访问时地址自动一致。挂 CDN 时配 `easy-mall.upload.public-base` 即可。首次登录若仍是「微信用户」，登录成功后会直接跳到资料页引导补全。
+文件默认落在 `easykits.upload.dir`（`./uploads`，已 gitignore），由 `/files/**` 静态映射对外提供；返回地址默认按客户端请求的 host 拼装，真机用局域网 IP 访问时地址自动一致。挂 CDN 时配 `easykits.upload.public-base` 即可。首次登录若仍是「微信用户」，登录成功后会直接跳到资料页引导补全。
 
 ### 5. 图片上传（COS 直传）
 
@@ -259,12 +259,12 @@ easy-mall:
 
 | 配置项 | 说明 |
 | --- | --- |
-| `easy-mall.upload.mode` | `cos`（默认）/ `local`（服务端转存本地磁盘，仅开发无凭证时用） |
-| `easy-mall.upload.cos.secret-id` / `secret-key` | 子账号密钥，需具备 `sts:GetFederationToken` |
-| `easy-mall.upload.cos.bucket` | 形如 `easymall-1250000000`，后缀即 APPID |
-| `easy-mall.upload.cos.region` | 如 `ap-guangzhou` |
-| `easy-mall.upload.cos.key-prefix` | 对象键前缀，同时是临时密钥的授权范围，默认 `decorate/` |
-| `easy-mall.upload.cos.domain` | CDN 加速域名，留空则用桶默认域名拼 URL |
+| `easykits.upload.mode` | `cos`（默认）/ `local`（服务端转存本地磁盘，仅开发无凭证时用） |
+| `easykits.upload.cos.secret-id` / `secret-key` | 子账号密钥，需具备 `sts:GetFederationToken` |
+| `easykits.upload.cos.bucket` | 形如 `easymall-1250000000`，后缀即 APPID |
+| `easykits.upload.cos.region` | 如 `ap-guangzhou` |
+| `easykits.upload.cos.key-prefix` | 对象键前缀，同时是临时密钥的授权范围，默认 `decorate/` |
+| `easykits.upload.cos.domain` | CDN 加速域名，留空则用桶默认域名拼 URL |
 
 COS 侧需要三项设置，缺一项都会表现为「上传成功但图片不显示」或「直传被拒」：
 
@@ -416,7 +416,7 @@ admin 使用 Spring Security 无状态鉴权（token 12 小时），api 使用 M
 | `logs/{app}.log` | 全量 | 按天 + 按大小滚动，单文件 100MB，保留 30 天，总量 3GB，自动 gzip |
 | `logs/{app}-error.log` | 仅 ERROR | 单文件 50MB，保留 60 天，总量 1GB，便于告警与巡检 |
 
-`{app}` 取 `spring.application.name`，即 `easy-mall-admin` / `easy-mall-api`。日志目录默认是启动目录下的 `logs/`，可用 `--logging.file.path=/var/log/easy-mall` 或环境变量 `LOGGING_FILE_PATH` 覆盖。文件写入用 `AsyncAppender` 包一层（队列 1024，满了阻塞而不是丢日志），业务线程不被磁盘 IO 拖住。
+`{app}` 取 `spring.application.name`，即 `easy-admin-admin` / `easy-admin-api`。日志目录默认是启动目录下的 `logs/`，可用 `--logging.file.path=/var/log/easy-admin` 或环境变量 `LOGGING_FILE_PATH` 覆盖。文件写入用 `AsyncAppender` 包一层（队列 1024，满了阻塞而不是丢日志），业务线程不被磁盘 IO 拖住。
 
 **格式与 traceId**
 
@@ -428,7 +428,7 @@ admin 使用 Spring Security 无状态鉴权（token 12 小时），api 使用 M
 
 **分环境级别**
 
-| profile | 控制台 | 文件 | `com.easymall` | 框架包 |
+| profile | 控制台 | 文件 | `cn.easykits` | 框架包 |
 | --- | --- | --- | --- | --- |
 | `dev` | 有 | 有 | DEBUG（含 MyBatis SQL） | Spring INFO / Security WARN |
 | `test` | 有 | 不落盘 | INFO | 根 WARN |
