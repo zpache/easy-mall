@@ -13,4 +13,4 @@ spring:
       idle-timeout: 600000
       max-lifetime: 1800000
 
-# SQL 日志由 logback 的 cn.easykits DEBUG 输出（日志实现走 SLF4J → Logback，不再用 StdOutImpl）
+# SQL 日志由 logback 的 cn.easykits.mall DEBUG 输出（日志实现走 SLF4J → Logback，不再用 StdOutImpl）

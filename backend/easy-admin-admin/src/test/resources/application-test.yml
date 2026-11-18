@@ -11,5 +11,5 @@ spring:
 
 logging:
   level:
-    cn.easykits.admin: info
+    cn.easykits.mall.admin: info
     org.springframework: warn

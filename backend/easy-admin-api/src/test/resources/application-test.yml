@@ -20,5 +20,5 @@ easykits:
 
 logging:
   level:
-    cn.easykits.api: info
+    cn.easykits.mall.api: info
     org.springframework: warn

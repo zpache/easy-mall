@@ -105,7 +105,7 @@
 
     <!-- 开发：控制台 + 文件，业务包 DEBUG（含 MyBatis 的 SQL 日志），不打印框架 DEBUG -->
     <springProfile name="dev">
-        <logger name="cn.easykits" level="DEBUG"/>
+        <logger name="cn.easykits.mall" level="DEBUG"/>
         <logger name="org.springframework" level="INFO"/>
         <logger name="org.springframework.security" level="WARN"/>
         <logger name="org.mybatis" level="INFO"/>
@@ -118,7 +118,7 @@
 
     <!-- 测试：只打控制台，不落文件，避免 mvn test 污染工作目录 -->
     <springProfile name="test">
-        <logger name="cn.easykits" level="INFO"/>
+        <logger name="cn.easykits.mall" level="INFO"/>
         <root level="WARN">
             <appender-ref ref="CONSOLE"/>
         </root>
@@ -126,7 +126,7 @@
 
     <!-- 生产：控制台给容器收，文件留档；业务包 INFO，框架包只留 WARN 以上 -->
     <springProfile name="prod">
-        <logger name="cn.easykits" level="INFO"/>
+        <logger name="cn.easykits.mall" level="INFO"/>
         <logger name="org.springframework" level="WARN"/>
         <logger name="org.springframework.security" level="WARN"/>
         <logger name="org.mybatis" level="WARN"/>
@@ -139,7 +139,7 @@
 
     <!-- 未指定 profile 时的兜底，等价于 prod -->
     <springProfile name="!dev &amp; !test &amp; !prod">
-        <logger name="cn.easykits" level="INFO"/>
+        <logger name="cn.easykits.mall" level="INFO"/>
         <root level="INFO">
             <appender-ref ref="CONSOLE"/>
             <appender-ref ref="ASYNC_FILE"/>
